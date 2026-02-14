@@ -31,11 +31,11 @@ Input Document → Analysis → Planning → Task Breakdown → Execution → St
 ### 1. Start from Documentation
 ```bash
 # Method A: Specify existing document
-/forge @docs/features/user-auth.md
+/forge @planning/features/user-auth.md
 
 # Method B: Create document first
-1. Create docs/features/{feature-name}.md
-2. /forge @docs/features/{feature-name}.md
+1. Create planning/features/{feature-name}.md
+2. /forge @planning/features/{feature-name}.md
 ```
 
 ### 2. Forge Execution Flow
@@ -55,7 +55,7 @@ Use `AskUserQuestion` to ask:
 #### Phase 3: Generate implementation plan
 Create the directory structure:
 ```
-docs/implementation/features/{feature-name}/
+{base_dir}/{output_dir}/{feature-name}/
 ├── overview.md
 ├── plan.md
 ├── tasks/
@@ -77,20 +77,22 @@ Ask the user how to proceed:
 
 ### Directory Structure
 ```
-docs/
-├── features/                       # Input: feature documents
+planning/                               # Default base directory
+├── features/                           # Input: feature documents
 │   └── user-auth.md
-└── implementation/                 # Output: implementation plans
-    └── features/
-        └── user-auth/
-            ├── overview.md         # Feature overview + task execution order
-            ├── plan.md             # Overall plan
-            ├── tasks/              # Task breakdown
-            │   ├── setup.md
-            │   ├── models.md
-            │   ├── api.md
-            │   └── tests.md
-            └── state.json          # Status tracking
+└── implementation/                     # Output: implementation plans
+    ├── overview.md                     # Project-level overview (auto-generated)
+    ├── user-auth/
+    │   ├── overview.md                 # Feature overview + task execution order
+    │   ├── plan.md                     # Overall plan
+    │   ├── tasks/                      # Task breakdown
+    │   │   ├── setup.md
+    │   │   ├── models.md
+    │   │   ├── api.md
+    │   │   └── tests.md
+    │   └── state.json                  # Status tracking
+    └── payment-gateway/
+        └── ...
 ```
 
 ### Naming Conventions
@@ -189,6 +191,10 @@ Load configuration by priority:
 **Configuration loading algorithm:**
 
 1. **System defaults** - Start with built-in defaults:
+   - `_tool.name` = `"code-forge"` (read-only, not overridable)
+   - `_tool.description` = `"Transform documentation into actionable development plans with task breakdown and status tracking"` (read-only)
+   - `_tool.url` = `"https://github.com/tercel/code-forge"` (read-only)
+   - `_tool.skills_collection` = `"https://github.com/tercel/claude-code-skills"` (read-only)
    - `directories.base` = `"planning/"`
    - `directories.input` = `"features/"`
    - `directories.output` = `"implementation/"`
@@ -297,7 +303,7 @@ Issues:
 Suggestions:
 - Use "planning/" (recommended)
 - Use "dev-plans/"
-- Use "docs/implementation/"
+- Use "docs/plans/"
 
 Continue with current configuration?
   - Yes, use "src/" (not recommended)
@@ -363,7 +369,11 @@ Or specify an existing document:
   /forge @path/to/your-feature.md
 ```
 
-#### 0.7.3 Handle User Selection
+#### 0.7.3 Update Project-Level Overview
+
+After scanning all features for the dashboard, also regenerate `{output_dir}/overview.md` using the same logic as Step 8.5. This ensures the project-level overview stays current whenever a user checks the dashboard.
+
+#### 0.7.4 Handle User Selection
 
 - **User selects a number** → Read that feature's `state.json`, enter **resume mode** (same as Step 1.5 Scenario A)
 - **User selects "New feature"** → Ask for the document path using `AskUserQuestion`, then proceed to Step 1
@@ -848,6 +858,103 @@ Create `state.json`:
 }
 ```
 
+### Step 8.5: Generate/Update Project-Level Overview
+
+After initializing `state.json`, generate or update the **project-level overview** at `{output_dir}/overview.md`. This file provides a bird's-eye view of all features, their dependencies, and recommended implementation order.
+
+#### 8.5.1 Scan All Features
+
+1. Scan `{output_dir}/*/state.json` for all existing features
+2. For each feature, read:
+   - `feature` (name)
+   - `status` (overall status)
+   - `progress` (total/completed/in_progress/pending)
+   - `metadata.source_doc` (source document path)
+   - `updated` (last updated timestamp)
+3. Also read each feature's `overview.md` for description and scope
+
+#### 8.5.2 Analyze Feature Dependencies
+
+Determine feature dependencies by:
+1. Reading each feature's `plan.md` for dependency references
+2. Analyzing source documents for cross-feature mentions
+3. Inferring logical ordering (e.g., foundation → core → extensions)
+
+#### 8.5.3 Generate Project-Level Overview
+
+Create or overwrite `{output_dir}/overview.md` with:
+
+```markdown
+# Project Implementation Overview
+
+> Overall progress, module relationships, and recommended implementation order
+
+## Overall Progress
+
+```
+Overall Progress: ████████░░░░░░░░░░ X%
+
+Completed: N/M modules
+In Progress: N/M modules
+Pending: N/M modules
+```
+
+## Module Overview
+
+| # | Module | Description | Status | Progress |
+|---|--------|-------------|--------|----------|
+| 1 | [module-a](./module-a/) | Description | ✅ Completed | 5/5 (100%) |
+| 2 | [module-b](./module-b/) | Description | 🔄 In Progress | 2/4 (50%) |
+| 3 | [module-c](./module-c/) | Description | ⏸️ Pending | 0/3 (0%) |
+
+## Module Dependencies
+
+```mermaid
+graph TD
+    A[module-a] --> B[module-b]
+    A --> C[module-c]
+    B --> C
+```
+
+## Recommended Implementation Order
+
+### Phase 1: Foundation
+- **module-a** - [description]
+  - Why first: [rationale]
+
+### Phase 2: Core
+- **module-b** (depends on: module-a) - [description]
+  - Why next: [rationale]
+
+### Phase 3: Extensions
+- **module-c** (depends on: module-a, module-b) - [description]
+
+---
+
+*Auto-generated by Code Forge. Last updated: {timestamp}*
+```
+
+**Key principles for the overview:**
+- **Implementation order must reflect actual dependencies** — not alphabetical
+- **Each phase should have a rationale** ("Why first", "Why next") so developers understand the sequencing
+- **Status should be aggregated from state.json files** — not manually maintained
+- **Use relative links** to feature directories for easy navigation
+
+#### 8.5.4 When to Update
+
+The project-level overview should be regenerated:
+- After creating a new feature plan (this step)
+- When resuming a feature from the dashboard (Step 0.7)
+- After a feature is completed (Step 12)
+
+Display confirmation:
+```
+📋 Project overview updated: {output_dir}/overview.md
+   Modules: {total} total, {completed} completed, {in_progress} in progress, {pending} pending
+```
+
+---
+
 ### Step 9: Display Plan
 
 Output plan summary:
@@ -896,7 +1003,7 @@ options:
   ```
   To resume execution later:
     /forge                                       # View all features, select to continue
-    /forge @docs/features/{feature_name}.md      # Directly resume this feature
+    /forge @{base_dir}/{input_dir}/{feature_name}.md  # Directly resume this feature
 
   Or manually execute tasks:
     1. Read the task files in order listed in overview.md
@@ -1041,6 +1148,9 @@ Please re-run verification
 
 After all tasks are completed:
 
+1. Update `state.json` with final status
+2. Regenerate the project-level overview (`{output_dir}/overview.md`) using Step 8.5 logic to reflect completion
+
 ```
 🎉 Feature implementation completed!
 
@@ -1141,16 +1251,16 @@ This allows viewing the task list in Claude Code.
 # Brainstorm design first
 /brainstorming
 
-# Generate docs/features/xxx-design.md
+# Generate planning/features/xxx-design.md
 
 # Then generate implementation plan based on design
-/forge @docs/features/xxx-design.md
+/forge @planning/features/xxx-design.md
 ```
 
 ### With /test-driven-development
 ```bash
 # Execute tasks using TDD skill
-/forge @docs/features/xxx.md
+/forge @planning/features/xxx.md
 
 # Automatically call TDD skill when executing each task
 ```
@@ -1164,10 +1274,12 @@ This allows viewing the task list in Claude Code.
 ## Notes
 
 1. **Document Quality**: The more detailed the input document, the more accurate the generated plan
-2. **Git Commits**: Recommend committing `docs/implementation/` to Git for team visibility
+2. **Git Commits**: Recommend committing the planning directory and `.code-forge.json` to Git for team visibility
 3. **State Files**: `state.json` can be optionally committed or added to .gitignore
 4. **Task Granularity**: Recommend 1-3 hours per task for easy tracking
 5. **Dependency Management**: Dependencies between tasks affect execution order
+6. **Project Overview**: The project-level `overview.md` in `{output_dir}/` is auto-generated and shows all features, dependencies, and recommended implementation order
+7. **Tool Discovery**: `.code-forge.json` contains a `_tool` section with the plugin URL — new team members can find and install the tool from there
 
 ## Examples
 

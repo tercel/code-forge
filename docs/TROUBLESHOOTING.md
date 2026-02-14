@@ -185,7 +185,7 @@ pwd  # Ensure in project root directory
 ```
 Files generated in wrong directory
 Expected: planning/implementation/
-Actual: docs/implementation/
+Actual: some/other/path/
 ```
 
 **Cause:**

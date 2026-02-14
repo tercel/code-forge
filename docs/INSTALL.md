@@ -51,14 +51,13 @@ You should see `forge` skill listed in available skills.
 
 ```bash
 cd your-project/
-mkdir -p docs/features
-mkdir -p docs/implementation/features
+mkdir -p planning/features
 ```
 
 ### 2. Create First Feature Document
 
 ```bash
-cat > docs/features/my-feature.md <<'EOF'
+cat > planning/features/my-feature.md <<'EOF'
 # My Feature
 
 ## Requirements
@@ -72,16 +71,15 @@ EOF
 ### 3. Run Forge
 
 ```
-/forge @docs/features/my-feature.md
+/forge @planning/features/my-feature.md
 ```
 
 ## Configuration (Optional)
 
 ### Customize Output Directory
 
-Default output to `docs/implementation/features/`
-
-To modify, edit path configuration in `skills/forge/SKILL.md`.
+Default output to `planning/implementation/`. To customize, create `.code-forge.json` in your project root.
+See [CONFIGURATION.md](./CONFIGURATION.md) for details.
 
 ### Git Configuration
 
@@ -89,10 +87,10 @@ Recommended to add to `.gitignore`:
 
 ```gitignore
 # If you don't want to commit status files
-docs/implementation/**/state.json
+planning/implementation/**/state.json
 
-# Or keep status files, ignore others
-# docs/implementation/**/.forge_temp/
+# Or keep status files, ignore temp files
+# planning/implementation/**/.code-forge-temp/
 ```
 
 Recommended to commit `state.json` for team collaboration.
@@ -141,17 +139,17 @@ touch test.txt && rm test.txt
 
 **Solution:**
 - Switch to directory with write permission
-- Check if `docs/` directory exists
+- Check if `planning/` directory exists
 
 ### Issue 3: Generated Files Location Is Wrong
 
 **Check:**
 - Ensure running `/forge` from project root
-- Ensure `docs/features/` directory exists
+- Check `.code-forge.json` for custom directory settings
 
 **Solution:**
-- Create `docs/` structure in project root
-- Or edit path configuration in SKILL.md
+- Create `planning/features/` in project root
+- Or customize directories via `.code-forge.json`
 
 ## Need Help?
 

@@ -261,7 +261,7 @@ git commit -m "feat(scope): description"
     }
   ],
   "metadata": {
-    "source_doc": "docs/features/user-auth.md",
+    "source_doc": "planning/features/user-auth.md",
     "created_by": "code-forge",
     "version": "1.0"
   }
@@ -271,7 +271,7 @@ git commit -m "feat(scope): description"
 ## Git Commit Recommendations
 
 ### Recommended commits
-- ✅ All files under `docs/implementation/`
+- ✅ All files under `planning/implementation/`
 - ✅ `state.json` (team visibility of progress)
 
 ### Optional commits
@@ -280,17 +280,17 @@ git commit -m "feat(scope): description"
 ### .gitignore example
 ```gitignore
 # If you don't want to commit status files
-docs/implementation/**/state.json
+planning/implementation/**/state.json
 
 # If you don't want to commit the entire implementation directory
-docs/implementation/
+planning/implementation/
 ```
 
 ## Comparison with Existing Systems
 
 | Feature | deep-* | superpowers | Code Forge |
 |---------|--------|-------------|------------|
-| File location | ❌ Scattered | ✅ `docs/plans/` | ✅ `docs/implementation/` |
+| File location | ❌ Scattered | ✅ `docs/plans/` | ✅ `planning/implementation/` |
 | Naming convention | ❌ `claude-*` | ✅ Date prefix | ✅ Feature name + task sequence |
 | File count | ❌ 20-30+ | ✅ 1-2 | ✅ 5-10 (structured) |
 | Status tracking | ❌ None | ❌ None | ✅ state.json |

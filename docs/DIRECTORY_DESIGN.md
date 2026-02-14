@@ -259,7 +259,7 @@ EOF
 # Code Forge:  docs/plans/feature/plan.md
 
 # 3. Continue using Forge
-/forge @docs/features/new-feature.md
+/forge @planning/features/new-feature.md
 ```
 
 ## Git Workflow Recommendations

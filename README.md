@@ -33,7 +33,7 @@ Combining the **comprehensive depth of deep-\*** with the **standardization of s
 Create feature documentation (or use existing):
 
 ```markdown
-<!-- docs/features/user-auth.md -->
+<!-- planning/features/user-auth.md -->
 # User Authentication System
 
 ## Requirements
@@ -55,13 +55,13 @@ Implement JWT-based user authentication system
 ### 2. Run Forge
 
 ```bash
-/forge @docs/features/user-auth.md
+/forge @planning/features/user-auth.md
 ```
 
 ### 3. Generated Structure
 
 ```
-docs/implementation/features/user-auth/
+planning/implementation/user-auth/
 ├── overview.md            # Feature overview + task execution order
 ├── plan.md                # Overall implementation plan
 ├── tasks/                 # Task breakdown
@@ -118,6 +118,7 @@ project/
 │   │   └── payment-gateway.md
 │   │
 │   └── implementation/              # Output: implementation planning
+│       ├── overview.md              # Project-level overview (auto-generated)
 │       ├── user-auth/
 │       │   ├── overview.md
 │       │   ├── plan.md
@@ -133,7 +134,7 @@ project/
 │
 ├── src/                             # Source code
 ├── tests/                           # Test code
-├── .code-forge.json                 # Code Forge configuration (optional)
+├── .code-forge.json                 # Code Forge configuration (commit to Git)
 └── .gitignore
 ```
 
@@ -167,10 +168,10 @@ See: [CONFIGURATION.md](./CONFIGURATION.md)
 
 ```bash
 # 1. Write requirement documentation
-vim docs/features/new-feature.md
+vim planning/features/new-feature.md
 
 # 2. Generate implementation plan
-/forge @docs/features/new-feature.md
+/forge @planning/features/new-feature.md
 
 # 3. Execute tasks
 # Forge will guide you through them one by one
@@ -180,10 +181,10 @@ vim docs/features/new-feature.md
 
 ```bash
 # 1. Write refactoring plan document
-vim docs/features/refactor-auth.md
+vim planning/features/refactor-auth.md
 
 # 2. Generate task breakdown
-/forge @docs/features/refactor-auth.md
+/forge @planning/features/refactor-auth.md
 
 # 3. Refactor by task
 # Each task is independent and testable
@@ -193,7 +194,7 @@ vim docs/features/refactor-auth.md
 
 ```bash
 # Developer A
-/forge @docs/features/big-feature.md
+/forge @planning/features/big-feature.md
 # Generate plan, commit to Git
 
 # Developer B
@@ -210,11 +211,11 @@ git pull
 
 ```bash
 # Day 1
-/forge @docs/features/feature-x.md
+/forge @planning/features/feature-x.md
 # Complete 2 tasks, pause
 
 # Day 2
-/forge @docs/features/feature-x.md
+/forge @planning/features/feature-x.md
 # Auto-detect progress, continue execution
 ```
 
@@ -308,7 +309,7 @@ git commit -m "chore: setup project dependencies"
     }
   ],
   "metadata": {
-    "source_doc": "docs/features/user-auth.md",
+    "source_doc": "planning/features/user-auth.md",
     "created_by": "code-forge",
     "version": "1.0"
   }
@@ -329,7 +330,7 @@ git commit -m "chore: setup project dependencies"
 
 ```bash
 # 1. Commit planning files
-git add docs/implementation/features/xxx/
+git add planning/implementation/xxx/
 git commit -m "docs: add implementation plan for xxx"
 
 # 2. Execute tasks, commit individually
@@ -337,7 +338,7 @@ git add src/ tests/
 git commit -m "feat(xxx): implement setup task"
 
 # 3. Update status (optional)
-git add docs/implementation/features/xxx/state.json
+git add planning/implementation/xxx/state.json
 git commit -m "docs: update xxx implementation status"
 ```
 
@@ -347,14 +348,14 @@ If you don't want to commit status files:
 
 ```gitignore
 # .gitignore
-docs/implementation/**/state.json
+planning/implementation/**/state.json
 ```
 
 If you don't want to commit the entire implementation directory:
 
 ```gitignore
 # .gitignore
-docs/implementation/
+planning/implementation/
 ```
 
 ## Working with Other Skills
@@ -364,10 +365,10 @@ docs/implementation/
 ```bash
 # 1. Brainstorming design
 /brainstorming
-# → Generate docs/features/xxx-design.md
+# → Generate planning/features/xxx-design.md
 
 # 2. Generate implementation plan
-/forge @docs/features/xxx-design.md
+/forge @planning/features/xxx-design.md
 # → Generate task breakdown
 
 # 3. Execute tasks (auto-use TDD)
@@ -386,7 +387,7 @@ docs/implementation/
 
 | Feature | deep-plan | Code Forge |
 |---------|-----------|------------|
-| File location | ❌ User specified (scattered) | ✅ `docs/implementation/` |
+| File location | ❌ User specified (scattered) | ✅ `planning/implementation/` |
 | Naming | ❌ `claude-*.md` | ✅ No tool traces |
 | File count | ❌ 20-30+ | ✅ 5-10 |
 | Status tracking | ❌ None | ✅ `state.json` |
@@ -428,6 +429,20 @@ A: Yes! Through `state.json` `assignee` field:
 3. Commit to Git
 4. Team members sync
 
+### Q: Should `.code-forge.json` be committed?
+
+A: Yes! It should be committed to Git:
+- Ensures team members use the same directory structure
+- The `_tool` section tells new members what tool this is and where to install it:
+  ```json
+  "_tool": {
+    "name": "code-forge",
+    "description": "Transform documentation into actionable development plans with task breakdown and status tracking",
+    "url": "https://github.com/tercel/code-forge",
+    "skills_collection": "https://github.com/tercel/claude-code-skills"
+  }
+  ```
+
 ### Q: Should state.json be committed?
 
 A: Recommended to commit, reasons:
@@ -446,8 +461,17 @@ A: Auto-supported:
 
 ### Q: Can I customize file locations?
 
-A: Currently fixed at `docs/implementation/features/`, keeping conventions unified.
-For special needs, can modify skill configuration.
+A: Yes! Create `.code-forge.json` in your project root to customize directories:
+```json
+{
+  "directories": {
+    "base": "dev-plans/",
+    "input": "specs/",
+    "output": "tasks/"
+  }
+}
+```
+See [CONFIGURATION.md](./docs/CONFIGURATION.md) for full details.
 
 ## Examples
 

@@ -1,7 +1,12 @@
 {
-  "$schema": "https://code-forge-schema.example.com/config.json",
-  "$comment": "Code Forge Configuration - https://github.com/your-repo/code-forge",
   "version": "1.0",
+
+  "_tool": {
+    "name": "code-forge",
+    "description": "Transform documentation into actionable development plans with task breakdown and status tracking",
+    "url": "https://github.com/tercel/code-forge",
+    "skills_collection": "https://github.com/tercel/claude-code-skills"
+  },
 
   "directories": {
     "base": "planning/",
@@ -19,7 +24,6 @@
     "auto_commit": false,
     "commit_state_file": true,
     "gitignore_patterns": [
-      "**/state.json",
       "**/.code-forge-temp/"
     ]
   },

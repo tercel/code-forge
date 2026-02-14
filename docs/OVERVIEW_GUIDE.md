@@ -2,7 +2,7 @@
 
 ## What is overview.md?
 
-`planning/overview.md` is a **project-level overview document** for:
+`planning/implementation/overview.md` is a **project-level overview document** for:
 - 📊 Display all modules and their relationships
 - 🎯 Define implementation priority and sequence
 - 📈 Track overall project progress
@@ -34,16 +34,18 @@
 
 ```
 planning/
-├── overview.md          # Project overview (this file)
 ├── features/            # Feature documents for each module
 │   ├── module-a.md
 │   ├── module-b.md
 │   └── module-c.md
 └── implementation/      # Implementation plans for each module
+    ├── overview.md      # Project-level overview (auto-generated)
     ├── module-a/
     ├── module-b/
     └── module-c/
 ```
+
+**Note:** The project-level `overview.md` lives inside the implementation directory (alongside the feature subdirectories it describes) and is **auto-generated** by Code Forge whenever a feature plan is created, resumed, or completed.
 
 ## Core Content
 
@@ -128,44 +130,21 @@ In Progress: 1/5 modules
 Pending: 2/5 modules
 ```
 
-## When to Create?
+## When is it Created?
 
-### Timing 1: At Project Start
+The project-level `overview.md` is **auto-generated** by Code Forge at these points:
 
-```bash
-cd your-project/
-mkdir -p planning
+| Trigger | When |
+|---------|------|
+| **New feature plan** | After `state.json` is initialized (Step 8.5) |
+| **Dashboard view** | When `/forge` is run without arguments (Step 0.7) |
+| **Feature completed** | After all tasks finish (Step 12) |
 
-# Copy template
-cp /path/to/code-forge/templates/overview.md planning/
+You do **not** need to create it manually. Code Forge scans all `state.json` files in the implementation directory, analyzes feature dependencies, and generates the overview automatically.
 
-# Edit template
-vim planning/overview.md
-```
+### Manual Override
 
-**Fill in:**
-1. List all planned modules
-2. Define module dependencies
-3. Set priorities
-4. Plan implementation order
-
-### Timing 2: Project Already Has Some Modules
-
-```bash
-# Create overview to supplement existing modules
-cd planning/
-
-# Start from template
-cp /path/to/template/overview.md .
-
-# Update to current state
-vim overview.md
-```
-
-**Synchronize current status:**
-1. Mark completed modules
-2. Update current progress
-3. Adjust future plans
+If you want to manually adjust the overview (e.g., reorder phases, add notes), you can edit it directly. The next auto-generation will overwrite your changes, so consider adding project-specific notes in a separate file if needed.
 
 ## How to Maintain?
 
@@ -226,18 +205,21 @@ Overall Progress: ████████░░░░░░░░░░ 40%
 
 ```
 planning/
-├── overview.md                    # Project overview (macro)
-│   ├── List all modules
-│   ├── Module relationships
-│   ├── Overall progress
-│   └── Implementation order
+├── features/                        # Input documents
+│   └── module-a.md
 │
-└── implementation/                # Module details (micro)
-    ├── module-a/
-    │   ├── overview.md             # Module overview + task execution order
-    │   ├── plan.md                # Detailed plan
-    │   ├── tasks/                 # Task breakdown
-    │   └── state.json             # Module status
+└── implementation/                  # Output
+    ├── overview.md                  # Project overview (macro, auto-generated)
+    │   ├── List all modules
+    │   ├── Module relationships
+    │   ├── Overall progress
+    │   └── Implementation order
+    │
+    ├── module-a/                    # Module details (micro)
+    │   ├── overview.md              # Module overview + task execution order
+    │   ├── plan.md                  # Detailed plan
+    │   ├── tasks/                   # Task breakdown
+    │   └── state.json               # Module status
     │
     └── module-b/
         └── ...

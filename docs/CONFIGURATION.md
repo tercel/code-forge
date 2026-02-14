@@ -30,6 +30,13 @@ project/
 {
   "version": "1.0",
 
+  "_tool": {
+    "name": "code-forge",
+    "description": "Transform documentation into actionable development plans with task breakdown and status tracking",
+    "url": "https://github.com/tercel/code-forge",
+    "skills_collection": "https://github.com/tercel/claude-code-skills"
+  },
+
   "directories": {
     "base": "planning/",           // Base directory
     "input": "features/",          // Input documentation subdirectory
@@ -46,13 +53,12 @@ project/
     "auto_commit": false,          // Auto-commit after file generation
     "commit_state_file": true,     // Whether to commit state.json
     "gitignore_patterns": [        // Auto-add to .gitignore
-      "**/state.json",
-      "**/.forge_temp/"
+      "**/.code-forge-temp/"
     ]
   },
 
   "execution": {
-    "default_mode": "manual",      // ask | manual | auto
+    "default_mode": "ask",          // ask | manual | auto
     "auto_tdd": true,              // Auto-use TDD
     "task_granularity": "medium"   // fine | medium | coarse
   }
@@ -190,6 +196,25 @@ project/
 ```
 
 ## Configuration Field Details
+
+### _tool (Read-Only)
+
+The `_tool` section identifies the Code Forge plugin itself. It helps new team members understand what `.code-forge.json` is and where to install the tool.
+
+| Field | Type | Value | Description |
+|-------|------|-------|-------------|
+| `name` | string | `"code-forge"` | Plugin name |
+| `description` | string | `"Transform documentation..."` | What this tool does |
+| `url` | string | `"https://github.com/tercel/code-forge"` | Plugin repository URL for installation |
+| `skills_collection` | string | `"https://github.com/tercel/claude-code-skills"` | Parent skills collection URL |
+
+**Why include this?**
+- A new team member sees `.code-forge.json` in the project and immediately knows:
+  - What tool this config belongs to
+  - Where to install it (click the `url`)
+  - What skills collection it's part of
+- This is auto-populated when generating `.code-forge.json` from the template
+- These values are read-only — user/project overrides do not change them
 
 ### directories
 
@@ -380,6 +405,13 @@ EOF
 ```
 
 ## Best Practices
+
+### ✅ Commit `.code-forge.json` to Version Control
+
+`.code-forge.json` **should be committed to Git**, similar to `.eslintrc.json` or `pyproject.toml`:
+- Ensures all team members use the same planning directory structure
+- The `_tool` section helps new members discover and install Code Forge
+- Does not contain sensitive information
 
 ### ✅ Recommended Configuration
 
