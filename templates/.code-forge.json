@@ -1,0 +1,32 @@
+{
+  "$schema": "https://code-forge-schema.example.com/config.json",
+  "$comment": "Code Forge Configuration - https://github.com/your-repo/code-forge",
+  "version": "1.0",
+
+  "directories": {
+    "base": "planning/",
+    "input": "features/",
+    "output": "implementation/"
+  },
+
+  "naming": {
+    "feature_prefix": "",
+    "task_prefix": "",
+    "use_date": false
+  },
+
+  "git": {
+    "auto_commit": false,
+    "commit_state_file": true,
+    "gitignore_patterns": [
+      "**/state.json",
+      "**/.code-forge-temp/"
+    ]
+  },
+
+  "execution": {
+    "default_mode": "ask",
+    "auto_tdd": true,
+    "task_granularity": "medium"
+  }
+}

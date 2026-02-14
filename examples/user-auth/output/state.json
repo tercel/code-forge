@@ -1,0 +1,68 @@
+{
+  "feature": "user-auth",
+  "created": "2025-02-13T10:00:00Z",
+  "updated": "2025-02-13T10:00:00Z",
+  "status": "pending",
+  "execution_order": ["setup", "models", "auth-logic", "api"],
+  "progress": {
+    "total_tasks": 4,
+    "completed": 0,
+    "in_progress": 0,
+    "pending": 4
+  },
+  "tasks": [
+    {
+      "id": "setup",
+      "file": "tasks/setup.md",
+      "title": "Project setup and dependencies",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "assignee": null,
+      "commits": [],
+      "estimated_hours": 2,
+      "dependencies": []
+    },
+    {
+      "id": "models",
+      "file": "tasks/models.md",
+      "title": "User models and database",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "assignee": null,
+      "commits": [],
+      "estimated_hours": 3,
+      "dependencies": ["setup"]
+    },
+    {
+      "id": "auth-logic",
+      "file": "tasks/auth-logic.md",
+      "title": "Authentication logic implementation",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "assignee": null,
+      "commits": [],
+      "estimated_hours": 4,
+      "dependencies": ["models"]
+    },
+    {
+      "id": "api",
+      "file": "tasks/api.md",
+      "title": "API endpoints implementation",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "assignee": null,
+      "commits": [],
+      "estimated_hours": 3,
+      "dependencies": ["auth-logic"]
+    }
+  ],
+  "metadata": {
+    "source_doc": "planning/features/user-auth.md",
+    "created_by": "code-forge",
+    "version": "1.0"
+  }
+}
