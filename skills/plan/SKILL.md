@@ -539,3 +539,4 @@ Optionally synchronize tasks to Claude Code's Task system:
             └── state.json     # Status tracking
     ```
 11. **Naming Conventions**: Feature directories use kebab-case (`user-auth`). Task files use descriptive names (`setup.md`). No "claude-" or tool prefixes. Suitable for Git commits.
+12. **Reference Docs**: Configure `reference_docs.sources` in `.code-forge.json` to auto-discover project documentation. Each doc is summarized by a parallel sub-agent and injected as context into Steps 2, 6, and 7. Reference context is baked into generated plan.md and task files — downstream skills do not re-read reference docs.
