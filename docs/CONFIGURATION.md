@@ -61,6 +61,11 @@ project/
     "default_mode": "ask",          // ask | manual | auto
     "auto_tdd": true,              // Auto-use TDD
     "task_granularity": "medium"   // fine | medium | coarse
+  },
+
+  "reference_docs": {
+    "sources": [],                 // Glob patterns for project docs
+    "exclude": []                  // Glob patterns to exclude
   }
 }
 ```
@@ -194,6 +199,28 @@ project/
         └── feature-x/
             └── state.json  # Commit to Git, team can see progress
 ```
+
+### Scenario 6: Auto-load Project Documentation as Reference
+
+Use existing project docs as context for plan generation:
+
+```json
+{
+  "reference_docs": {
+    "sources": ["docs/**/*.md", "specs/*.md"],
+    "exclude": ["docs/plans/**", "docs/internal/**"]
+  }
+}
+```
+
+**Result:**
+When running `/code-forge:plan`, code-forge will:
+1. Discover all `.md` files in `docs/` and `specs/` (excluding `docs/plans/` and `docs/internal/`)
+2. Spawn parallel sub-agents to summarize each doc (~300-500 bytes each)
+3. Inject summaries as context into plan generation sub-agents
+4. Generated `plan.md` and `tasks/*.md` will reflect existing architecture and conventions
+
+**Note:** Reference docs are only used at plan time. The generated plan and task files already contain baked-in context — downstream skills (`impl`, `fixbug`, `review`) do not re-read reference docs.
 
 ## Configuration Field Details
 
@@ -340,6 +367,60 @@ The `_tool` section identifies the Code Forge plugin itself. It helps new team m
 - `"fine"` - Fine-grained, 5-10 tasks, 1-2 hours each
 - `"medium"` - Medium-grained, 3-5 tasks, half day each
 - `"coarse"` - Coarse-grained, 2-3 tasks, 1-2 days each
+
+### reference_docs
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `sources` | string[] | `[]` | Glob patterns relative to project root for docs to include as reference context. Empty = disabled |
+| `exclude` | string[] | `[]` | Glob patterns to exclude from matches |
+
+**How it works:**
+- At plan time (Step 0.9), glob patterns are resolved against the project root
+- Each matched file is summarized by a parallel sub-agent (~300-500 bytes each)
+- Summaries are injected as context into plan generation sub-agents (Steps 2, 6, 7)
+- Generated plans and task files contain baked-in reference context
+- Downstream skills (impl, fixbug, review) work from these files — no re-reading needed
+
+**Auto-exclusions:**
+- The output directory (`{base}/{output}/**`) is always excluded to prevent circular references
+- The input feature document is deduplicated from reference docs
+
+**Runtime safety:**
+- If > 30 files match, user is prompted to confirm or refine patterns
+- If a file fails to summarize, it is skipped with a warning — other files continue
+
+**Examples:**
+```json
+// Include all markdown in docs/
+{
+  "reference_docs": {
+    "sources": ["docs/**/*.md"]
+  }
+}
+
+// Multiple directories with exclusions
+{
+  "reference_docs": {
+    "sources": ["docs/**/*.md", "specs/*.md", "architecture/*.md"],
+    "exclude": ["docs/plans/**", "docs/drafts/**"]
+  }
+}
+
+// Specific files only
+{
+  "reference_docs": {
+    "sources": ["docs/architecture.md", "docs/api-design.md"]
+  }
+}
+
+// Disable (default)
+{
+  "reference_docs": {
+    "sources": []
+  }
+}
+```
 
 ## Configuration File Location
 
@@ -547,3 +628,4 @@ project/
 | ⭐⭐ | `base: "docs/..."` | Projects where docs/ doesn't conflict |
 | ⭐ | `base: ".dev/"` | Don't want to see planning files |
 | ❌ | `base: ".forge/"` | Tool traces, not recommended |
+| ⭐⭐⭐ | `reference_docs.sources: ["docs/**/*.md"]` | Projects with existing architecture docs |
