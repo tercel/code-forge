@@ -263,6 +263,15 @@ Spawn a `Task` tool call with:
 **Sub-agent prompt must include:**
 - The input document file path (so the sub-agent reads it, NOT the main context)
 - Instruction to return ONLY a structured summary
+- If `reference_summaries` is non-empty (from Step 0.9), include a `## Reference Context` section:
+  ```
+  ## Reference Context
+
+  The following project documents provide architectural context.
+  Use these to align your analysis with existing project decisions and patterns.
+
+  {reference_summaries — all summaries concatenated, separated by blank lines}
+  ```
 
 **Sub-agent must analyze and return:**
 1. **Feature Name** — extracted from filename or document title (kebab-case)
@@ -323,6 +332,15 @@ Spawn a `Task` tool call with:
 - User answers from Step 3 (tech stack choice, testing strategy, task granularity)
 - The output file path: `{output_dir}/{feature_name}/plan.md`
 - Instructions to write the plan file AND return a concise task list summary
+- If `reference_summaries` is non-empty, include a `## Reference Context` section:
+  ```
+  ## Reference Context
+
+  The following project documents provide architectural context.
+  Ensure the implementation plan is consistent with existing architecture and conventions.
+
+  {reference_summaries — all summaries concatenated, separated by blank lines}
+  ```
 
 **Sub-agent must write `plan.md`** with these required sections:
 - **Goal** — one sentence describing what to implement
@@ -356,6 +374,15 @@ Spawn a `Task` tool call with:
 - The task list summary returned by Step 6 (paste it into the prompt)
 - The tasks directory path: `{output_dir}/{feature_name}/tasks/`
 - All the principles and format requirements below
+- If `reference_summaries` is non-empty, include a `## Reference Context` section:
+  ```
+  ## Reference Context
+
+  The following project documents provide architectural context.
+  Ensure task steps follow project conventions and integrate with existing components.
+
+  {reference_summaries — all summaries concatenated, separated by blank lines}
+  ```
 
 **Sub-agent must create `tasks/{name}.md`** for each task, following these principles:
 - TDD first: test → implement → verify
