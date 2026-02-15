@@ -21,7 +21,7 @@ All subcommands are also available as direct aliases:
 
 ### Subcommand Details
 
-- **plan** — Analyzes a feature document (or text prompt), generates an implementation plan with architecture design, task breakdown, and TDD steps. Supports prompt-to-document: `/forge plan 实现用户登录` auto-creates a feature doc then plans.
+- **plan** — Analyzes a feature document (or text prompt), generates an implementation plan with architecture design, task breakdown, and TDD steps. Supports prompt-to-document: `/forge plan "implement user login"` auto-creates a feature doc then plans.
 - **impl** — Executes pending tasks for a feature using isolated sub-agents. Supports pause/resume, parallel execution, and progress tracking via `state.json`.
 - **status** — Displays a project dashboard (all features) or detailed progress for a single feature. Regenerates the project-level overview.
 - **fixbug** — Systematically debugs bugs with root cause diagnosis at 4 levels (code → task → plan → requirements). Interactively confirms upstream document updates to keep docs in sync.

@@ -60,7 +60,7 @@ Same as other skills — validate config, display summary, store resolved paths 
 ### Step 1: Receive Bug Description
 
 Accept input in two modes:
-- **Prompt text** (e.g., `/forge fixbug 登录页面报500错误`) — use the text as bug description
+- **Prompt text** (e.g., `/forge fixbug login page returns 500 error`) — use the text as bug description
 - **File reference** (e.g., `/forge fixbug @issues/bug-123.md`) — read the file for bug details
 
 If no input provided, use `AskUserQuestion` to ask: "Describe the bug you encountered."

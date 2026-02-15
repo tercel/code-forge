@@ -25,14 +25,14 @@ Parse `$ARGUMENTS` into `subcommand` and `remaining_args`:
 |-------|-----------|----------------|
 | (empty) | `status` | — |
 | `plan @planning/features/auth.md` | `plan` | `@planning/features/auth.md` |
-| `plan 实现用户登录` | `plan` | `实现用户登录` |
+| `plan implement user login` | `plan` | `implement user login` |
 | `impl user-auth` | `impl` | `user-auth` |
 | `status` | `status` | — |
 | `status user-auth` | `status` | `user-auth` |
-| `fixbug 登录报500` | `fixbug` | `登录报500` |
+| `fixbug login returns 500` | `fixbug` | `login returns 500` |
 | `review user-auth` | `review` | `user-auth` |
 | `@planning/features/auth.md` | `plan` | `@planning/features/auth.md` |
-| `实现用户登录` | `plan` | `实现用户登录` |
+| `implement user login` | `plan` | `implement user login` |
 
 ## Step 2: Route
 
