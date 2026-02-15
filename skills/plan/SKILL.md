@@ -54,6 +54,7 @@ Load configuration by priority (each layer deep-merges into previous):
    - `directories.base` = `"planning/"`, `directories.input` = `"features/"`, `directories.output` = `"implementation/"`
    - `git.auto_commit` = `false`, `git.commit_state_file` = `true`, `git.gitignore_patterns` = `[]`
    - `execution.default_mode` = `"ask"`, `execution.auto_tdd` = `true`, `execution.task_granularity` = `"medium"`
+   - `reference_docs.sources` = `[]`, `reference_docs.exclude` = `[]`
 
 2. **User global config** (`~/.code-forge.json`, if exists) → deep-merge into defaults
 
@@ -66,6 +67,10 @@ Validation rules:
 - `directories.base` must NOT be a system/source directory (`src/`, `node_modules/`, `build/`, `.git/`)
 - `git.commit_state_file` must be boolean (not string `"true"`)
 - `execution.default_mode` must be one of: `"ask"`, `"manual"`, `"auto"`
+- `reference_docs.sources` must be an array of strings (fall back to `[]` on error)
+- `reference_docs.sources` entries must NOT contain `..` (security risk)
+- `reference_docs.sources` entries must NOT point to system directories (`node_modules/`, `.git/`, `build/`)
+- `reference_docs.exclude` must be an array of strings (fall back to `[]` on error)
 
 On validation failure: display all errors with descriptions, then continue with system defaults.
 
