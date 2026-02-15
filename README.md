@@ -4,61 +4,83 @@
 
 Combining the **comprehensive depth of deep-\*** with the **standardization of superpowers**, Code Forge transforms documentation into executable development plans.
 
+## Commands
+
+| Command | Description |
+|---------|------------|
+| `/forge` | Dashboard — show all features and progress |
+| `/forge plan @doc.md` | Generate plan from a feature document |
+| `/forge plan "requirement"` | Generate plan from a text prompt |
+| `/forge impl [feature]` | Execute pending tasks for a feature |
+| `/forge status [feature]` | View dashboard or feature detail |
+| `/forge fixbug "description"` | Debug and fix a bug with upstream trace-back |
+| `/forge review [feature]` | Review code quality for a feature |
+
+All subcommands are also available as direct aliases:
+`/forge:plan`, `/forge:impl`, `/forge:status`, `/forge:fixbug`, `/forge:review`
+
+### Subcommand Details
+
+- **plan** — Analyzes a feature document (or text prompt), generates an implementation plan with architecture design, task breakdown, and TDD steps. Supports prompt-to-document: `/forge plan 实现用户登录` auto-creates a feature doc then plans.
+- **impl** — Executes pending tasks for a feature using isolated sub-agents. Supports pause/resume, parallel execution, and progress tracking via `state.json`.
+- **status** — Displays a project dashboard (all features) or detailed progress for a single feature. Regenerates the project-level overview.
+- **fixbug** — Systematically debugs bugs with root cause diagnosis at 4 levels (code → task → plan → requirements). Interactively confirms upstream document updates to keep docs in sync.
+- **review** — Reviews completed feature code across 4 dimensions: code quality, test coverage, security (OWASP top 10), and plan consistency. Generates a review report.
+
 ## Features
 
-### ✅ Combining Best of Both Worlds
+### Combining Best of Both Worlds
 
 | Feature | deep-* | superpowers | **Code Forge** |
 |---------|--------|-------------|----------------|
-| **Depth Planning** | ✅ Comprehensive Analysis | ⚠️ Basic | ✅ **Comprehensive + TDD** |
-| **Task Breakdown** | ✅ Detailed | ⚠️ Manual | ✅ **Auto Breakdown** |
-| **File Organization** | ❌ Messy | ✅ `docs/plans/` | ✅ **Structured** |
-| **Naming Convention** | ❌ `claude-*` | ✅ Date prefix | ✅ **Feature name** |
-| **Status Tracking** | ❌ None | ❌ None | ✅ **JSON Tracking** |
-| **Git Friendly** | ❌ | ✅ | ✅ **Team Collaboration** |
-| **File Count** | ❌ 20-30+ | ✅ 1-2 | ✅ **5-10 Structured** |
+| **Depth Planning** | Comprehensive Analysis | Basic | **Comprehensive + TDD** |
+| **Task Breakdown** | Detailed | Manual | **Auto Breakdown** |
+| **File Organization** | Messy | `docs/plans/` | **Structured** |
+| **Naming Convention** | `claude-*` | Date prefix | **Feature name** |
+| **Status Tracking** | None | None | **JSON Tracking** |
+| **Git Friendly** | No | Yes | **Team Collaboration** |
+| **Bug Debugging** | None | Basic | **Upstream Trace-back** |
+| **Code Review** | None | Manual | **Multi-dimension Review** |
 
-### 🎯 Core Advantages
+### Core Advantages
 
 1. **Standardized file organization** - Git-friendly and team-visible
 2. **Status tracking** - Track task progress (pending/in_progress/completed)
 3. **Iteration support** - Pause/resume anytime
 4. **TDD-first** - Every task is test-driven
 5. **Deep decomposition** - From documentation to concrete implementation steps
+6. **Prompt support** - Start from a text requirement, no document needed
+7. **Upstream trace-back** - Bug fixes can update plans and docs to stay in sync
+8. **Code review** - Structured quality gates before merge
 
 ## Quick Start
 
-### 1. Prepare Documentation
-
-Create feature documentation (or use existing):
-
-```markdown
-<!-- planning/features/user-auth.md -->
-# User Authentication System
-
-## Requirements
-Implement JWT-based user authentication system
-
-## Features
-- User registration
-- User login
-- Token refresh
-- Encrypted password storage
-
-## Technical Requirements
-- Web framework with REST API support
-- Relational database
-- bcrypt password hashing
-- JWT token authentication
-```
-
-### 2. Run Forge
+### From a Document
 
 ```bash
-/forge @planning/features/user-auth.md
+# 1. Write feature documentation
+vim planning/features/user-auth.md
+
+# 2. Generate implementation plan
+/forge plan @planning/features/user-auth.md
+
+# 3. Execute tasks
+/forge impl user-auth
+
+# 4. Review code
+/forge review user-auth
 ```
 
-### 3. Generated Structure
+### From a Prompt
+
+```bash
+# No document needed — just describe what you want
+/forge plan "Implement JWT-based user authentication with login, registration, and token refresh"
+
+# Code Forge auto-creates a feature doc, then generates the plan
+```
+
+### Generated Structure
 
 ```
 planning/implementation/user-auth/
@@ -69,37 +91,8 @@ planning/implementation/user-auth/
 │   ├── models.md
 │   ├── auth-logic.md
 │   └── api-endpoints.md
-└── state.json             # Status tracking
-```
-
-### 4. Execute Tasks
-
-Forge will ask how to proceed:
-- **Execute now** - Execute tasks one by one in current session
-- **Execute later** - Save plan, implement manually
-- **Team collaboration** - Assign tasks to team members
-
-### 5. Track Progress
-
-```json
-// state.json
-{
-  "feature": "user-auth",
-  "status": "in_progress",
-  "execution_order": ["setup", "models", "auth-logic", "api-endpoints"],
-  "progress": {
-    "total_tasks": 4,
-    "completed": 2,
-    "in_progress": 1,
-    "pending": 1
-  },
-  "tasks": [
-    {"id": "setup", "status": "completed"},
-    {"id": "models", "status": "completed"},
-    {"id": "auth-logic", "status": "in_progress"},
-    {"id": "api-endpoints", "status": "pending"}
-  ]
-}
+├── state.json             # Status tracking
+└── review.md              # Code review report (after /forge review)
 ```
 
 ## File Organization Standard
@@ -126,7 +119,8 @@ project/
 │       │   │   ├── setup.md
 │       │   │   ├── models.md
 │       │   │   └── ...
-│       │   └── state.json
+│       │   ├── state.json
+│       │   └── review.md
 │       │
 │       └── payment-gateway/
 │           ├── overview.md
@@ -140,20 +134,18 @@ project/
 
 ### Customizable Directories
 
-**Avoid conflict with existing `docs/`?** Use configuration file to customize directories:
-
 ```json
 // .code-forge.json
 {
   "directories": {
-    "base": "planning/",           // Default, recommended
+    "base": "planning/",
     "input": "features/",
     "output": "implementation/"
   }
 }
 ```
 
-See: [CONFIGURATION.md](./CONFIGURATION.md)
+See: [CONFIGURATION.md](./docs/CONFIGURATION.md)
 
 ### Naming Conventions
 
@@ -164,123 +156,63 @@ See: [CONFIGURATION.md](./CONFIGURATION.md)
 
 ## Use Cases
 
-### Scenario 1: New Feature Development
+### New Feature Development
 
 ```bash
-# 1. Write requirement documentation
-vim planning/features/new-feature.md
-
-# 2. Generate implementation plan
-/forge @planning/features/new-feature.md
-
-# 3. Execute tasks
-# Forge will guide you through them one by one
+/forge plan @planning/features/new-feature.md
+/forge impl new-feature
+/forge review new-feature
 ```
 
-### Scenario 2: Refactor Existing Code
+### Quick Prototyping from Idea
 
 ```bash
-# 1. Write refactoring plan document
-vim planning/features/refactor-auth.md
-
-# 2. Generate task breakdown
-/forge @planning/features/refactor-auth.md
-
-# 3. Refactor by task
-# Each task is independent and testable
+/forge plan "Add dark mode support with theme switching and persistence"
+/forge impl dark-mode
 ```
 
-### Scenario 3: Team Collaboration
+### Bug Fixing with Trace-back
 
 ```bash
-# Developer A
-/forge @planning/features/big-feature.md
-# Generate plan, commit to Git
+/forge fixbug "Login page returns 500 error when email contains special characters"
+# Diagnoses root cause → fixes code → updates upstream docs if needed
+```
 
-# Developer B
+### Team Collaboration
+
+```bash
+# Developer A: Generate plan, commit to Git
+/forge plan @planning/features/big-feature.md
+
+# Developer B: Assign and execute tasks
 git pull
-# Assign task (modify state.json assignee)
-# Execute task, update status
+/forge impl big-feature
 
-# Developer C
-git pull
-# See progress, assign other tasks
+# Developer C: Review completed work
+/forge review big-feature
 ```
 
-### Scenario 4: Pause/Resume
+### Pause/Resume
 
 ```bash
-# Day 1
-/forge @planning/features/feature-x.md
-# Complete 2 tasks, pause
+# Day 1: Start working
+/forge plan @planning/features/feature-x.md
+/forge impl feature-x    # Complete 2 tasks, pause
 
-# Day 2
-/forge @planning/features/feature-x.md
-# Auto-detect progress, continue execution
-```
-
-## Task File Example
-
-Each task file contains:
-
-```markdown
-# Task: Project Setup
-
-## Objective
-Set up project structure and dependencies
-
-## Files Involved
-- Create: project dependency manifest
-- Create: test configuration
-- Modify: `.gitignore`
-
-## Implementation Steps
-
-### 1. Write tests
-```
-# Write a test that verifies core dependencies can be imported
-# The test should fail initially before dependencies are installed
-```
-
-### 2. Run tests (should fail)
-```bash
-# Run tests using your test runner
-# Expected: dependencies not found
-```
-
-### 3. Install dependencies
-```bash
-# Install dependencies using your package manager
-```
-
-### 4. Verify tests pass
-```bash
-# Run tests using your test runner
-# Expected: PASSED
-```
-
-### 5. Commit
-```bash
-git add requirements.txt tests/
-git commit -m "chore: setup project dependencies"
-```
-
-## Acceptance Criteria
-- [ ] Dependencies installed successfully
-- [ ] Tests pass
-- [ ] Git commit completed
+# Day 2: Resume
+/forge impl feature-x    # Auto-detects progress, continues
 ```
 
 ## Status Tracking
 
-### state.json Explained
+### state.json
 
 ```json
 {
   "feature": "user-auth",
   "created": "2025-02-13T10:00:00Z",
   "updated": "2025-02-13T15:30:00Z",
-  "status": "in_progress",          // Overall status
+  "status": "in_progress",
   "execution_order": ["setup", "models", "auth-logic", "api-endpoints"],
   "progress": {
     "total_tasks": 4,
@@ -295,17 +227,8 @@ git commit -m "chore: setup project dependencies"
       "status": "completed",
       "started_at": "2025-02-13T10:00:00Z",
       "completed_at": "2025-02-13T11:00:00Z",
-      "assignee": null,              // Can assign in team collaboration
-      "commits": ["abc123"]          // Related commit IDs
-    },
-    {
-      "id": "models",
-      "title": "Data Models",
-      "status": "in_progress",
-      "started_at": "2025-02-13T11:30:00Z",
-      "completed_at": null,
-      "assignee": "developer-a",
-      "commits": []
+      "assignee": null,
+      "commits": ["abc123"]
     }
   ],
   "metadata": {
@@ -324,165 +247,55 @@ git commit -m "chore: setup project dependencies"
 - `blocked` - Blocked by dependencies
 - `skipped` - Skipped
 
-## Git Workflow
-
-### Recommended Commit Strategy
-
-```bash
-# 1. Commit planning files
-git add planning/implementation/xxx/
-git commit -m "docs: add implementation plan for xxx"
-
-# 2. Execute tasks, commit individually
-git add src/ tests/
-git commit -m "feat(xxx): implement setup task"
-
-# 3. Update status (optional)
-git add planning/implementation/xxx/state.json
-git commit -m "docs: update xxx implementation status"
-```
-
-### .gitignore Options
-
-If you don't want to commit status files:
-
-```gitignore
-# .gitignore
-planning/implementation/**/state.json
-```
-
-If you don't want to commit the entire implementation directory:
-
-```gitignore
-# .gitignore
-planning/implementation/
-```
-
 ## Working with Other Skills
 
-### Complete Workflow
-
 ```bash
-# 1. Brainstorming design
+# 1. Brainstorm design
 /brainstorming
 # → Generate planning/features/xxx-design.md
 
 # 2. Generate implementation plan
-/forge @planning/features/xxx-design.md
-# → Generate task breakdown
+/forge plan @planning/features/xxx-design.md
 
-# 3. Execute tasks (auto-use TDD)
-# Forge automatically calls /test-driven-development
+# 3. Execute tasks (auto-uses TDD)
+/forge impl xxx
 
-# 4. Code review
-/requesting-code-review
+# 4. Review code quality
+/forge review xxx
 
 # 5. Complete branch
 /finishing-a-development-branch
 ```
 
-## Comparison with Other Solutions
-
-### vs deep-plan
-
-| Feature | deep-plan | Code Forge |
-|---------|-----------|------------|
-| File location | ❌ User specified (scattered) | ✅ `planning/implementation/` |
-| Naming | ❌ `claude-*.md` | ✅ No tool traces |
-| File count | ❌ 20-30+ | ✅ 5-10 |
-| Status tracking | ❌ None | ✅ `state.json` |
-| Git friendly | ❌ Unclear | ✅ Designed to commit |
-| External API | ⚠️ Optional (Gemini/OpenAI) | ✅ No external dependencies |
-
-### vs superpowers/writing-plans
-
-| Feature | writing-plans | Code Forge |
-|---------|---------------|------------|
-| Task breakdown | ⚠️ Manual | ✅ Auto-generated |
-| Status tracking | ❌ None | ✅ `state.json` |
-| Execution support | ⚠️ Manual needed | ✅ Guided execution |
-| File count | ✅ 1-2 | ✅ 5-10 (structured) |
-| Depth | ⚠️ Basic | ✅ Deep + TDD |
-
 ## FAQ
 
 ### Q: Must I use TDD?
 
-A: Recommended but not mandatory. When generating plan, you can choose testing strategy:
+Recommended but not mandatory. When generating a plan, you can choose testing strategy:
 - Strict TDD (recommended)
 - Tests after
 - Minimal testing
 
 ### Q: Can I modify the generated plan?
 
-A: Of course! After generation you can:
-- Edit task files
-- Adjust task order
-- Add/delete tasks
-- Manually update state.json
-
-### Q: Does it support multi-person collaboration?
-
-A: Yes! Through `state.json` `assignee` field:
-1. Assign task (set assignee)
-2. Update status
-3. Commit to Git
-4. Team members sync
+Yes! After generation you can edit task files, adjust task order, add/delete tasks, and manually update state.json.
 
 ### Q: Should `.code-forge.json` be committed?
 
-A: Yes! It should be committed to Git:
-- Ensures team members use the same directory structure
-- The `_tool` section tells new members what tool this is and where to install it:
-  ```json
-  "_tool": {
-    "name": "code-forge",
-    "description": "Transform documentation into actionable development plans with task breakdown and status tracking",
-    "url": "https://github.com/tercel/code-forge",
-    "skills_collection": "https://github.com/tercel/claude-code-skills"
-  }
-  ```
-
-### Q: Should state.json be committed?
-
-A: Recommended to commit, reasons:
-- Team can see progress
-- History is traceable
-- Facilitates collaboration
-
-If frequent changes bother you, can .gitignore it.
+Yes! It ensures team members use the same directory structure. The `_tool` section tells new members where to install the tool.
 
 ### Q: How to pause/resume?
 
-A: Auto-supported:
-- Stop execution anytime
-- `state.json` records current state
-- Next run `/forge @{feature}` auto-resumes
+Auto-supported. Stop anytime — `state.json` records current state. Run `/forge impl {feature}` to resume.
 
 ### Q: Can I customize file locations?
 
-A: Yes! Create `.code-forge.json` in your project root to customize directories:
-```json
-{
-  "directories": {
-    "base": "dev-plans/",
-    "input": "specs/",
-    "output": "tasks/"
-  }
-}
-```
-See [CONFIGURATION.md](./docs/CONFIGURATION.md) for full details.
+Yes! See [CONFIGURATION.md](./docs/CONFIGURATION.md) for full details.
 
 ## Examples
 
 Complete examples in `examples/` directory:
 - `examples/user-auth/` - User authentication feature
-- `examples/file-upload/` - File upload feature
-- `examples/payment/` - Payment system integration
-
-## Contributing
-
-Welcome to contribute improvements!
 
 ## License
 
