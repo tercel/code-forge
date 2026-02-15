@@ -1,12 +1,12 @@
 {
   "name": "code-forge",
-  "description": "Forge executable, TDD-driven implementation plans from documentation — with task breakdown, progress tracking, pause/resume, and team collaboration",
-  "version": "0.4.0",
+  "description": "Forge executable, TDD-driven implementation plans from documentation — with subcommands for planning, execution, debugging, and review",
+  "version": "0.5.0",
   "author": {
     "name": "tercel",
     "url": "https://github.com/tercel"
   },
   "repository": "https://github.com/tercel/code-forge",
   "license": "MIT",
-  "keywords": ["planning", "tdd", "task-breakdown", "implementation", "documentation"]
+  "keywords": ["planning", "tdd", "task-breakdown", "implementation", "documentation", "debugging", "code-review"]
 }
