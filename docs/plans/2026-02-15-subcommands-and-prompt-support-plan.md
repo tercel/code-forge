@@ -47,14 +47,14 @@ Parse `$ARGUMENTS` into `subcommand` and `remaining_args`:
 |-------|-----------|----------------|
 | (empty) | `status` | — |
 | `plan @planning/features/auth.md` | `plan` | `@planning/features/auth.md` |
-| `plan 实现用户登录` | `plan` | `实现用户登录` |
+| `plan implement user login` | `plan` | `implement user login` |
 | `impl user-auth` | `impl` | `user-auth` |
 | `status` | `status` | — |
 | `status user-auth` | `status` | `user-auth` |
-| `fixbug 登录报500` | `fixbug` | `登录报500` |
+| `fixbug login returns 500` | `fixbug` | `login returns 500` |
 | `review user-auth` | `review` | `user-auth` |
 | `@planning/features/auth.md` | `plan` | `@planning/features/auth.md` |
-| `实现用户登录` | `plan` | `实现用户登录` |
+| `implement user login` | `plan` | `implement user login` |
 
 ## Step 2: Route
 
@@ -1190,7 +1190,7 @@ Same as other skills — validate config, display summary, store resolved paths 
 ### Step 1: Receive Bug Description
 
 Accept input in two modes:
-- **Prompt text** (e.g., `/forge fixbug 登录页面报500错误`) — use the text as bug description
+- **Prompt text** (e.g., `/forge fixbug login page returns 500 error`) — use the text as bug description
 - **File reference** (e.g., `/forge fixbug @issues/bug-123.md`) — read the file for bug details
 
 If no input provided, use `AskUserQuestion` to ask: "Describe the bug you encountered."

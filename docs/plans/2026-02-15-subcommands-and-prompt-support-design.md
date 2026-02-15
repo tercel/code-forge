@@ -8,7 +8,7 @@
 
 Two enhancements to code-forge:
 
-1. **Prompt support** — `/forge 实现用户登录功能` directly passes requirement text, auto-generates a feature document, then follows the standard planning flow.
+1. **Prompt support** — `/forge "implement user login"` directly passes requirement text, auto-generates a feature document, then follows the standard planning flow.
 2. **Subcommand architecture** — Split the monolithic `forge/SKILL.md` into 5 independent skills (`plan`, `impl`, `status`, `fixbug`, `review`), routed through a rewritten `forge.md` orchestrator. Follows the spec-forge subcommand pattern.
 
 ## Architecture
@@ -60,14 +60,14 @@ $ARGUMENTS parsing:
 | Input | subcommand | args | Action |
 |-------|-----------|------|--------|
 | `/forge plan @file.md` | `plan` | `@file.md` | Analyze doc, generate plan |
-| `/forge plan 实现用户登录` | `plan` | prompt text | Auto-gen doc, then plan |
+| `/forge plan "implement user login"` | `plan` | prompt text | Auto-gen doc, then plan |
 | `/forge impl user-auth` | `impl` | `user-auth` | Execute pending tasks |
 | `/forge status` | `status` | — | Project dashboard |
 | `/forge status user-auth` | `status` | `user-auth` | Feature detail |
-| `/forge fixbug 描述` | `fixbug` | bug description | Debug workflow |
+| `/forge fixbug "description"` | `fixbug` | bug description | Debug workflow |
 | `/forge review user-auth` | `review` | `user-auth` | Code review |
 | `/forge @file.md` | `plan` | `@file.md` | **Backward compat** |
-| `/forge 实现用户登录` | `plan` | prompt text | **New feature** |
+| `/forge "implement user login"` | `plan` | prompt text | **New feature** |
 | `/forge` | `status` | — | Dashboard |
 
 **Routing action:** Each subcommand invokes the corresponding `code-forge:{subcommand}` skill with args.
@@ -304,11 +304,11 @@ Each skill file **inlines** the full Step 0 config loading logic. Rationale:
 ```
 /forge                              → Dashboard (all features)
 /forge plan @docs/feature.md        → Generate plan from document
-/forge plan 实现用户登录功能          → Generate plan from prompt
+/forge plan "implement user login"     → Generate plan from prompt
 /forge impl user-auth               → Execute pending tasks
 /forge status                       → Project dashboard
 /forge status user-auth             → Feature detail
-/forge fixbug 登录页面报500错误       → Debug workflow
+/forge fixbug "login returns 500"      → Debug workflow
 /forge review user-auth             → Code review
 
 Aliases: /forge:plan, /forge:impl, /forge:status, /forge:fixbug, /forge:review
