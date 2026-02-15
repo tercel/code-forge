@@ -149,7 +149,7 @@ Set the generated file path as the current input document path (prefixed with `@
 
 User should provide an @file path:
 ```bash
-/forge plan @planning/features/user-auth.md
+/code-forge:plan @planning/features/user-auth.md
 ```
 
 **Note:** Use configured path (`{base_dir}/{input_dir}/`)
@@ -397,8 +397,8 @@ Task Overview:
   ...
 
 Next steps:
-  /forge impl {feature_name}     Execute tasks
-  /forge status {feature_name}   View progress
+  /code-forge:impl {feature_name}     Execute tasks
+  /code-forge:status {feature_name}   View progress
   cat {output_dir}/{feature_name}/plan.md   View detailed plan
 ```
 
@@ -412,9 +412,9 @@ Optionally synchronize tasks to Claude Code's Task system:
 
 ## Coordination with Other Skills
 
-- **With /brainstorming**: Brainstorm design first → generate feature doc → `/forge plan @feature-doc.md`
-- **With /forge impl**: After plan generated → `/forge impl {feature}` to execute
-- **With /forge review**: After implementation → `/forge review {feature}` to review
+- **With /brainstorming**: Brainstorm design first → generate feature doc → `/code-forge:plan @feature-doc.md`
+- **With /code-forge:impl**: After plan generated → `/code-forge:impl {feature}` to execute
+- **With /code-forge:review**: After implementation → `/code-forge:review {feature}` to review
 
 ## Notes
 

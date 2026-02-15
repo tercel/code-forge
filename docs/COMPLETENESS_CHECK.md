@@ -31,7 +31,7 @@
 
 | File | Status | Description |
 |------|--------|-------------|
-| skills/forge/SKILL.md | ✅ Complete | Main skill implementation |
+| skills/plan/SKILL.md | ✅ Complete | Plan skill implementation |
 
 ### 4. Templates and Examples
 

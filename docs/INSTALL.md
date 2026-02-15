@@ -71,7 +71,7 @@ EOF
 ### 3. Run Forge
 
 ```
-/forge @planning/features/my-feature.md
+/code-forge:plan @planning/features/my-feature.md
 ```
 
 ## Configuration (Optional)
@@ -121,8 +121,8 @@ rm -rf ~/.claude/skills/code-forge
 **Check:**
 ```bash
 # Confirm skills directory structure
-ls -la ~/.claude/skills/code-forge/skills/forge/
-# Should see SKILL.md
+ls -la ~/.claude/plugins/cache/claude-code-skills/code-forge/
+# Should see commands/ and skills/ directories
 ```
 
 **Solution:**
@@ -144,7 +144,7 @@ touch test.txt && rm test.txt
 ### Issue 3: Generated Files Location Is Wrong
 
 **Check:**
-- Ensure running `/forge` from project root
+- Ensure running `/code-forge:plan` from project root
 - Check `.code-forge.json` for custom directory settings
 
 **Solution:**

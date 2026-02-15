@@ -60,8 +60,8 @@ Same as other skills — validate config, display summary, store resolved paths 
 ### Step 1: Receive Bug Description
 
 Accept input in two modes:
-- **Prompt text** (e.g., `/forge fixbug login page returns 500 error`) — use the text as bug description
-- **File reference** (e.g., `/forge fixbug @issues/bug-123.md`) — read the file for bug details
+- **Prompt text** (e.g., `/code-forge:fixbug login page returns 500 error`) — use the text as bug description
+- **File reference** (e.g., `/code-forge:fixbug @issues/bug-123.md`) — read the file for bug details
 
 If no input provided, use `AskUserQuestion` to ask: "Describe the bug you encountered."
 
@@ -289,6 +289,6 @@ Commits:
   {commit hashes}
 
 Next steps:
-  /forge status {feature}    View updated progress
-  /forge review {feature}    Review all changes
+  /code-forge:status {feature}    View updated progress
+  /code-forge:review {feature}    Review all changes
 ```

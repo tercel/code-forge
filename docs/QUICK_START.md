@@ -32,7 +32,7 @@ EOF
 In Claude Code:
 
 ```
-/forge @planning/features/todo-list.md
+/code-forge:plan @planning/features/todo-list.md
 ```
 
 Forge will:
@@ -83,7 +83,7 @@ cat planning/implementation/todo-list/tasks/setup.md
 # 5. Commit code
 
 # After completion, manually update state.json
-# Or re-run /forge to continue next task
+# Or re-run /code-forge:impl to continue next task
 ```
 
 ## 5. Track Progress
@@ -137,7 +137,7 @@ cat output/tasks/setup.md
 
 ```
 1. Write requirement document (or use existing)
-2. /forge @document
+2. /code-forge:plan @document
 3. Get detailed plan in 5 minutes
 4. Execute by tasks (TDD way)
 5. Track progress in real-time
@@ -163,22 +163,22 @@ cat output/tasks/setup.md
 
 ### New Feature Development
 ```
-/forge @planning/features/new-feature.md
+/code-forge:plan @planning/features/new-feature.md
 ```
 
 ### Code Refactoring
 ```
-/forge @planning/features/refactor-plan.md
+/code-forge:plan @planning/features/refactor-plan.md
 ```
 
 ### Bug Fix (if multiple steps required)
 ```
-/forge @planning/features/bug-fix-plan.md
+/code-forge:plan @planning/features/bug-fix-plan.md
 ```
 
 ### Team Collaboration
 ```
-/forge @planning/features/team-feature.md
+/code-forge:plan @planning/features/team-feature.md
 # → Generate plan
 # → Commit to Git
 # → Team members assign tasks (modify state.json)

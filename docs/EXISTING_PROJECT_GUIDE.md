@@ -75,7 +75,7 @@ EOF
 #### Step 2: Run Forge to generate plan
 
 ```bash
-/forge @planning/features/user-auth.md
+/code-forge:plan @planning/features/user-auth.md
 ```
 
 **Forge will prompt**:
@@ -173,7 +173,7 @@ Complete user authentication and authorization system
 #### Step 2: Run Forge
 
 ```bash
-/forge @planning/features/user-auth.md
+/code-forge:plan @planning/features/user-auth.md
 ```
 
 Select **3 - Hybrid**, Forge will ask:
@@ -236,7 +236,7 @@ Now you can continue with pending tasks:
 cat planning/implementation/user-auth/tasks/04-oauth.md
 
 # Or let Forge execute
-/forge --execute planning/implementation/user-auth/
+/code-forge:impl user-auth
 # Will start from task-004
 ```
 
@@ -253,7 +253,7 @@ cat planning/implementation/user-auth/tasks/04-oauth.md
 vim planning/features/payment-gateway.md
 
 # 2. Run Forge
-/forge @planning/features/payment-gateway.md
+/code-forge:plan @planning/features/payment-gateway.md
 
 # 3. Generated plan is completely new
 planning/implementation/payment-gateway/
@@ -316,7 +316,7 @@ Provides framework infrastructure and core abstractions
 - ...
 EOF
 
-/forge @planning/features/01-foundation.md
+/code-forge:plan @planning/features/01-foundation.md
 # Select "Retrospective mode"
 ```
 
@@ -337,7 +337,7 @@ cat > planning/features/03-registry.md << 'EOF'
 - Health check integration
 EOF
 
-/forge @planning/features/03-registry.md
+/code-forge:plan @planning/features/03-registry.md
 # Select "Hybrid mode"
 ```
 
@@ -357,7 +357,7 @@ Module decorator system, providing automatic binding and configuration injection
 - Metadata collection
 EOF
 
-/forge @planning/features/05-decorator.md
+/code-forge:plan @planning/features/05-decorator.md
 # Select "Standard mode"
 ```
 
@@ -448,7 +448,7 @@ cat > planning/features/user-auth.md << 'EOF'
 EOF
 
 # 4. Run Forge (retrospective mode)
-/forge @planning/features/user-auth.md
+/code-forge:plan @planning/features/user-auth.md
 # Select: 1 - Retrospective mode
 
 # 5. Generated plan is at
@@ -492,7 +492,7 @@ cat > planning/features/auth-enhancement.md << 'EOF'
 EOF
 
 # 2. Run Forge
-/forge @planning/features/auth-enhancement.md
+/code-forge:plan @planning/features/auth-enhancement.md
 
 # Forge asks:
 # "Detected hybrid state, which features are completed?"
@@ -508,7 +508,7 @@ ls planning/implementation/auth-enhancement/tasks/
 # ⏸️ rbac.md                (pending)
 
 # 4. Continue development of pending parts
-/forge --execute planning/implementation/auth-enhancement/
+/code-forge:impl auth-enhancement
 # Will start from first pending task
 ```
 

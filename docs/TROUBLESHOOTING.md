@@ -130,7 +130,7 @@ cat ~/.code-forge.json
 cat .code-forge.json
 
 # Temporarily ignore all configurations
-/forge @xxx.md --ignore-config
+/code-forge:plan @xxx.md --ignore-config
 ```
 
 ---
@@ -171,10 +171,10 @@ pwd  # Ensure in project root directory
 **Correction Example:**
 ```bash
 # ❌ Wrong
-/forge @features/user-auth.md  # Missing planning/
+/code-forge:plan @features/user-auth.md  # Missing planning/
 
 # ✅ Correct
-/forge @planning/features/user-auth.md
+/code-forge:plan @planning/features/user-auth.md
 ```
 
 ---
@@ -215,7 +215,7 @@ vim .code-forge.json
 }
 
 # 4. Run again
-/forge @planning/features/xxx.md
+/code-forge:plan @planning/features/xxx.md
 ```
 
 ---
@@ -241,11 +241,11 @@ ls planning/implementation/user-auth/state.json
 # Option B: Backup then regenerate
 mv planning/implementation/user-auth \
    planning/implementation/user-auth.backup
-/forge @planning/features/user-auth.md
+/code-forge:plan @planning/features/user-auth.md
 
 # Option C: Force overwrite (dangerous)
 rm -rf planning/implementation/user-auth
-/forge @planning/features/user-auth.md
+/code-forge:plan @planning/features/user-auth.md
 ```
 
 ---
@@ -277,7 +277,7 @@ cat planning/implementation/user-auth/state.json | jq .
 vim planning/implementation/user-auth/state.json
 
 # 4. If deleted, regenerate
-/forge @planning/features/user-auth.md
+/code-forge:plan @planning/features/user-auth.md
 # Select "Restart"
 ```
 
@@ -310,7 +310,7 @@ vim planning/implementation/user-auth/state.json
 # Change stuck task status to "pending"
 
 # 4. Run again
-/forge @planning/features/user-auth.md
+/code-forge:plan @planning/features/user-auth.md
 ```
 
 ---
@@ -352,7 +352,7 @@ git commit -m "resolve: merge state.json manually"
 ```bash
 # Pull before making changes
 git pull
-/forge @planning/features/xxx.md
+/code-forge:plan @planning/features/xxx.md
 git add .
 git commit -m "..."
 git push
@@ -555,7 +555,7 @@ If the problem cannot be resolved, provide when creating an issue:
 
 ## Reproduction Steps
 1. Create document xxx.md
-2. Run /forge @xxx.md
+2. Run /code-forge:plan @xxx.md
 3. Error appears: ...
 
 ## Environment Information
@@ -583,12 +583,12 @@ If the problem cannot be resolved, provide when creating an issue:
 1. **Run Forge in src/ directory**
    ```bash
    cd src/
-   /forge @features/xxx.md  # ❌ Not in project root
+   /code-forge:plan @features/xxx.md  # ❌ Not in project root
    ```
 
 2. **Use absolute paths**
    ```bash
-   /forge @/Users/xxx/project/features/xxx.md  # ❌ Use absolute path
+   /code-forge:plan @/Users/xxx/project/features/xxx.md  # ❌ Use absolute path
    ```
 
 3. **Confuse input and output directories**
@@ -610,12 +610,12 @@ If the problem cannot be resolved, provide when creating an issue:
 1. **Run in project root directory**
    ```bash
    cd /path/to/project
-   /forge @planning/features/xxx.md
+   /code-forge:plan @planning/features/xxx.md
    ```
 
 2. **Use relative paths**
    ```bash
-   /forge @planning/features/xxx.md  # ✅
+   /code-forge:plan @planning/features/xxx.md  # ✅
    ```
 
 3. **Understand directory structure**
@@ -628,7 +628,7 @@ If the problem cannot be resolved, provide when creating an issue:
    ```bash
    vim state.json
    jq . state.json  # Validate format
-   /forge @xxx.md  # Run again
+   /code-forge:plan @xxx.md  # Run again
    ```
 
 ---

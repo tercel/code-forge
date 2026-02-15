@@ -137,7 +137,7 @@ The project-level `overview.md` is **auto-generated** by Code Forge at these poi
 | Trigger | When |
 |---------|------|
 | **New feature plan** | After `state.json` is initialized (Step 8.5) |
-| **Dashboard view** | When `/forge` is run without arguments (Step 0.7) |
+| **Dashboard view** | When `/code-forge:status` is run (Step 0.7) |
 | **Feature completed** | After all tasks finish (Step 12) |
 
 You do **not** need to create it manually. Code Forge scans all `state.json` files in the implementation directory, analyzes feature dependencies, and generates the overview automatically.

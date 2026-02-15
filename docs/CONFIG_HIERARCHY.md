@@ -292,13 +292,13 @@ Runtime parameters have the highest priority:
 
 ```bash
 # Ignore all configuration files
-/forge @xxx.md --ignore-config
+/code-forge:plan @xxx.md --ignore-config
 
 # Temporarily specify directory
-/forge @xxx.md --base-dir custom-dir/
+/code-forge:plan @xxx.md --base-dir custom-dir/
 
 # Temporarily specify output directory
-/forge @xxx.md --output implementation-alt/
+/code-forge:plan @xxx.md --output implementation-alt/
 ```
 
 **Priority:**

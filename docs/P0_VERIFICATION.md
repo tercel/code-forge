@@ -16,7 +16,7 @@
 ```bash
 cd /tmp/test-project-1
 # Don't create any .code-forge.json
-/forge @planning/features/test.md
+/code-forge:plan @planning/features/test.md
 ```
 
 **Expected Behavior**:
@@ -59,7 +59,7 @@ cat > .code-forge.json << 'EOF'
 }
 EOF
 
-/forge @dev-plans/features/test.md
+/code-forge:plan @dev-plans/features/test.md
 ```
 
 **Expected Behavior**:
@@ -113,7 +113,7 @@ cat > .code-forge.json << 'EOF'
 }
 EOF
 
-/forge @project-plans/features/test.md
+/code-forge:plan @project-plans/features/test.md
 ```
 
 **Expected Behavior**:
@@ -160,7 +160,7 @@ cat > .code-forge.json << 'EOF'
 }
 EOF
 
-/forge @../planning/features/test.md
+/code-forge:plan @../planning/features/test.md
 ```
 
 **Expected Behavior**:
@@ -193,7 +193,7 @@ Please fix .code-forge.json and try again
 **Test Steps**:
 ```bash
 cd /tmp/test-project
-/forge @planning/features/nonexistent.md
+/code-forge:plan @planning/features/nonexistent.md
 ```
 
 **Expected Behavior**:
@@ -233,7 +233,7 @@ Suggestions:
 ```bash
 cd /tmp/test-project
 touch planning/features/empty.md
-/forge @planning/features/empty.md
+/code-forge:plan @planning/features/empty.md
 ```
 
 **Expected Behavior**:
@@ -269,7 +269,7 @@ cat > planning/features/invalid.md << 'EOF'
 This is not a valid feature document
 EOF
 
-/forge @planning/features/invalid.md
+/code-forge:plan @planning/features/invalid.md
 ```
 
 **Expected Behavior**:
@@ -332,7 +332,7 @@ Implement a JWT-based user authentication system
 - Relational database
 EOF
 
-/forge @planning/features/user-auth.md
+/code-forge:plan @planning/features/user-auth.md
 ```
 
 **Expected Behavior (Step 11.5)**:
@@ -361,7 +361,7 @@ Generated at: /tmp/test-project/planning/implementation/user-auth/
 
 Next steps:
 1. View plan: cat planning/implementation/user-auth/plan.md
-2. Start implementation: /forge --execute planning/implementation/user-auth/
+2. Start implementation: /code-forge:impl user-auth
 ```
 
 **Verification Points**:
@@ -398,7 +398,7 @@ Possible causes:
 Suggestions:
 1. Check disk space: df -h
 2. Check permissions: ls -ld planning/implementation/
-3. Re-run: /forge @planning/features/user-auth.md
+3. Re-run: /code-forge:plan @planning/features/user-auth.md
 
 Retry? [Y/n]
 ```
@@ -450,7 +450,7 @@ RESTful API service
 EOF
 
 # 4. Run Forge
-/forge @planning/features/api-service.md
+/code-forge:plan @planning/features/api-service.md
 ```
 
 **Expected Full Flow**:

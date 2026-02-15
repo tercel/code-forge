@@ -1,47 +1,25 @@
 ---
-description: "Transform documentation into actionable development plans with status tracking"
-argument-hint: "[plan|impl|status|fixbug|review] <args>"
-allowed-tools: [Read, Glob, Grep, Write, Edit, Bash, AskUserQuestion, Task, TaskCreate, TaskUpdate, TaskList, TaskGet]
+description: "Show available code-forge commands"
+allowed-tools: [Read, Glob, Grep]
 ---
 
-You are the code-forge orchestrator. Your job is to route subcommands or default to status dashboard.
+The user invoked `/code-forge:forge`. This is a legacy entry point.
 
-The user invoked: `/forge $ARGUMENTS`
+**Do not route or parse subcommands.** Instead, display the available commands:
 
-## Step 1: Parse Arguments
+```
+Code Forge — Available Commands
 
-Parse `$ARGUMENTS` into `subcommand` and `remaining_args`:
+  /code-forge:plan @doc.md           Generate plan from a feature document
+  /code-forge:plan "requirement"     Generate plan from a text prompt
+  /code-forge:impl [feature]         Execute pending tasks for a feature
+  /code-forge:status [feature]       View dashboard or feature detail
+  /code-forge:fixbug "description"   Debug and fix a bug with upstream trace-back
+  /code-forge:review [feature]       Review code quality for a feature
+```
 
-| Rule | Condition | subcommand | remaining_args |
-|------|-----------|-----------|----------------|
-| 1 | Empty (no arguments) | `status` | — |
-| 2 | First word is `plan`, `impl`, `status`, `fixbug`, or `review` | that word | everything after the first word |
-| 3 | First word starts with `@` | `plan` | entire `$ARGUMENTS` |
-| 4 | Any other text | `plan` | entire `$ARGUMENTS` (prompt mode) |
-
-**Examples:**
-
-| Input | subcommand | remaining_args |
-|-------|-----------|----------------|
-| (empty) | `status` | — |
-| `plan @planning/features/auth.md` | `plan` | `@planning/features/auth.md` |
-| `plan implement user login` | `plan` | `implement user login` |
-| `impl user-auth` | `impl` | `user-auth` |
-| `status` | `status` | — |
-| `status user-auth` | `status` | `user-auth` |
-| `fixbug login returns 500` | `fixbug` | `login returns 500` |
-| `review user-auth` | `review` | `user-auth` |
-| `@planning/features/auth.md` | `plan` | `@planning/features/auth.md` |
-| `implement user login` | `plan` | `implement user login` |
-
-## Step 2: Route
-
-Invoke the corresponding skill, passing `remaining_args` as context:
-
-| subcommand | Action |
-|-----------|--------|
-| `plan` | Invoke `code-forge:plan` skill with `remaining_args` |
-| `impl` | Invoke `code-forge:impl` skill with `remaining_args` |
-| `status` | Invoke `code-forge:status` skill with `remaining_args` |
-| `fixbug` | Invoke `code-forge:fixbug` skill with `remaining_args` |
-| `review` | Invoke `code-forge:review` skill with `remaining_args` |
+If the user provided arguments ($ARGUMENTS), suggest the correct command. For example:
+- `fixbug "some bug"` → suggest `/code-forge:fixbug "some bug"`
+- `plan @file.md` → suggest `/code-forge:plan @file.md`
+- `impl feature` → suggest `/code-forge:impl feature`
+- (no args) → suggest `/code-forge:status`

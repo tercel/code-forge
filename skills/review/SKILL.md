@@ -65,7 +65,7 @@ Same as other skills — validate config, display summary, store resolved paths.
 
 #### 1.1 With Feature Name Argument
 
-If the user provided a feature name (e.g., `/forge review user-auth`):
+If the user provided a feature name (e.g., `/code-forge:review user-auth`):
 
 1. Look for `{output_dir}/{feature_name}/state.json`
 2. If not found: show error, list available features
@@ -271,10 +271,10 @@ Recommended actions:
   1. {highest priority fix}
   2. {next priority fix}
   ...
-  After fixing: /forge review {feature_name}   Re-run review
+  After fixing: /code-forge:review {feature_name}   Re-run review
 
 {If pass or pass_with_notes:}
 Ready for next steps:
-  /forge status {feature_name}         View final status
+  /code-forge:status {feature_name}         View final status
   Create a Pull Request
 ```

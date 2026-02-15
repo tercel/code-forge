@@ -8,7 +8,7 @@
 
 Two enhancements to code-forge:
 
-1. **Prompt support** — `/forge "implement user login"` directly passes requirement text, auto-generates a feature document, then follows the standard planning flow.
+1. **Prompt support** — `/code-forge:plan "implement user login"` directly passes requirement text, auto-generates a feature document, then follows the standard planning flow.
 2. **Subcommand architecture** — Split the monolithic `forge/SKILL.md` into 5 independent skills (`plan`, `impl`, `status`, `fixbug`, `review`), routed through a rewritten `forge.md` orchestrator. Follows the spec-forge subcommand pattern.
 
 ## Architecture
@@ -18,12 +18,12 @@ Two enhancements to code-forge:
 ```
 code-forge/
 ├── commands/
-│   ├── forge.md           ← Main router (rewritten)
-│   ├── plan.md            ← /forge:plan alias
-│   ├── impl.md            ← /forge:impl alias
-│   ├── status.md          ← /forge:status alias
-│   ├── fixbug.md          ← /forge:fixbug alias
-│   └── review.md          ← /forge:review alias
+│   ├── forge.md           ← Legacy router (can be removed)
+│   ├── plan.md            ← /code-forge:plan alias
+│   ├── impl.md            ← /code-forge:impl alias
+│   ├── status.md          ← /code-forge:status alias
+│   ├── fixbug.md          ← /code-forge:fixbug alias
+│   └── review.md          ← /code-forge:review alias
 ├── skills/
 │   ├── plan/SKILL.md      ← Step 0, 0.8(new), 1-9
 │   ├── impl/SKILL.md      ← Step 0, 10-12
@@ -59,16 +59,16 @@ $ARGUMENTS parsing:
 
 | Input | subcommand | args | Action |
 |-------|-----------|------|--------|
-| `/forge plan @file.md` | `plan` | `@file.md` | Analyze doc, generate plan |
-| `/forge plan "implement user login"` | `plan` | prompt text | Auto-gen doc, then plan |
-| `/forge impl user-auth` | `impl` | `user-auth` | Execute pending tasks |
-| `/forge status` | `status` | — | Project dashboard |
-| `/forge status user-auth` | `status` | `user-auth` | Feature detail |
-| `/forge fixbug "description"` | `fixbug` | bug description | Debug workflow |
-| `/forge review user-auth` | `review` | `user-auth` | Code review |
-| `/forge @file.md` | `plan` | `@file.md` | **Backward compat** |
-| `/forge "implement user login"` | `plan` | prompt text | **New feature** |
-| `/forge` | `status` | — | Dashboard |
+| `/code-forge:plan @file.md` | `plan` | `@file.md` | Analyze doc, generate plan |
+| `/code-forge:plan "implement user login"` | `plan` | prompt text | Auto-gen doc, then plan |
+| `/code-forge:impl user-auth` | `impl` | `user-auth` | Execute pending tasks |
+| `/code-forge:status` | `status` | — | Project dashboard |
+| `/code-forge:status user-auth` | `status` | `user-auth` | Feature detail |
+| `/code-forge:fixbug "description"` | `fixbug` | bug description | Debug workflow |
+| `/code-forge:review user-auth` | `review` | `user-auth` | Code review |
+| `/code-forge:plan @file.md` | `plan` | `@file.md` | **Backward compat** |
+| `/code-forge:plan "implement user login"` | `plan` | prompt text | **New feature** |
+| `/code-forge:status` | `status` | — | Dashboard |
 
 **Routing action:** Each subcommand invokes the corresponding `code-forge:{subcommand}` skill with args.
 
@@ -156,7 +156,7 @@ Inherits from the original SKILL.md with adjustments:
 | Step 5 | Generate overview.md | Unchanged (still after 6/7) |
 | Step 8 | Initialize state.json | Unchanged |
 | Step 8.5 | Project-level overview | Unchanged |
-| Step 9 | Display plan summary | Adjusted: suggest `/forge impl {feature}` |
+| Step 9 | Display plan summary | Adjusted: suggest `/code-forge:impl {feature}` |
 
 Does **not** include Step 10-12. Ends with next-step guidance.
 
@@ -169,7 +169,7 @@ Does **not** include Step 10-12. Ends with next-step guidance.
 | Step 10 | Confirm execution method | Unchanged |
 | Step 11 | Task execution loop (sub-agents) | Unchanged |
 | Step 11.5 | Verify generated files | Unchanged |
-| Step 12 | Completion summary | Adjusted: suggest `/forge review {feature}` |
+| Step 12 | Completion summary | Adjusted: suggest `/code-forge:review {feature}` |
 
 ### status/SKILL.md — Dashboard & Progress
 
@@ -180,7 +180,7 @@ Does **not** include Step 10-12. Ends with next-step guidance.
 | Single feature detail | Display task list and status for a feature | **New** |
 | Project overview update | Regenerate `{output_dir}/overview.md` | From original Step 8.5 |
 
-Args: `/forge status` → global; `/forge status user-auth` → feature detail.
+Args: `/code-forge:status` → global; `/code-forge:status user-auth` → feature detail.
 
 ### fixbug/SKILL.md — Bug Debugging Workflow (New)
 
@@ -267,17 +267,17 @@ Each skill file **inlines** the full Step 0 config loading logic. Rationale:
 
 ### Breaking Changes
 
-- `skills/forge/SKILL.md` deleted — `/forge:forge` no longer works
-- Users should use `/forge plan`, `/forge impl`, etc.
+- `skills/forge/SKILL.md` deleted — old monolithic skill no longer works
+- Users should use `/code-forge:plan`, `/code-forge:impl`, etc.
 - Version bump: 0.4.0 → 0.5.0
 
 ### Backward Compatibility
 
 | Old usage | New behavior | User perception |
 |-----------|-------------|----------------|
-| `/forge` | Routes to `status` | Dashboard unchanged |
-| `/forge @file.md` | Routes to `plan`, file mode | Identical |
-| `/forge:forge` | **Removed** | Must use `/forge plan` |
+| `/code-forge:status` | Direct `status` skill | Dashboard |
+| `/code-forge:plan @file.md` | Direct `plan` skill, file mode | Identical |
+| old `/forge:forge` | **Removed** | Must use `/code-forge:plan` |
 
 ### plugin.json Update
 
@@ -302,14 +302,14 @@ Each skill file **inlines** the full Step 0 config loading logic. Rationale:
 ## Usage Examples (for README)
 
 ```
-/forge                              → Dashboard (all features)
-/forge plan @docs/feature.md        → Generate plan from document
-/forge plan "implement user login"     → Generate plan from prompt
-/forge impl user-auth               → Execute pending tasks
-/forge status                       → Project dashboard
-/forge status user-auth             → Feature detail
-/forge fixbug "login returns 500"      → Debug workflow
-/forge review user-auth             → Code review
+/code-forge:status                  → Dashboard (all features)
+/code-forge:plan @docs/feature.md        → Generate plan from document
+/code-forge:plan "implement user login"     → Generate plan from prompt
+/code-forge:impl user-auth               → Execute pending tasks
+/code-forge:status                       → Project dashboard
+/code-forge:status user-auth             → Feature detail
+/code-forge:fixbug "login returns 500"      → Debug workflow
+/code-forge:review user-auth             → Code review
 
-Aliases: /forge:plan, /forge:impl, /forge:status, /forge:fixbug, /forge:review
+Aliases: /code-forge:plan, /code-forge:impl, /code-forge:status, /code-forge:fixbug, /code-forge:review
 ```

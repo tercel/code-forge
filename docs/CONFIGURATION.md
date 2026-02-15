@@ -401,7 +401,7 @@ cat > .code-forge.json <<'EOF'
 EOF
 
 # Validate configuration (auto-validated when running Forge)
-/forge --validate-config
+# Configuration is auto-validated when running any code-forge command
 ```
 
 ## Best Practices
@@ -481,7 +481,7 @@ EOF
 mv planning/ dev-plans/
 
 # 3. Re-run Forge (will use new configuration)
-/forge @dev-plans/features/xxx.md
+/code-forge:plan @dev-plans/features/xxx.md
 ```
 
 ## Configuration Templates
@@ -493,9 +493,9 @@ Code Forge provides several preset templates:
 cp /path/to/code-forge/templates/.code-forge.json .
 
 # Or use presets
-/forge --init-config personal  # Personal project configuration
-/forge --init-config team      # Team project configuration
-/forge --init-config minimal   # Minimal configuration
+# Or manually edit from template
+# Personal project: use minimal directories
+# Team project: enable git.auto_commit and gitignore patterns
 ```
 
 ## Ignore Configuration File
@@ -503,7 +503,7 @@ cp /path/to/code-forge/templates/.code-forge.json .
 If project has `.code-forge.json` but you want to temporarily ignore it:
 
 ```bash
-/forge @xxx.md --ignore-config
+/code-forge:plan @xxx.md --ignore-config
 ```
 
 ## Example: Avoid docs Conflict

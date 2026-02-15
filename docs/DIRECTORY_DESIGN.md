@@ -259,7 +259,7 @@ EOF
 # Code Forge:  docs/plans/feature/plan.md
 
 # 3. Continue using Forge
-/forge @planning/features/new-feature.md
+/code-forge:plan @planning/features/new-feature.md
 ```
 
 ## Git Workflow Recommendations
@@ -346,7 +346,7 @@ A: It's recommended to commit it so the team uses a unified directory structure
 
 A: Use the `--ignore-config` parameter:
 ```
-/forge @xxx.md --ignore-config
+/code-forge:plan @xxx.md --ignore-config
 ```
 
 ### Q: Where should the configuration file be placed?

@@ -101,12 +101,12 @@ code-forge — Feature Dashboard
   3  | notifications  | 4/4 (100%) | completed   | 2026-02-12
 
 Commands:
-  /forge plan @doc.md          Create new plan from document
-  /forge plan "requirement"    Create new plan from prompt
-  /forge impl <feature>        Execute tasks for a feature
-  /forge status <feature>      View feature detail
-  /forge fixbug "description"  Debug a bug
-  /forge review <feature>      Review completed feature
+  /code-forge:plan @doc.md          Create new plan from document
+  /code-forge:plan "requirement"    Create new plan from prompt
+  /code-forge:impl <feature>        Execute tasks for a feature
+  /code-forge:status <feature>      View feature detail
+  /code-forge:fixbug "description"  Debug a bug
+  /code-forge:review <feature>      Review completed feature
 ```
 
 Offer actions via `AskUserQuestion`:
@@ -116,7 +116,7 @@ Offer actions via `AskUserQuestion`:
 
 **No features found:** Show empty state with instructions:
 - How to create a feature document at `{base_dir}/{input_dir}/{feature-name}.md`
-- How to run `/forge plan @path/to/feature.md` or `/forge plan "requirement text"`
+- How to run `/code-forge:plan @path/to/feature.md` or `/code-forge:plan "requirement text"`
 
 #### 2.3 Update Project-Level Overview
 
@@ -125,7 +125,7 @@ After scanning, regenerate `{output_dir}/overview.md` using Step 4 logic.
 #### 2.4 Handle User Selection
 
 - **Feature name selected** → show Feature Detail (Step 3)
-- **"New plan"** → suggest `/forge plan` command
+- **"New plan"** → suggest `/code-forge:plan` command
 - **"Exit"** → end
 
 ---
@@ -160,9 +160,9 @@ Tasks:
 Progress: 2/5 (40%)
 
 Commands:
-  /forge impl user-auth      Continue execution
-  /forge review user-auth    Review completed tasks
-  /forge fixbug "..."        Fix a bug in this feature
+  /code-forge:impl user-auth      Continue execution
+  /code-forge:review user-auth    Review completed tasks
+  /code-forge:fixbug "..."        Fix a bug in this feature
 ```
 
 ---

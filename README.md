@@ -8,20 +8,19 @@ Combining the **comprehensive depth of deep-\*** with the **standardization of s
 
 | Command | Description |
 |---------|------------|
-| `/forge` | Dashboard — show all features and progress |
-| `/forge plan @doc.md` | Generate plan from a feature document |
-| `/forge plan "requirement"` | Generate plan from a text prompt |
-| `/forge impl [feature]` | Execute pending tasks for a feature |
-| `/forge status [feature]` | View dashboard or feature detail |
-| `/forge fixbug "description"` | Debug and fix a bug with upstream trace-back |
-| `/forge review [feature]` | Review code quality for a feature |
+| `/code-forge:status` | Dashboard — show all features and progress |
+| `/code-forge:plan @doc.md` | Generate plan from a feature document |
+| `/code-forge:plan "requirement"` | Generate plan from a text prompt |
+| `/code-forge:impl [feature]` | Execute pending tasks for a feature |
+| `/code-forge:status [feature]` | View dashboard or feature detail |
+| `/code-forge:fixbug "description"` | Debug and fix a bug with upstream trace-back |
+| `/code-forge:review [feature]` | Review code quality for a feature |
 
-All subcommands are also available as direct aliases:
-`/forge:plan`, `/forge:impl`, `/forge:status`, `/forge:fixbug`, `/forge:review`
+Each subcommand is a standalone slash command — invoke directly without a router.
 
 ### Subcommand Details
 
-- **plan** — Analyzes a feature document (or text prompt), generates an implementation plan with architecture design, task breakdown, and TDD steps. Supports prompt-to-document: `/forge plan "implement user login"` auto-creates a feature doc then plans.
+- **plan** — Analyzes a feature document (or text prompt), generates an implementation plan with architecture design, task breakdown, and TDD steps. Supports prompt-to-document: `/code-forge:plan "implement user login"` auto-creates a feature doc then plans.
 - **impl** — Executes pending tasks for a feature using isolated sub-agents. Supports pause/resume, parallel execution, and progress tracking via `state.json`.
 - **status** — Displays a project dashboard (all features) or detailed progress for a single feature. Regenerates the project-level overview.
 - **fixbug** — Systematically debugs bugs with root cause diagnosis at 4 levels (code → task → plan → requirements). Interactively confirms upstream document updates to keep docs in sync.
@@ -62,20 +61,20 @@ All subcommands are also available as direct aliases:
 vim planning/features/user-auth.md
 
 # 2. Generate implementation plan
-/forge plan @planning/features/user-auth.md
+/code-forge:plan @planning/features/user-auth.md
 
 # 3. Execute tasks
-/forge impl user-auth
+/code-forge:impl user-auth
 
 # 4. Review code
-/forge review user-auth
+/code-forge:review user-auth
 ```
 
 ### From a Prompt
 
 ```bash
 # No document needed — just describe what you want
-/forge plan "Implement JWT-based user authentication with login, registration, and token refresh"
+/code-forge:plan "Implement JWT-based user authentication with login, registration, and token refresh"
 
 # Code Forge auto-creates a feature doc, then generates the plan
 ```
@@ -92,7 +91,7 @@ planning/implementation/user-auth/
 │   ├── auth-logic.md
 │   └── api-endpoints.md
 ├── state.json             # Status tracking
-└── review.md              # Code review report (after /forge review)
+└── review.md              # Code review report (after /code-forge:review)
 ```
 
 ## File Organization Standard
@@ -159,22 +158,22 @@ See: [CONFIGURATION.md](./docs/CONFIGURATION.md)
 ### New Feature Development
 
 ```bash
-/forge plan @planning/features/new-feature.md
-/forge impl new-feature
-/forge review new-feature
+/code-forge:plan @planning/features/new-feature.md
+/code-forge:impl new-feature
+/code-forge:review new-feature
 ```
 
 ### Quick Prototyping from Idea
 
 ```bash
-/forge plan "Add dark mode support with theme switching and persistence"
-/forge impl dark-mode
+/code-forge:plan "Add dark mode support with theme switching and persistence"
+/code-forge:impl dark-mode
 ```
 
 ### Bug Fixing with Trace-back
 
 ```bash
-/forge fixbug "Login page returns 500 error when email contains special characters"
+/code-forge:fixbug "Login page returns 500 error when email contains special characters"
 # Diagnoses root cause → fixes code → updates upstream docs if needed
 ```
 
@@ -182,25 +181,25 @@ See: [CONFIGURATION.md](./docs/CONFIGURATION.md)
 
 ```bash
 # Developer A: Generate plan, commit to Git
-/forge plan @planning/features/big-feature.md
+/code-forge:plan @planning/features/big-feature.md
 
 # Developer B: Assign and execute tasks
 git pull
-/forge impl big-feature
+/code-forge:impl big-feature
 
 # Developer C: Review completed work
-/forge review big-feature
+/code-forge:review big-feature
 ```
 
 ### Pause/Resume
 
 ```bash
 # Day 1: Start working
-/forge plan @planning/features/feature-x.md
-/forge impl feature-x    # Complete 2 tasks, pause
+/code-forge:plan @planning/features/feature-x.md
+/code-forge:impl feature-x    # Complete 2 tasks, pause
 
 # Day 2: Resume
-/forge impl feature-x    # Auto-detects progress, continues
+/code-forge:impl feature-x    # Auto-detects progress, continues
 ```
 
 ## Status Tracking
@@ -255,13 +254,13 @@ git pull
 # → Generate planning/features/xxx-design.md
 
 # 2. Generate implementation plan
-/forge plan @planning/features/xxx-design.md
+/code-forge:plan @planning/features/xxx-design.md
 
 # 3. Execute tasks (auto-uses TDD)
-/forge impl xxx
+/code-forge:impl xxx
 
 # 4. Review code quality
-/forge review xxx
+/code-forge:review xxx
 
 # 5. Complete branch
 /finishing-a-development-branch
@@ -286,7 +285,7 @@ Yes! It ensures team members use the same directory structure. The `_tool` secti
 
 ### Q: How to pause/resume?
 
-Auto-supported. Stop anytime — `state.json` records current state. Run `/forge impl {feature}` to resume.
+Auto-supported. Stop anytime — `state.json` records current state. Run `/code-forge:impl {feature}` to resume.
 
 ### Q: Can I customize file locations?
 
