@@ -32,5 +32,10 @@
     "default_mode": "ask",
     "auto_tdd": true,
     "task_granularity": "medium"
+  },
+
+  "reference_docs": {
+    "sources": [],
+    "exclude": []
   }
 }
