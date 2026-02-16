@@ -21,39 +21,7 @@ Bug Input → Context Scan → Feature Association → Root Cause Diagnosis → 
 
 ## Detailed Steps
 
-### Step 0: Configuration Detection and Loading
-
-**Important:** Detect and load configuration before any operation.
-
-#### 0.1 Detect Project Root
-
-Search upward for project root markers:
-```
-.git/ | .code-forge.json | pyproject.toml | package.json | Cargo.toml | go.mod | build.gradle | pom.xml | Makefile
-```
-
-If no root is found, use the current directory as the project root.
-
-#### 0.2 Load Configuration (three-layer merge)
-
-Load configuration by priority (each layer deep-merges into previous):
-
-1. **System defaults:**
-   - `_tool.name` = `"code-forge"` (read-only, not overridable)
-   - `_tool.description` = `"Transform documentation into actionable development plans with task breakdown and status tracking"` (read-only)
-   - `_tool.url` = `"https://github.com/tercel/code-forge"` (read-only)
-   - `_tool.skills_collection` = `"https://github.com/tercel/claude-code-skills"` (read-only)
-   - `directories.base` = `""`, `directories.input` = `"docs/features/"`, `directories.output` = `"planning/"`
-   - `git.auto_commit` = `false`, `git.commit_state_file` = `true`, `git.gitignore_patterns` = `[]`
-   - `execution.default_mode` = `"ask"`, `execution.auto_tdd` = `true`, `execution.task_granularity` = `"medium"`
-
-2. **User global config** (`~/.code-forge.json`, if exists) → deep-merge into defaults
-
-3. **Project config** (`<project_root>/.code-forge.json`, if exists) → deep-merge (highest priority)
-
-#### 0.3-0.6 Validate, Show Summary, Store Context
-
-Same as other skills — validate config, display summary, store resolved paths (`config`, `project_root`, `base_dir`, `input_dir`, `output_dir`). Proceed directly.
+@../shared/configuration.md
 
 ---
 
