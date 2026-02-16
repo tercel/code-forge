@@ -171,12 +171,41 @@ Set `{input_dir}/{slug}.md` as the current input document path (prefixed with `@
 
 #### 1.1 Check Document Path
 
-User should provide an @file path:
+User should provide an `@` path pointing to a **file** or **directory**:
+
 ```bash
+# File mode — plan a single feature
 /code-forge:plan @docs/features/user-auth.md
+
+# Directory mode — list features and let user pick
+/code-forge:plan @docs/features/
+/code-forge:plan @../../aipartnerup/apcore
 ```
 
 **Note:** Use configured path (`{input_dir}/`). Also accepts spec-forge tech-design files directly: `/code-forge:plan @docs/user-auth/tech-design.md`
+
+#### 1.1.1 Directory Mode
+
+If the `@` path resolves to a **directory** (not a file):
+
+1. Scan for feature spec files in this order (stop at first match):
+   - `<path>/docs/features/*.md`
+   - `<path>/features/*.md`
+   - `<path>/*.md`
+2. If no `.md` files found: display error `"No feature specs found in {path}"` with the paths tried, then stop
+3. If exactly 1 file found: use it directly (skip selection)
+4. If multiple files found: display list and use `AskUserQuestion` to let user select:
+   ```
+   Feature specs found in {path}:
+     1. acl-system.md
+     2. core-executor.md
+     3. schema-system.md
+     ...
+   ```
+   - Options: one per file (show filename without `.md`)
+5. Set the selected file as the input document path, then continue to Step 1.2
+
+**Path resolution:** Both relative and absolute paths are supported. Relative paths are resolved from the current working directory. External project paths (e.g., `@../../other-project`) are valid — the feature spec does not need to be inside the current project.
 
 #### 1.2-1.4 Validate Document and Handle Errors
 
