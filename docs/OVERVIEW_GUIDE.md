@@ -2,7 +2,7 @@
 
 ## What is overview.md?
 
-`planning/implementation/overview.md` is a **project-level overview document** for:
+`planning/overview.md` is a **project-level overview document** for:
 - 📊 Display all modules and their relationships
 - 🎯 Define implementation priority and sequence
 - 📈 Track overall project progress
@@ -33,19 +33,20 @@
 ## File Location
 
 ```
-planning/
-├── features/            # Feature documents for each module
-│   ├── module-a.md
-│   ├── module-b.md
-│   └── module-c.md
-└── implementation/      # Implementation plans for each module
-    ├── overview.md      # Project-level overview (auto-generated)
-    ├── module-a/
-    ├── module-b/
-    └── module-c/
+docs/
+└── features/            # Feature documents for each module
+    ├── module-a.md
+    ├── module-b.md
+    └── module-c.md
+
+planning/                # Implementation plans for each module
+├── overview.md          # Project-level overview (auto-generated)
+├── module-a/
+├── module-b/
+└── module-c/
 ```
 
-**Note:** The project-level `overview.md` lives inside the implementation directory (alongside the feature subdirectories it describes) and is **auto-generated** by Code Forge whenever a feature plan is created, resumed, or completed.
+**Note:** The project-level `overview.md` lives inside the planning directory (alongside the feature subdirectories it describes) and is **auto-generated** by Code Forge whenever a feature plan is created, resumed, or completed.
 
 ## Core Content
 
@@ -140,7 +141,7 @@ The project-level `overview.md` is **auto-generated** by Code Forge at these poi
 | **Dashboard view** | When `/code-forge:status` is run (Step 0.7) |
 | **Feature completed** | After all tasks finish (Step 12) |
 
-You do **not** need to create it manually. Code Forge scans all `state.json` files in the implementation directory, analyzes feature dependencies, and generates the overview automatically.
+You do **not** need to create it manually. Code Forge scans all `state.json` files in the planning directory, analyzes feature dependencies, and generates the overview automatically.
 
 ### Manual Override
 
@@ -204,25 +205,25 @@ Overall Progress: ████████░░░░░░░░░░ 40%
 ## Relationship with Module Planning
 
 ```
-planning/
-├── features/                        # Input documents
-│   └── module-a.md
+docs/
+└── features/                        # Input documents
+    └── module-a.md
+
+planning/                            # Output
+├── overview.md                      # Project overview (macro, auto-generated)
+│   ├── List all modules
+│   ├── Module relationships
+│   ├── Overall progress
+│   └── Implementation order
 │
-└── implementation/                  # Output
-    ├── overview.md                  # Project overview (macro, auto-generated)
-    │   ├── List all modules
-    │   ├── Module relationships
-    │   ├── Overall progress
-    │   └── Implementation order
-    │
-    ├── module-a/                    # Module details (micro)
-    │   ├── overview.md              # Module overview + task execution order
-    │   ├── plan.md                  # Detailed plan
-    │   ├── tasks/                   # Task breakdown
-    │   └── state.json               # Module status
-    │
-    └── module-b/
-        └── ...
+├── module-a/                        # Module details (micro)
+│   ├── overview.md                  # Module overview + task execution order
+│   ├── plan.md                      # Detailed plan
+│   ├── tasks/                       # Task breakdown
+│   └── state.json                   # Module status
+│
+└── module-b/
+    └── ...
 ```
 
 **Hierarchy:**
@@ -266,7 +267,7 @@ planning/
    ```
 
 3. **View detailed plan**
-   - Read `implementation/04-deploy/plan.md`
+   - Read `planning/04-deploy/plan.md`
    - Start executing tasks
 
 ## Real Case: APCore Python

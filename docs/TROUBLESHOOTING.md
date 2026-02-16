@@ -142,7 +142,7 @@ cat .code-forge.json
 **Symptom:**
 ```
 ❌ Input document not found
-File: planning/features/user-auth.md
+File: docs/features/user-auth.md
 ```
 
 **Cause:**
@@ -154,7 +154,7 @@ File: planning/features/user-auth.md
 
 ```bash
 # 1. List available files
-ls planning/features/
+ls docs/features/
 
 # 2. Check spelling
 # user-auth.md ✓
@@ -162,7 +162,7 @@ ls planning/features/
 # userauth.md  ❌ (missing hyphen)
 
 # 3. Confirm full path
-ls -la planning/features/user-auth.md
+ls -la docs/features/user-auth.md
 
 # 4. Check current directory
 pwd  # Ensure in project root directory
@@ -174,7 +174,7 @@ pwd  # Ensure in project root directory
 /code-forge:plan @features/user-auth.md  # Missing planning/
 
 # ✅ Correct
-/code-forge:plan @planning/features/user-auth.md
+/code-forge:plan @docs/features/user-auth.md
 ```
 
 ---
@@ -184,7 +184,7 @@ pwd  # Ensure in project root directory
 **Symptom:**
 ```
 Files generated in wrong directory
-Expected: planning/implementation/
+Expected: planning/
 Actual: some/other/path/
 ```
 
@@ -215,7 +215,7 @@ vim .code-forge.json
 }
 
 # 4. Run again
-/code-forge:plan @planning/features/xxx.md
+/code-forge:plan @docs/features/xxx.md
 ```
 
 ---
@@ -225,7 +225,7 @@ vim .code-forge.json
 **Symptom:**
 ```
 ⚠️ Target directory already exists
-Directory: planning/implementation/user-auth/
+Directory: planning/user-auth/
 ```
 
 **Cause:**
@@ -236,16 +236,16 @@ Previously generated or manually created directory with same name
 ```bash
 # Option A: Resume mode (recommended)
 # If state.json exists, Forge will auto-resume
-ls planning/implementation/user-auth/state.json
+ls planning/user-auth/state.json
 
 # Option B: Backup then regenerate
-mv planning/implementation/user-auth \
-   planning/implementation/user-auth.backup
-/code-forge:plan @planning/features/user-auth.md
+mv planning/user-auth \
+   planning/user-auth.backup
+/code-forge:plan @docs/features/user-auth.md
 
 # Option C: Force overwrite (dangerous)
-rm -rf planning/implementation/user-auth
-/code-forge:plan @planning/features/user-auth.md
+rm -rf planning/user-auth
+/code-forge:plan @docs/features/user-auth.md
 ```
 
 ---
@@ -268,16 +268,16 @@ Previously paused task, now unable to continue
 
 ```bash
 # 1. Check state.json
-cat planning/implementation/user-auth/state.json
+cat planning/user-auth/state.json
 
 # 2. Validate format
-cat planning/implementation/user-auth/state.json | jq .
+cat planning/user-auth/state.json | jq .
 
 # 3. If format error, fix manually
-vim planning/implementation/user-auth/state.json
+vim planning/user-auth/state.json
 
 # 4. If deleted, regenerate
-/code-forge:plan @planning/features/user-auth.md
+/code-forge:plan @docs/features/user-auth.md
 # Select "Restart"
 ```
 
@@ -299,18 +299,18 @@ Execution stops at certain task, unable to continue
 
 ```bash
 # 1. Check task status
-cat planning/implementation/user-auth/state.json | \
+cat planning/user-auth/state.json | \
   jq . | grep -A 5 "status"
 
 # 2. View current task
 # Find task with status: "in_progress"
 
 # 3. Update status manually (if needed)
-vim planning/implementation/user-auth/state.json
+vim planning/user-auth/state.json
 # Change stuck task status to "pending"
 
 # 4. Run again
-/code-forge:plan @planning/features/user-auth.md
+/code-forge:plan @docs/features/user-auth.md
 ```
 
 ---
@@ -322,7 +322,7 @@ vim planning/implementation/user-auth/state.json
 **Symptom:**
 ```
 git pull
-CONFLICT: planning/implementation/user-auth/state.json
+CONFLICT: planning/user-auth/state.json
 ```
 
 **Cause:**
@@ -332,19 +332,19 @@ Multiple people modified state.json simultaneously
 
 ```bash
 # Option A: Use local version
-git checkout --ours planning/implementation/user-auth/state.json
-git add planning/implementation/user-auth/state.json
+git checkout --ours planning/user-auth/state.json
+git add planning/user-auth/state.json
 git commit -m "resolve: keep local state.json"
 
 # Option B: Use remote version
-git checkout --theirs planning/implementation/user-auth/state.json
-git add planning/implementation/user-auth/state.json
+git checkout --theirs planning/user-auth/state.json
+git add planning/user-auth/state.json
 git commit -m "resolve: accept remote state.json"
 
 # Option C: Manual merge
-vim planning/implementation/user-auth/state.json
+vim planning/user-auth/state.json
 # Manually merge content
-git add planning/implementation/user-auth/state.json
+git add planning/user-auth/state.json
 git commit -m "resolve: merge state.json manually"
 ```
 
@@ -352,7 +352,7 @@ git commit -m "resolve: merge state.json manually"
 ```bash
 # Pull before making changes
 git pull
-/code-forge:plan @planning/features/xxx.md
+/code-forge:plan @docs/features/xxx.md
 git add .
 git commit -m "..."
 git push
@@ -374,7 +374,7 @@ state.json changes frequently, polluting Git history
 echo "**/state.json" >> .gitignore
 
 # 2. Remove from Git (keep local file)
-git rm --cached planning/implementation/**/state.json
+git rm --cached planning/**/state.json
 
 # 3. Commit
 git add .gitignore
@@ -477,14 +477,12 @@ fi
 echo "3. Directory structure"
 if [ -d planning ]; then
     echo "  ✓ planning/ exists"
-    if [ -d planning/features ]; then
-        echo "  ✓ planning/features/ exists"
-        echo "    File count: $(ls planning/features/*.md 2>/dev/null | wc -l)"
+    if [ -d docs/features ]; then
+        echo "  ✓ docs/features/ exists"
+        echo "    File count: $(ls docs/features/*.md 2>/dev/null | wc -l)"
     fi
-    if [ -d planning/implementation ]; then
-        echo "  ✓ planning/implementation/ exists"
-        echo "    Module count: $(ls -d planning/implementation/*/ 2>/dev/null | wc -l)"
-    fi
+    echo "  ✓ planning/ exists"
+    echo "    Module count: $(ls -d planning/*/ 2>/dev/null | wc -l)"
 else
     echo "  - planning/ doesn't exist (will auto-create)"
 fi
@@ -506,7 +504,7 @@ fi
 
 echo "=== Code Forge Module Status ==="
 
-for dir in planning/implementation/*/; do
+for dir in planning/*/; do
     if [ -f "$dir/state.json" ]; then
         feature=$(basename "$dir")
         status=$(jq -r '.status' "$dir/state.json")
@@ -593,8 +591,8 @@ If the problem cannot be resolved, provide when creating an issue:
 
 3. **Confuse input and output directories**
    ```bash
-   # Input: planning/features/xxx.md
-   # Output: planning/implementation/xxx/
+   # Input: docs/features/xxx.md
+   # Output: planning/xxx/
    # Don't confuse them
    ```
 
@@ -610,18 +608,18 @@ If the problem cannot be resolved, provide when creating an issue:
 1. **Run in project root directory**
    ```bash
    cd /path/to/project
-   /code-forge:plan @planning/features/xxx.md
+   /code-forge:plan @docs/features/xxx.md
    ```
 
 2. **Use relative paths**
    ```bash
-   /code-forge:plan @planning/features/xxx.md  # ✅
+   /code-forge:plan @docs/features/xxx.md  # ✅
    ```
 
 3. **Understand directory structure**
    ```
-   planning/features/     ← Input (documents you create)
-   planning/implementation/ ← Output (generated by Forge)
+   docs/features/     ← Input (documents you create)
+   planning/ ← Output (generated by Forge)
    ```
 
 4. **Validate after modifying**

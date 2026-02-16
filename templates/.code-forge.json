@@ -9,9 +9,9 @@
   },
 
   "directories": {
-    "base": "planning/",
-    "input": "features/",
-    "output": "implementation/"
+    "base": "",
+    "input": "docs/features/",
+    "output": "planning/"
   },
 
   "naming": {

@@ -43,7 +43,7 @@ Load configuration by priority (each layer deep-merges into previous):
    - `_tool.description` = `"Transform documentation into actionable development plans with task breakdown and status tracking"` (read-only)
    - `_tool.url` = `"https://github.com/tercel/code-forge"` (read-only)
    - `_tool.skills_collection` = `"https://github.com/tercel/claude-code-skills"` (read-only)
-   - `directories.base` = `"planning/"`, `directories.input` = `"features/"`, `directories.output` = `"implementation/"`
+   - `directories.base` = `""`, `directories.input` = `"docs/features/"`, `directories.output` = `"planning/"`
    - `git.auto_commit` = `false`, `git.commit_state_file` = `true`, `git.gitignore_patterns` = `[]`
    - `execution.default_mode` = `"ask"`, `execution.auto_tdd` = `true`, `execution.task_granularity` = `"medium"`
 

@@ -54,14 +54,14 @@ Each subcommand is a standalone slash command — invoke directly without a rout
 
 ## Quick Start
 
-### From a Document
+### From a Feature Spec
 
 ```bash
-# 1. Write feature documentation
-vim planning/features/user-auth.md
+# 1. Generate feature spec (via spec-forge)
+/spec-forge:feature user-auth
 
 # 2. Generate implementation plan
-/code-forge:plan @planning/features/user-auth.md
+/code-forge:plan @docs/features/user-auth.md
 
 # 3. Execute tasks
 /code-forge:impl user-auth
@@ -82,7 +82,7 @@ vim planning/features/user-auth.md
 ### Generated Structure
 
 ```
-planning/implementation/user-auth/
+planning/user-auth/
 ├── overview.md            # Feature overview + task execution order
 ├── plan.md                # Overall implementation plan
 ├── tasks/                 # Task breakdown
@@ -100,30 +100,28 @@ planning/implementation/user-auth/
 
 ```
 project/
-├── docs/                            # Existing project documentation (no conflict)
+├── docs/                            # Project documentation
+│   ├── features/                    # Input: feature specs (owned by spec-forge)
+│   │   ├── user-auth.md
+│   │   └── payment-gateway.md
 │   ├── api/
 │   └── guides/
 │
-├── planning/                        # Code Forge working directory
-│   ├── features/                    # Input: feature documentation
-│   │   ├── user-auth.md
-│   │   └── payment-gateway.md
+├── planning/                        # Output: implementation plans (owned by code-forge)
+│   ├── overview.md                  # Project-level overview (auto-generated)
+│   ├── user-auth/
+│   │   ├── overview.md
+│   │   ├── plan.md
+│   │   ├── tasks/
+│   │   │   ├── setup.md
+│   │   │   ├── models.md
+│   │   │   └── ...
+│   │   ├── state.json
+│   │   └── review.md
 │   │
-│   └── implementation/              # Output: implementation planning
-│       ├── overview.md              # Project-level overview (auto-generated)
-│       ├── user-auth/
-│       │   ├── overview.md
-│       │   ├── plan.md
-│       │   ├── tasks/
-│       │   │   ├── setup.md
-│       │   │   ├── models.md
-│       │   │   └── ...
-│       │   ├── state.json
-│       │   └── review.md
-│       │
-│       └── payment-gateway/
-│           ├── overview.md
-│           └── ...
+│   └── payment-gateway/
+│       ├── overview.md
+│       └── ...
 │
 ├── src/                             # Source code
 ├── tests/                           # Test code
@@ -137,9 +135,9 @@ project/
 // .code-forge.json
 {
   "directories": {
-    "base": "planning/",
-    "input": "features/",
-    "output": "implementation/"
+    "base": "",
+    "input": "docs/features/",
+    "output": "planning/"
   }
 }
 ```
@@ -158,7 +156,7 @@ See: [CONFIGURATION.md](./docs/CONFIGURATION.md)
 ### New Feature Development
 
 ```bash
-/code-forge:plan @planning/features/new-feature.md
+/code-forge:plan @docs/features/new-feature.md
 /code-forge:impl new-feature
 /code-forge:review new-feature
 ```
@@ -181,7 +179,7 @@ See: [CONFIGURATION.md](./docs/CONFIGURATION.md)
 
 ```bash
 # Developer A: Generate plan, commit to Git
-/code-forge:plan @planning/features/big-feature.md
+/code-forge:plan @docs/features/big-feature.md
 
 # Developer B: Assign and execute tasks
 git pull
@@ -195,7 +193,7 @@ git pull
 
 ```bash
 # Day 1: Start working
-/code-forge:plan @planning/features/feature-x.md
+/code-forge:plan @docs/features/feature-x.md
 /code-forge:impl feature-x    # Complete 2 tasks, pause
 
 # Day 2: Resume
@@ -231,7 +229,7 @@ git pull
     }
   ],
   "metadata": {
-    "source_doc": "planning/features/user-auth.md",
+    "source_doc": "docs/features/user-auth.md",
     "created_by": "code-forge",
     "version": "1.0"
   }
@@ -249,12 +247,11 @@ git pull
 ## Working with Other Skills
 
 ```bash
-# 1. Brainstorm design
-/brainstorming
-# → Generate planning/features/xxx-design.md
+# 1. Generate feature spec (via spec-forge)
+/spec-forge:feature xxx
 
 # 2. Generate implementation plan
-/code-forge:plan @planning/features/xxx-design.md
+/code-forge:plan @docs/features/xxx.md
 
 # 3. Execute tasks (auto-uses TDD)
 /code-forge:impl xxx

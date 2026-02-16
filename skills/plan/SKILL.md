@@ -51,7 +51,7 @@ Load configuration by priority (each layer deep-merges into previous):
    - `_tool.description` = `"Transform documentation into actionable development plans with task breakdown and status tracking"` (read-only)
    - `_tool.url` = `"https://github.com/tercel/code-forge"` (read-only)
    - `_tool.skills_collection` = `"https://github.com/tercel/claude-code-skills"` (read-only)
-   - `directories.base` = `"planning/"`, `directories.input` = `"features/"`, `directories.output` = `"implementation/"`
+   - `directories.base` = `""`, `directories.input` = `"docs/features/"`, `directories.output` = `"planning/"`
    - `git.auto_commit` = `false`, `git.commit_state_file` = `true`, `git.gitignore_patterns` = `[]`
    - `execution.default_mode` = `"ask"`, `execution.auto_tdd` = `true`, `execution.task_granularity` = `"medium"`
    - `reference_docs.sources` = `[]`, `reference_docs.exclude` = `[]`
@@ -79,7 +79,7 @@ On validation failure: display all errors with descriptions, then continue with 
 Display a brief configuration summary showing:
 - Base/input/output directories
 - Configuration sources detected (system defaults, user config, project config)
-- Resolved file creation path: `{base_dir}/{output_dir}/{feature_name}/`
+- Resolved file creation path: `{output_dir}/{feature_name}/`
 
 Then **proceed directly** — no "Continue?" confirmation needed.
 
@@ -93,9 +93,9 @@ Then **proceed directly** — no "Continue?" confirmation needed.
 Track resolved values for subsequent steps:
 - `config` — final merged configuration object
 - `project_root` — detected project root path
-- `base_dir` — resolved: `<project_root>/<config.directories.base>`
-- `input_dir` — resolved: `<base_dir>/<config.directories.input>`
-- `output_dir` — resolved: `<base_dir>/<config.directories.output>`
+- `base_dir` — resolved: `<project_root>/<config.directories.base>` (empty string means project root)
+- `input_dir` — resolved: `<project_root>/<config.directories.input>` (default: `docs/features/`)
+- `output_dir` — resolved: `<project_root>/<config.directories.output>` (default: `planning/`)
 
 ---
 
@@ -109,7 +109,7 @@ If `reference_docs.sources` is empty or not configured, skip directly to Step 0.
 
 1. Resolve each pattern in `config.reference_docs.sources` against `project_root`
 2. Apply `config.reference_docs.exclude` patterns to filter results
-3. Auto-exclude `{base_dir}/{output_dir}/**` to prevent circular references
+3. Auto-exclude `{output_dir}/**` to prevent circular references
 4. Deduplicate results (same file matched by multiple patterns)
 5. If 0 files matched → display: `Reference docs: 0 files matched for configured patterns. Continuing without reference context.` → skip to Step 0.8
 6. If > 30 files matched → display file list, use `AskUserQuestion`: "Found {N} reference docs. This will spawn {N} parallel sub-agents."
@@ -165,52 +165,56 @@ After the input document path is known (after Step 1), remove it from `reference
 
 ---
 
-### Step 0.8: Prompt to Document (Prompt Mode Only)
+### Step 0.8: Prompt Mode — Delegate to spec-forge:feature
 
 **This step only runs when the input is NOT a file path (does NOT start with `@`).**
 
 If the input starts with `@`, skip directly to Step 1.
 
+When a user provides a text prompt instead of a file path, code-forge:plan delegates feature spec creation to spec-forge:feature. This maintains the separation of concerns: spec-forge owns specification, code-forge owns implementation planning.
+
 #### 0.8.1 Generate Slug
 
-Convert the prompt text to a kebab-case slug for the filename:
+Convert the prompt text to a kebab-case slug for the feature name:
 - ASCII text: lowercase, replace spaces/special chars with hyphens (e.g., "User Login Feature" → `user-login-feature`)
 - Non-ASCII text (Chinese, Japanese, etc.): use `AskUserQuestion` to let user confirm or provide a custom slug. Suggest a reasonable English slug based on the prompt meaning.
 
-#### 0.8.2 Check for Existing Document
+#### 0.8.2 Check for Existing Feature Spec
 
 Check if `{input_dir}/{slug}.md` already exists:
-- **Exists** → ask via `AskUserQuestion`:
-  - "Append to existing document" — append the prompt text under a new `## Additional Requirements` section
-  - "Overwrite" — replace the file
-  - "Use existing document as-is" — skip writing, proceed with existing file
-- **Does not exist** → continue
+- **Exists** → use it directly, skip to 0.8.4
+- **Does not exist** → continue to 0.8.3
 
-#### 0.8.3 Generate Minimal Feature Document
+#### 0.8.3 Auto-Delegate to spec-forge:feature
 
-Write `{input_dir}/{slug}.md` with minimal content:
+Invoke `spec-forge:feature` to generate the feature spec:
+
+Launch `Task(subagent_type="general-purpose")`:
+- Sub-agent prompt: "Invoke the spec-forge:feature skill for '{slug}'. The user's requirement is: '{original prompt text}'. Use standalone mode — generate the feature spec at docs/features/{slug}.md based on this requirement description. Keep the Q&A minimal since the user already provided context in the prompt."
+- Wait for completion → verify `docs/features/{slug}.md` exists
+
+If spec-forge:feature is not available (skill not installed), fall back to generating a minimal feature document directly:
 
 ```markdown
 # {Feature Title}
 
-## Requirements
+> Feature spec for code-forge implementation planning.
+> Source: auto-generated from prompt
+> Created: {date}
+
+## Purpose
 
 {user's original prompt text, verbatim}
 
 ## Notes
 
-- Generated from prompt by code-forge
-- Created: {ISO timestamp}
+- Generated from prompt by code-forge (spec-forge:feature not available)
+- Consider running `/spec-forge:feature {slug}` for a more detailed spec
 ```
-
-**Design principles:**
-- Document is minimal — only wraps the user's original text, no AI expansion
-- Expansion and analysis happen in Step 2 (sub-agent) as normal
-- All subsequent steps see a standard file path, unaware of input source
 
 #### 0.8.4 Set File Path
 
-Set the generated file path as the current input document path (prefixed with `@`), then continue to Step 1.
+Set `{input_dir}/{slug}.md` as the current input document path (prefixed with `@`), then continue to Step 1.
 
 ---
 
@@ -220,10 +224,10 @@ Set the generated file path as the current input document path (prefixed with `@
 
 User should provide an @file path:
 ```bash
-/code-forge:plan @planning/features/user-auth.md
+/code-forge:plan @docs/features/user-auth.md
 ```
 
-**Note:** Use configured path (`{base_dir}/{input_dir}/`)
+**Note:** Use configured path (`{input_dir}/`). Also accepts spec-forge tech-design files directly: `/code-forge:plan @docs/user-auth/tech-design.md`
 
 #### 1.2-1.4 Validate Document and Handle Errors
 
@@ -510,7 +514,9 @@ Optionally synchronize tasks to Claude Code's Task system:
 
 ## Coordination with Other Skills
 
-- **With /brainstorming**: Brainstorm design first → generate feature doc → `/code-forge:plan @feature-doc.md`
+- **With spec-forge:feature**: Generate feature spec first → `/code-forge:plan @docs/features/{feature}.md`
+- **With spec-forge tech-design**: Plan directly from tech-design → `/code-forge:plan @docs/{feature}/tech-design.md`
+- **With /brainstorming**: Brainstorm design first → generate feature spec → `/code-forge:plan @docs/features/{feature}.md`
 - **With /code-forge:impl**: After plan generated → `/code-forge:impl {feature}` to execute
 - **With /code-forge:review**: After implementation → `/code-forge:review {feature}` to review
 
@@ -527,16 +533,17 @@ Optionally synchronize tasks to Claude Code's Task system:
 9. **Status Definitions**: `pending`, `in_progress`, `completed`, `blocked`, `skipped`
 10. **Directory Structure**:
     ```
-    planning/
-    ├── features/              # Input: feature documents
-    │   └── user-auth.md
-    └── implementation/        # Output: implementation plans
-        ├── overview.md        # Project-level overview (auto-generated)
-        └── {feature}/         # Per-feature directory
-            ├── overview.md    # Feature overview + task execution order
-            ├── plan.md        # Implementation plan
-            ├── tasks/         # Task breakdown files
-            └── state.json     # Status tracking
+    docs/
+    └── features/              # Input: feature specs (owned by spec-forge)
+        └── user-auth.md       # Generated by /spec-forge:feature or extracted from tech-design
+
+    planning/                  # Output: implementation plans (owned by code-forge)
+    ├── overview.md            # Project-level overview (auto-generated)
+    └── {feature}/             # Per-feature directory
+        ├── overview.md        # Feature overview + task execution order
+        ├── plan.md            # Implementation plan
+        ├── tasks/             # Task breakdown files
+        └── state.json         # Status tracking
     ```
 11. **Naming Conventions**: Feature directories use kebab-case (`user-auth`). Task files use descriptive names (`setup.md`). No "claude-" or tool prefixes. Suitable for Git commits.
 12. **Reference Docs**: Configure `reference_docs.sources` in `.code-forge.json` to auto-discover project documentation. Each doc is summarized by a parallel sub-agent and injected as context into Steps 2, 6, and 7. Reference context is baked into generated plan.md and task files — downstream skills do not re-read reference docs.

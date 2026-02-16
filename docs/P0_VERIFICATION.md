@@ -16,7 +16,7 @@
 ```bash
 cd /tmp/test-project-1
 # Don't create any .code-forge.json
-/code-forge:plan @planning/features/test.md
+/code-forge:plan @docs/features/test.md
 ```
 
 **Expected Behavior**:
@@ -30,8 +30,8 @@ Detected configuration sources:
 
 Final configuration:
   Base directory: planning/
-  Input directory: planning/features/
-  Output directory: planning/implementation/
+  Input directory: docs/features/
+  Output directory: planning/
 
 Continue using default configuration? [Y/n]
 ```
@@ -74,7 +74,7 @@ Detected configuration sources:
 Final configuration:
   Base directory: dev-plans/         ← From project configuration
   Input directory: dev-plans/features/
-  Output directory: dev-plans/implementation/
+  Output directory: dev-plans/
 
 Continue? [Y/n]
 ```
@@ -130,7 +130,7 @@ Configuration priority: Project configuration > User configuration > System defa
 Final configuration:
   Base directory: project-plans/           ← Project configuration
   Input directory: project-plans/features/
-  Output directory: project-plans/implementation/
+  Output directory: project-plans/
   Auto-commit state file: Yes                ← User configuration
   Execution mode: auto                      ← Project configuration
 
@@ -160,7 +160,7 @@ cat > .code-forge.json << 'EOF'
 }
 EOF
 
-/code-forge:plan @../planning/features/test.md
+/code-forge:plan @../docs/features/test.md
 ```
 
 **Expected Behavior**:
@@ -193,15 +193,15 @@ Please fix .code-forge.json and try again
 **Test Steps**:
 ```bash
 cd /tmp/test-project
-/code-forge:plan @planning/features/nonexistent.md
+/code-forge:plan @docs/features/nonexistent.md
 ```
 
 **Expected Behavior**:
 ```
 ❌ Input document not found
 
-File: planning/features/nonexistent.md
-Path: /tmp/test-project/planning/features/nonexistent.md
+File: docs/features/nonexistent.md
+Path: /tmp/test-project/docs/features/nonexistent.md
 
 Possible causes:
 1. Filename typo
@@ -210,13 +210,13 @@ Possible causes:
 
 Suggestions:
 1. Check if the file exists:
-   ls planning/features/
+   ls docs/features/
 
 2. Verify current directory:
    pwd
 
 3. List available feature documents:
-   ls planning/features/*.md
+   ls docs/features/*.md
 ```
 
 **Verification Points**:
@@ -232,15 +232,15 @@ Suggestions:
 **Test Steps**:
 ```bash
 cd /tmp/test-project
-touch planning/features/empty.md
-/code-forge:plan @planning/features/empty.md
+touch docs/features/empty.md
+/code-forge:plan @docs/features/empty.md
 ```
 
 **Expected Behavior**:
 ```
 ⚠️  Input document is empty
 
-File: planning/features/empty.md
+File: docs/features/empty.md
 Size: 0 bytes
 
 Code Forge requires the document to include:
@@ -249,7 +249,7 @@ Code Forge requires the document to include:
 - Expected goals
 
 Please edit the document and try again:
-  vim planning/features/empty.md
+  vim docs/features/empty.md
 ```
 
 **Verification Points**:
@@ -265,18 +265,18 @@ Please edit the document and try again:
 **Test Steps**:
 ```bash
 cd /tmp/test-project
-cat > planning/features/invalid.md << 'EOF'
+cat > docs/features/invalid.md << 'EOF'
 This is not a valid feature document
 EOF
 
-/code-forge:plan @planning/features/invalid.md
+/code-forge:plan @docs/features/invalid.md
 ```
 
 **Expected Behavior**:
 ```
 ⚠️  Document format may not meet requirements
 
-File: planning/features/invalid.md
+File: docs/features/invalid.md
 Size: 28 bytes
 
 Suggested document structure:
@@ -314,7 +314,7 @@ Continue processing this document? [y/N]
 cd /tmp/test-project
 
 # Create a valid feature document
-cat > planning/features/user-auth.md << 'EOF'
+cat > docs/features/user-auth.md << 'EOF'
 # User Authentication System
 
 ## Feature Description
@@ -332,7 +332,7 @@ Implement a JWT-based user authentication system
 - Relational database
 EOF
 
-/code-forge:plan @planning/features/user-auth.md
+/code-forge:plan @docs/features/user-auth.md
 ```
 
 **Expected Behavior (Step 11.5)**:
@@ -341,7 +341,7 @@ EOF
 
 Verifying generated files...
 
-📁 planning/implementation/user-auth/
+📁 planning/user-auth/
   ✓ overview.md (2.3 KB)
   ✓ plan.md (15.8 KB)
   ✓ state.json (1.2 KB)
@@ -357,10 +357,10 @@ Verification result:
   ✅ JSON format valid
   ✅ Task files complete
 
-Generated at: /tmp/test-project/planning/implementation/user-auth/
+Generated at: /tmp/test-project/planning/user-auth/
 
 Next steps:
-1. View plan: cat planning/implementation/user-auth/plan.md
+1. View plan: cat planning/user-auth/plan.md
 2. Start implementation: /code-forge:impl user-auth
 ```
 
@@ -397,8 +397,8 @@ Possible causes:
 
 Suggestions:
 1. Check disk space: df -h
-2. Check permissions: ls -ld planning/implementation/
-3. Re-run: /code-forge:plan @planning/features/user-auth.md
+2. Check permissions: ls -ld planning/
+3. Re-run: /code-forge:plan @docs/features/user-auth.md
 
 Retry? [Y/n]
 ```
@@ -421,7 +421,7 @@ Retry? [Y/n]
 # 1. Prepare project
 cd /tmp/integration-test
 git init
-mkdir -p planning/features
+mkdir -p docs/features
 
 # 2. Create configuration
 cat > .code-forge.json << 'EOF'
@@ -436,7 +436,7 @@ cat > .code-forge.json << 'EOF'
 EOF
 
 # 3. Create feature document
-cat > planning/features/api-service.md << 'EOF'
+cat > docs/features/api-service.md << 'EOF'
 # API Service
 
 ## Feature Description
@@ -450,7 +450,7 @@ RESTful API service
 EOF
 
 # 4. Run Forge
-/code-forge:plan @planning/features/api-service.md
+/code-forge:plan @docs/features/api-service.md
 ```
 
 **Expected Full Flow**:
@@ -461,7 +461,7 @@ Base directory: planning/
 Continue? [Y/n] y
 
 📖 Reading input document
-✓ planning/features/api-service.md (97 bytes)
+✓ docs/features/api-service.md (97 bytes)
 ✓ Document format valid
 
 🔨 Generating implementation plan
@@ -488,7 +488,7 @@ Verification result:
   ✅ Total tasks: 7
   ✅ Status: pending
 
-Generated at: /tmp/integration-test/planning/implementation/api-service/
+Generated at: /tmp/integration-test/planning/api-service/
 ```
 
 **Verification Points**:

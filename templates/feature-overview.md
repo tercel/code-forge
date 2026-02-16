@@ -42,7 +42,7 @@
 
 ## References
 
-- [Source requirements](../features/[feature-name].md)
+- [Source requirements](../../docs/features/[feature-name].md)
 - [Implementation plan](./plan.md)
 
 ## Quick Start

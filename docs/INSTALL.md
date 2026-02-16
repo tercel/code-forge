@@ -51,13 +51,13 @@ You should see `forge` skill listed in available skills.
 
 ```bash
 cd your-project/
-mkdir -p planning/features
+mkdir -p docs/features
 ```
 
 ### 2. Create First Feature Document
 
 ```bash
-cat > planning/features/my-feature.md <<'EOF'
+cat > docs/features/my-feature.md <<'EOF'
 # My Feature
 
 ## Requirements
@@ -71,14 +71,14 @@ EOF
 ### 3. Run Forge
 
 ```
-/code-forge:plan @planning/features/my-feature.md
+/code-forge:plan @docs/features/my-feature.md
 ```
 
 ## Configuration (Optional)
 
 ### Customize Output Directory
 
-Default output to `planning/implementation/`. To customize, create `.code-forge.json` in your project root.
+Default output to `planning/`. To customize, create `.code-forge.json` in your project root.
 See [CONFIGURATION.md](./CONFIGURATION.md) for details.
 
 ### Git Configuration
@@ -87,10 +87,10 @@ Recommended to add to `.gitignore`:
 
 ```gitignore
 # If you don't want to commit status files
-planning/implementation/**/state.json
+planning/**/state.json
 
 # Or keep status files, ignore temp files
-# planning/implementation/**/.code-forge-temp/
+# planning/**/.code-forge-temp/
 ```
 
 Recommended to commit `state.json` for team collaboration.
@@ -148,7 +148,7 @@ touch test.txt && rm test.txt
 - Check `.code-forge.json` for custom directory settings
 
 **Solution:**
-- Create `planning/features/` in project root
+- Create `docs/features/` in project root
 - Or customize directories via `.code-forge.json`
 
 ## Need Help?

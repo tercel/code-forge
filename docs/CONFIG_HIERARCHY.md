@@ -114,9 +114,9 @@ your-project/
 ```json
 {
   "directories": {
-    "base": "planning/",
-    "input": "features/",
-    "output": "implementation/"
+    "base": "",
+    "input": "docs/features/",
+    "output": "planning/"
   },
   "naming": {
     "feature_prefix": "",
@@ -148,9 +148,9 @@ your-project/
 ```json
 {
   "directories": {
-    "base": "planning/",
-    "input": "features/",
-    "output": "implementation/"
+    "base": "",
+    "input": "docs/features/",
+    "output": "planning/"
   }
 }
 ```
@@ -169,8 +169,8 @@ your-project/
 {
   "directories": {
     "base": "dev-plans/",           // User override
-    "input": "features/",           // Keep default
-    "output": "implementation/"     // Keep default
+    "input": "docs/features/",     // Keep default
+    "output": "planning/"           // Keep default
   }
 }
 ```
@@ -180,7 +180,7 @@ your-project/
 **System default:**
 ```json
 {
-  "directories": {"base": "planning/"},
+  "directories": {"base": "", "input": "docs/features/", "output": "planning/"},
   "git": {"commit_state_file": true},
   "execution": {"default_mode": "ask"}
 }
@@ -272,8 +272,8 @@ Code Forge displays the final configuration being used at startup:
 ```
 📋 Code Forge Configuration
 ├── Base directory: planning/
-├── Input directory: planning/features/
-├── Output directory: planning/implementation/
+├── Input directory: docs/features/
+├── Output directory: planning/
 ├── Configuration sources:
 │   ├── System default: ✓
 │   ├── User configuration: ~/.code-forge.json ✓

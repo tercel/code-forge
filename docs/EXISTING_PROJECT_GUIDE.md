@@ -41,10 +41,10 @@
 
 ```bash
 cd your-project/
-mkdir -p planning/features
+mkdir -p docs/features
 
 # Create document describing completed functionality
-cat > planning/features/user-auth.md << 'EOF'
+cat > docs/features/user-auth.md << 'EOF'
 # User Authentication System (Completed)
 
 ## Feature Description
@@ -75,7 +75,7 @@ EOF
 #### Step 2: Run Forge to generate plan
 
 ```bash
-/code-forge:plan @planning/features/user-auth.md
+/code-forge:plan @docs/features/user-auth.md
 ```
 
 **Forge will prompt**:
@@ -97,7 +97,7 @@ Select **1 - Yes**, Forge will:
 
 The generated plan will be at:
 ```
-planning/implementation/user-auth/
+planning/user-auth/
 ├── overview.md
 ├── plan.md
 ├── tasks/
@@ -173,7 +173,7 @@ Complete user authentication and authorization system
 #### Step 2: Run Forge
 
 ```bash
-/code-forge:plan @planning/features/user-auth.md
+/code-forge:plan @docs/features/user-auth.md
 ```
 
 Select **3 - Hybrid**, Forge will ask:
@@ -192,7 +192,7 @@ Mark which features are completed:
 #### Step 3: Generated plan
 
 ```
-planning/implementation/user-auth/
+planning/user-auth/
 ├── overview.md
 ├── plan.md
 ├── tasks/
@@ -233,7 +233,7 @@ Now you can continue with pending tasks:
 
 ```bash
 # View next task
-cat planning/implementation/user-auth/tasks/04-oauth.md
+cat planning/user-auth/tasks/04-oauth.md
 
 # Or let Forge execute
 /code-forge:impl user-auth
@@ -250,13 +250,13 @@ cat planning/implementation/user-auth/tasks/04-oauth.md
 
 ```bash
 # 1. Create new feature document (only describe new features)
-vim planning/features/payment-gateway.md
+vim docs/features/payment-gateway.md
 
 # 2. Run Forge
-/code-forge:plan @planning/features/payment-gateway.md
+/code-forge:plan @docs/features/payment-gateway.md
 
 # 3. Generated plan is completely new
-planning/implementation/payment-gateway/
+planning/payment-gateway/
 └── All tasks status are pending
 ```
 
@@ -295,7 +295,7 @@ Fill in module status, dependencies, implementation order (see `examples/apcore-
 Completed modules (retrospective):
 ```bash
 # Describe completed foundation
-cat > planning/features/01-foundation.md << 'EOF'
+cat > docs/features/01-foundation.md << 'EOF'
 # 01-Foundation Module (Completed)
 
 ## Feature Description
@@ -316,14 +316,14 @@ Provides framework infrastructure and core abstractions
 - ...
 EOF
 
-/code-forge:plan @planning/features/01-foundation.md
+/code-forge:plan @docs/features/01-foundation.md
 # Select "Retrospective mode"
 ```
 
 In-progress modules (hybrid):
 ```bash
 # Describe registry completed and pending
-cat > planning/features/03-registry.md << 'EOF'
+cat > docs/features/03-registry.md << 'EOF'
 # 03-Registry Service Registration and Discovery
 
 ## Completed ✅
@@ -337,14 +337,14 @@ cat > planning/features/03-registry.md << 'EOF'
 - Health check integration
 EOF
 
-/code-forge:plan @planning/features/03-registry.md
+/code-forge:plan @docs/features/03-registry.md
 # Select "Hybrid mode"
 ```
 
 Not started modules (standard):
 ```bash
 # Standard forward-looking plan
-cat > planning/features/05-decorator.md << 'EOF'
+cat > docs/features/05-decorator.md << 'EOF'
 # 05-Module Decorator
 
 ## Feature Description
@@ -357,37 +357,37 @@ Module decorator system, providing automatic binding and configuration injection
 - Metadata collection
 EOF
 
-/code-forge:plan @planning/features/05-decorator.md
+/code-forge:plan @docs/features/05-decorator.md
 # Select "Standard mode"
 ```
 
 **Step 3: Final structure**
 
 ```
+docs/
+└── features/                              # Input documents
+    ├── 01-foundation.md                  # Completed (retrospective)
+    ├── 02-schema-system.md               # Completed (retrospective)
+    ├── 03-registry.md                    # Hybrid
+    ├── 04-executor.md                    # Hybrid
+    ├── 05-decorator.md                   # Forward-looking
+    └── 06-observability.md               # Forward-looking
 planning/
-├── overview.md                        # Project overview
-├── features/                          # Input documents
-│   ├── 01-foundation.md              # Completed (retrospective)
-│   ├── 02-schema-system.md           # Completed (retrospective)
-│   ├── 03-registry.md                # Hybrid
-│   ├── 04-executor.md                # Hybrid
-│   ├── 05-decorator.md               # Forward-looking
-│   └── 06-observability.md           # Forward-looking
-└── implementation/
-    ├── 01-foundation/
-    │   ├── plan.md
-    │   ├── tasks/  (all completed)
-    │   └── state.json (100%)
-    ├── 02-schema-system/
-    │   └── state.json (100%)
-    ├── 03-registry/
-    │   └── state.json (75%)
-    ├── 04-executor/
-    │   └── state.json (40%)
-    ├── 05-decorator/
-    │   └── state.json (0%)
-    └── 06-observability/
-        └── state.json (0%)
+├── overview.md                            # Project overview
+├── 01-foundation/
+│   ├── plan.md
+│   ├── tasks/  (all completed)
+│   └── state.json (100%)
+├── 02-schema-system/
+│   └── state.json (100%)
+├── 03-registry/
+│   └── state.json (75%)
+├── 04-executor/
+│   └── state.json (40%)
+├── 05-decorator/
+│   └── state.json (0%)
+└── 06-observability/
+    └── state.json (0%)
 ```
 
 #### Maintain overview.md
@@ -421,10 +421,10 @@ cat > .code-forge.json << 'EOF'
 EOF
 
 # 2. Create features directory
-mkdir -p planning/features
+mkdir -p docs/features
 
 # 3. Write feature document (describe what's done)
-cat > planning/features/user-auth.md << 'EOF'
+cat > docs/features/user-auth.md << 'EOF'
 # User Authentication (Completed)
 
 ## Implemented Features
@@ -448,18 +448,18 @@ cat > planning/features/user-auth.md << 'EOF'
 EOF
 
 # 4. Run Forge (retrospective mode)
-/code-forge:plan @planning/features/user-auth.md
+/code-forge:plan @docs/features/user-auth.md
 # Select: 1 - Retrospective mode
 
 # 5. Generated plan is at
-ls planning/implementation/user-auth/
+ls planning/user-auth/
 # overview.md  plan.md  tasks/  state.json
 
 # 6. View generated plan
-cat planning/implementation/user-auth/plan.md
+cat planning/user-auth/plan.md
 
 # 7. Manually align file paths (edit state.json)
-vim planning/implementation/user-auth/state.json
+vim planning/user-auth/state.json
 # Add actual file paths to each task
 ```
 
@@ -471,7 +471,7 @@ vim planning/implementation/user-auth/state.json
 
 ```bash
 # 1. Write hybrid document
-cat > planning/features/auth-enhancement.md << 'EOF'
+cat > docs/features/auth-enhancement.md << 'EOF'
 # Authentication Feature Enhancement
 
 ## Completed Basic Features ✅
@@ -492,14 +492,14 @@ cat > planning/features/auth-enhancement.md << 'EOF'
 EOF
 
 # 2. Run Forge
-/code-forge:plan @planning/features/auth-enhancement.md
+/code-forge:plan @docs/features/auth-enhancement.md
 
 # Forge asks:
 # "Detected hybrid state, which features are completed?"
 # Check completed parts
 
 # 3. Generated tasks have mixed status
-ls planning/implementation/auth-enhancement/tasks/
+ls planning/auth-enhancement/tasks/
 # ✅ basic-auth.md          (completed)
 # ✅ jwt.md                 (completed)
 # ⏸️ google-oauth.md        (pending)

@@ -6,9 +6,9 @@ Get started with Code Forge in 5 minutes!
 
 ```bash
 # At project root
-mkdir -p planning/features
+mkdir -p docs/features
 
-cat > planning/features/todo-list.md <<'EOF'
+cat > docs/features/todo-list.md <<'EOF'
 # Todo List Feature
 
 ## Requirements
@@ -32,7 +32,7 @@ EOF
 In Claude Code:
 
 ```
-/code-forge:plan @planning/features/todo-list.md
+/code-forge:plan @docs/features/todo-list.md
 ```
 
 Forge will:
@@ -44,10 +44,10 @@ Forge will:
 ## 3. View Generated Files (1 minute)
 
 ```bash
-tree planning/implementation/todo-list/
+tree planning/todo-list/
 
 # Output:
-# planning/implementation/todo-list/
+# planning/todo-list/
 # ├── overview.md            # Feature overview + task execution order
 # ├── plan.md                # Overall plan
 # ├── tasks/                 # Task breakdown
@@ -73,7 +73,7 @@ Forge will guide you through each task one by one.
 **Option B: Execute Manually**
 ```bash
 # Read first task
-cat planning/implementation/todo-list/tasks/setup.md
+cat planning/todo-list/tasks/setup.md
 
 # Execute by steps
 # 1. Write tests
@@ -90,7 +90,7 @@ cat planning/implementation/todo-list/tasks/setup.md
 
 ```bash
 # Check current status
-cat planning/implementation/todo-list/state.json
+cat planning/todo-list/state.json
 
 # Example output:
 # {
@@ -163,22 +163,22 @@ cat output/tasks/setup.md
 
 ### New Feature Development
 ```
-/code-forge:plan @planning/features/new-feature.md
+/code-forge:plan @docs/features/new-feature.md
 ```
 
 ### Code Refactoring
 ```
-/code-forge:plan @planning/features/refactor-plan.md
+/code-forge:plan @docs/features/refactor-plan.md
 ```
 
 ### Bug Fix (if multiple steps required)
 ```
-/code-forge:plan @planning/features/bug-fix-plan.md
+/code-forge:plan @docs/features/bug-fix-plan.md
 ```
 
 ### Team Collaboration
 ```
-/code-forge:plan @planning/features/team-feature.md
+/code-forge:plan @docs/features/team-feature.md
 # → Generate plan
 # → Commit to Git
 # → Team members assign tasks (modify state.json)
