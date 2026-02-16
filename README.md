@@ -8,53 +8,213 @@ Combining the **comprehensive depth of deep-\*** with the **standardization of s
 
 | Command | Description |
 |---------|------------|
-| `/code-forge:status` | Dashboard — show all features and progress |
 | `/code-forge:plan @doc.md` | Generate plan from a feature document |
+| `/code-forge:plan @dir/` | Browse a directory and pick a feature to plan |
 | `/code-forge:plan "requirement"` | Generate plan from a text prompt |
 | `/code-forge:impl [feature]` | Execute pending tasks for a feature |
 | `/code-forge:status [feature]` | View dashboard or feature detail |
 | `/code-forge:fixbug "description"` | Debug and fix a bug with upstream trace-back |
 | `/code-forge:review [feature]` | Review code quality for a feature |
+| `/code-forge:port @docs --ref impl --lang java` | Port a project to a new language |
 
 Each subcommand is a standalone slash command — invoke directly without a router.
 
-### Subcommand Details
+---
 
-- **plan** — Analyzes a feature document (or text prompt), generates an implementation plan with architecture design, task breakdown, and TDD steps. Supports prompt-to-document: `/code-forge:plan "implement user login"` auto-creates a feature doc then plans.
-- **impl** — Executes pending tasks for a feature using isolated sub-agents. Supports pause/resume, parallel execution, and progress tracking via `state.json`.
-- **status** — Displays a project dashboard (all features) or detailed progress for a single feature. Regenerates the project-level overview.
-- **fixbug** — Systematically debugs bugs with root cause diagnosis at 4 levels (code → task → plan → requirements). Interactively confirms upstream document updates to keep docs in sync.
-- **review** — Reviews completed feature code across 4 dimensions: code quality, test coverage, security (OWASP top 10), and plan consistency. Generates a review report.
+## Subcommand Details
+
+### plan — Generate Implementation Plan
+
+Analyzes a feature document (or text prompt) and generates an implementation plan with architecture design, task breakdown, and TDD steps.
+
+**Input modes:**
+
+```bash
+# From a specific file
+/code-forge:plan @docs/features/user-auth.md
+
+# From a directory — lists features for selection
+/code-forge:plan @docs/features/
+/code-forge:plan @../../other-project         # External project OK
+
+# From a text prompt — auto-creates feature doc first
+/code-forge:plan "Implement JWT-based user authentication"
+```
+
+**What it does:**
+1. Reads and analyzes the feature document (via sub-agent)
+2. Asks for tech stack, testing strategy, and task granularity
+3. Generates `plan.md` with architecture design and task dependency graph
+4. Creates `tasks/*.md` with TDD-first steps, code examples, and acceptance criteria
+5. Initializes `state.json` for progress tracking
+
+**Directory mode:** When given a directory path, plan scans for `*.md` files (tries `docs/features/`, `features/`, then root) and lets you pick one. Works with external paths — the document doesn't need to be in the current project.
+
+**Prompt mode:** When given text instead of a path, auto-delegates to `spec-forge:feature` to generate a feature spec, then plans from that.
+
+**Reference docs:** Configure `reference_docs.sources` in `.code-forge.json` to inject existing project documentation as context into plan generation.
+
+---
+
+### impl — Execute Tasks
+
+Executes pending tasks for a feature using isolated sub-agents. Each task runs in its own sub-agent to prevent context exhaustion.
+
+```bash
+# Execute a specific feature
+/code-forge:impl user-auth
+
+# Auto-select — picks the next pending/in-progress feature
+/code-forge:impl
+```
+
+**What it does:**
+1. Locates the feature's `state.json`
+2. Finds the next pending task respecting dependency order
+3. Dispatches a sub-agent to execute: write tests → run → implement → verify → commit
+4. After each task, asks: completed / pause / skip
+5. Supports parallel execution for independent tasks
+
+**Pause/resume:** Stop anytime. Progress is saved in `state.json`. Re-run `/code-forge:impl` to continue where you left off.
+
+---
+
+### status — Project Dashboard
+
+Displays a dashboard of all features or detailed progress for a specific feature.
+
+```bash
+# Global dashboard — all features
+/code-forge:status
+
+# Feature detail — tasks and progress
+/code-forge:status user-auth
+```
+
+**Dashboard shows:**
+- Feature name, progress %, status, last updated
+- Actions: view detail, start new plan, continue impl
+
+**Feature detail shows:**
+- Task table with status, start/complete timestamps
+- Actions: continue impl, run review, debug
+
+Auto-regenerates `planning/overview.md` on each run.
+
+---
+
+### fixbug — Debug with Upstream Trace-back
+
+Systematically debugs bugs with root cause diagnosis at 4 levels. Keeps upstream documents in sync with code fixes.
+
+```bash
+# From a description
+/code-forge:fixbug "Login page returns 500 when email has special characters"
+
+# From a file
+/code-forge:fixbug @bug-report.md
+```
+
+**Root cause levels:**
+
+| Level | Root Cause | Action |
+|-------|-----------|--------|
+| 1 | Code bug (logic error, boundary miss) | Fix code only |
+| 2 | Incomplete task description | Fix code + update task.md |
+| 3 | Plan design flaw | Fix code + update plan.md |
+| 4 | Incomplete requirements | Fix code + update feature spec |
+
+**What it does:**
+1. Scans project context and locates related code
+2. Associates bug with a code-forge feature (if exists)
+3. Diagnoses root cause level (sub-agent)
+4. Interactively confirms upstream document updates per level
+5. Applies TDD fix: regression test → implement → verify
+6. Updates upstream docs and `state.json`
+
+Works on any project — does not require prior code-forge setup. If no feature is associated, runs as a standalone fix without upstream trace-back.
+
+---
+
+### review — Code Quality Review
+
+Reviews completed feature code across 4 dimensions and generates a structured report.
+
+```bash
+# Review a specific feature
+/code-forge:review user-auth
+
+# Auto-select completed feature
+/code-forge:review
+```
+
+**Review dimensions:**
+
+| Dimension | What it checks |
+|-----------|---------------|
+| Code Quality | Naming, structure, DRY, SOLID principles |
+| Test Coverage | Unit/integration/e2e, coverage %, missing tests |
+| Security | OWASP top 10, SQL injection, XSS, CSRF, auth |
+| Plan Consistency | Does code match plan.md architecture? |
+
+**Output:** `planning/{feature}/review.md` with findings and recommendations.
+
+---
+
+### port — Cross-Language Porting
+
+Ports a documentation-driven project to a new target language. Initializes the target project, analyzes the reference implementation, and batch-generates plans for all selected features.
+
+```bash
+/code-forge:port @../apcore --ref apcore-python --lang java
+```
+
+**Parameters:**
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `@<docs-project>` | Yes | Documentation project with `docs/features/*.md` |
+| `--ref <name>` | No | Reference implementation (uses its `planning/` as context) |
+| `--lang <language>` | Yes | Target: `java`, `typescript`, `go`, `rust`, etc. |
+
+**What it does:**
+1. Scans the docs project for feature specs
+2. Analyzes reference implementation's architecture decisions (from its planning artifacts)
+3. Displays feature list — user selects which to port
+4. Confirms target tech stack once (applied to all features)
+5. Creates target project skeleton (directory, build file, `.code-forge.json`)
+6. Batch-generates plans for each selected feature (serial, in dependency order)
+7. Generates project overview
+
+**After port completes**, the target is a standard code-forge project:
+```bash
+cd ../apcore-java
+/code-forge:status                    # View all features
+/code-forge:impl schema-system        # Start implementing
+```
+
+**Resumable:** Re-running port skips features that already have plans.
+
+---
 
 ## Features
 
-### Combining Best of Both Worlds
-
-| Feature | deep-* | superpowers | **Code Forge** |
-|---------|--------|-------------|----------------|
-| **Depth Planning** | Comprehensive Analysis | Basic | **Comprehensive + TDD** |
-| **Task Breakdown** | Detailed | Manual | **Auto Breakdown** |
-| **File Organization** | Messy | `docs/plans/` | **Structured** |
-| **Naming Convention** | `claude-*` | Date prefix | **Feature name** |
-| **Status Tracking** | None | None | **JSON Tracking** |
-| **Git Friendly** | No | Yes | **Team Collaboration** |
-| **Bug Debugging** | None | Basic | **Upstream Trace-back** |
-| **Code Review** | None | Manual | **Multi-dimension Review** |
-
 ### Core Advantages
 
-1. **Standardized file organization** - Git-friendly and team-visible
-2. **Status tracking** - Track task progress (pending/in_progress/completed)
-3. **Iteration support** - Pause/resume anytime
-4. **TDD-first** - Every task is test-driven
-5. **Deep decomposition** - From documentation to concrete implementation steps
-6. **Prompt support** - Start from a text requirement, no document needed
-7. **Upstream trace-back** - Bug fixes can update plans and docs to stay in sync
-8. **Code review** - Structured quality gates before merge
+1. **Standardized file organization** — Git-friendly and team-visible
+2. **Status tracking** — Track task progress (`pending` → `in_progress` → `completed`)
+3. **Pause/resume** — Stop anytime, continue later
+4. **TDD-first** — Every task follows test → implement → verify
+5. **Deep decomposition** — From documentation to concrete implementation steps
+6. **Prompt support** — Start from a text requirement, no document needed
+7. **Directory browsing** — Point at a directory, pick a feature to plan
+8. **Upstream trace-back** — Bug fixes update plans and docs to stay in sync
+9. **Code review** — Structured quality gates before merge
+10. **Cross-language porting** — Port a project to a new language with batch planning
 
 ## Quick Start
 
-### From a Feature Spec
+### Scenario 1: New Project with Feature Specs
 
 ```bash
 # 1. Generate feature spec (via spec-forge)
@@ -70,21 +230,82 @@ Each subcommand is a standalone slash command — invoke directly without a rout
 /code-forge:review user-auth
 ```
 
-### From a Prompt
+### Scenario 2: Quick Idea to Implementation
 
 ```bash
-# No document needed — just describe what you want
-/code-forge:plan "Implement JWT-based user authentication with login, registration, and token refresh"
+# No document needed — describe what you want
+/code-forge:plan "Add dark mode support with theme switching and persistence"
 
-# Code Forge auto-creates a feature doc, then generates the plan
+# Execute the generated plan
+/code-forge:impl dark-mode
 ```
 
-### Generated Structure
+### Scenario 3: Joining an Existing Project
+
+```bash
+# Fix a bug — no prior setup needed
+/code-forge:fixbug "Login returns 500 when email contains special characters"
+
+# Add a feature — plan from a prompt
+/code-forge:plan "Add CSV export to the user reports page"
+/code-forge:impl csv-export
+
+# Optional: configure reference docs for better context
+# Create .code-forge.json with reference_docs pointing to project docs
+```
+
+### Scenario 4: External Documentation Project
+
+```bash
+# Feature specs live in a separate repo
+/code-forge:plan @../../docs-project/docs/features/
+
+# Or point directly to a file in another project
+/code-forge:plan @../apcore/docs/features/schema-system.md
+```
+
+### Scenario 5: Port to Another Language
+
+```bash
+# Port all features from a docs project to Java
+/code-forge:port @../apcore --ref apcore-python --lang java
+
+# Then implement in the new project
+cd ../apcore-java
+/code-forge:impl schema-system
+```
+
+### Scenario 6: Team Collaboration
+
+```bash
+# Developer A: Generate plan, commit to Git
+/code-forge:plan @docs/features/big-feature.md
+git add planning/ && git commit -m "plan: big-feature"
+
+# Developer B: Pull and execute tasks
+git pull
+/code-forge:impl big-feature
+
+# Developer C: Review completed work
+/code-forge:review big-feature
+```
+
+### Scenario 7: Pause/Resume
+
+```bash
+# Day 1: Start working
+/code-forge:impl user-auth    # Complete 2 tasks, pause
+
+# Day 2: Resume
+/code-forge:impl user-auth    # Auto-detects progress, continues from task 3
+```
+
+## Generated Structure
 
 ```
 planning/user-auth/
 ├── overview.md            # Feature overview + task execution order
-├── plan.md                # Overall implementation plan
+├── plan.md                # Architecture design + task dependency graph
 ├── tasks/                 # Task breakdown
 │   ├── setup.md
 │   ├── models.md
@@ -96,7 +317,7 @@ planning/user-auth/
 
 ## File Organization Standard
 
-### Recommended Structure (Default Configuration)
+### Recommended Structure
 
 ```
 project/
@@ -151,54 +372,36 @@ See: [CONFIGURATION.md](./docs/CONFIGURATION.md)
 - **No tool traces**: No "claude-" or "forge-" prefix
 - **Git friendly**: All files are suitable for commit
 
-## Use Cases
+## Configuration
 
-### New Feature Development
+### .code-forge.json
 
-```bash
-/code-forge:plan @docs/features/new-feature.md
-/code-forge:impl new-feature
-/code-forge:review new-feature
+```json
+{
+  "directories": {
+    "base": "",
+    "input": "docs/features/",
+    "output": "planning/"
+  },
+  "reference_docs": {
+    "sources": ["docs/**/*.md", "README.md"],
+    "exclude": ["docs/plans/**"]
+  },
+  "execution": {
+    "default_mode": "ask",
+    "auto_tdd": true,
+    "task_granularity": "medium"
+  },
+  "git": {
+    "auto_commit": false,
+    "commit_state_file": true
+  }
+}
 ```
 
-### Quick Prototyping from Idea
+**Three-layer merge:** system defaults → `~/.code-forge.json` (global) → `.code-forge.json` (project). Project config wins.
 
-```bash
-/code-forge:plan "Add dark mode support with theme switching and persistence"
-/code-forge:impl dark-mode
-```
-
-### Bug Fixing with Trace-back
-
-```bash
-/code-forge:fixbug "Login page returns 500 error when email contains special characters"
-# Diagnoses root cause → fixes code → updates upstream docs if needed
-```
-
-### Team Collaboration
-
-```bash
-# Developer A: Generate plan, commit to Git
-/code-forge:plan @docs/features/big-feature.md
-
-# Developer B: Assign and execute tasks
-git pull
-/code-forge:impl big-feature
-
-# Developer C: Review completed work
-/code-forge:review big-feature
-```
-
-### Pause/Resume
-
-```bash
-# Day 1: Start working
-/code-forge:plan @docs/features/feature-x.md
-/code-forge:impl feature-x    # Complete 2 tasks, pause
-
-# Day 2: Resume
-/code-forge:impl feature-x    # Auto-detects progress, continues
-```
+See: [CONFIGURATION.md](./docs/CONFIGURATION.md)
 
 ## Status Tracking
 
@@ -238,29 +441,27 @@ git pull
 
 ### Status Definitions
 
-- `pending` - Waiting to execute
-- `in_progress` - Currently executing
-- `completed` - Finished
-- `blocked` - Blocked by dependencies
-- `skipped` - Skipped
+- `pending` — Waiting to execute
+- `in_progress` — Currently executing
+- `completed` — Finished
+- `blocked` — Blocked by dependencies
+- `skipped` — Skipped
 
-## Working with Other Skills
+## Working with spec-forge
 
 ```bash
-# 1. Generate feature spec (via spec-forge)
-/spec-forge:feature xxx
+# Full chain: spec → plan → implement → review
+/spec-forge:feature user-auth          # Generate feature spec
+/code-forge:plan @docs/features/user-auth.md   # Generate plan
+/code-forge:impl user-auth             # Execute tasks
+/code-forge:review user-auth           # Review code
+```
 
-# 2. Generate implementation plan
-/code-forge:plan @docs/features/xxx.md
-
-# 3. Execute tasks (auto-uses TDD)
-/code-forge:impl xxx
-
-# 4. Review code quality
-/code-forge:review xxx
-
-# 5. Complete branch
-/finishing-a-development-branch
+For formal projects, use the full spec-forge chain first:
+```bash
+/spec-forge user-auth                  # PRD → SRS → Tech Design → Test Plan
+/spec-forge:feature user-auth          # Extract feature spec from tech design
+/code-forge:plan @docs/features/user-auth.md
 ```
 
 ## FAQ
@@ -280,6 +481,14 @@ Yes! After generation you can edit task files, adjust task order, add/delete tas
 
 Yes! It ensures team members use the same directory structure. The `_tool` section tells new members where to install the tool.
 
+### Q: Can I use code-forge on an existing project without prior setup?
+
+Yes! `/code-forge:plan "description"` and `/code-forge:fixbug "description"` work on any project immediately. Optionally configure `.code-forge.json` with `reference_docs` for better context.
+
+### Q: Can the feature spec be in a different project?
+
+Yes! Use a directory or file path: `/code-forge:plan @../../other-project/docs/features/feature.md`. Or configure `directories.input` in `.code-forge.json` to point to an external path.
+
 ### Q: How to pause/resume?
 
 Auto-supported. Stop anytime — `state.json` records current state. Run `/code-forge:impl {feature}` to resume.
@@ -291,7 +500,7 @@ Yes! See [CONFIGURATION.md](./docs/CONFIGURATION.md) for full details.
 ## Examples
 
 Complete examples in `examples/` directory:
-- `examples/user-auth/` - User authentication feature
+- `examples/user-auth/` — User authentication feature
 
 ## License
 
