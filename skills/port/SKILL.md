@@ -226,6 +226,12 @@ Store `tech_stack` decisions.
      - "Cancel" — stop
 2. If not exists: `mkdir -p <target-path>`
 
+**Do NOT copy feature specs:** Never copy `docs/features/` or any feature spec files from the docs project into the target project. Feature specs are accessed from the source docs project via relative paths configured in `directories.input`. The target project must NOT contain its own copy of feature specs.
+
+If the user explicitly requests local copies of feature specs, use `AskUserQuestion` to confirm before copying:
+- "Copy feature specs locally (creates `docs/features/` in target)" — copy and update `directories.input` to `"docs/features/"`
+- "Keep remote references (Recommended)" — do not copy, keep relative path in config
+
 #### 5.2 Generate .code-forge.json
 
 Write to `<target-path>/.code-forge.json`:
@@ -282,9 +288,19 @@ Create the following files:
 3. README.md — minimal: project name, one-line description ("apcore SDK for {lang}"), link to docs project
 
 Do NOT create src/ or test/ directories — those are created by feature tasks during implementation.
+Do NOT copy docs/features/ or any feature spec files into this project.
 
-Return the list of files created.
+You MUST create all three files listed above (build file, .gitignore, README.md). Return the list of files created.
 ```
+
+**Verify skeleton files:** After sub-agent completes, check that the following files exist in `{target_path}`:
+- Build file (`pom.xml` / `package.json` / `go.mod` / `Cargo.toml` / etc.)
+- `.gitignore`
+- `README.md`
+
+If any are missing, create them directly in the main context. Do NOT skip this verification.
+
+Also verify that `docs/features/` does NOT exist in the target project. If it was created, delete it immediately.
 
 #### 5.4 Initialize Git Repository
 
@@ -357,6 +373,8 @@ Required sections:
 
 Ensure the plan uses {lang}-idiomatic patterns (not a line-by-line translation of the reference).
 
+**Task ID naming:** Task IDs must be descriptive names **without numeric prefixes**. Use `setup`, `models`, `api` — NOT `01-setup`, `02-models`. Execution order is defined in overview.md, not by filename ordering.
+
 ### 2. {target}/planning/{feature}/tasks/{name}.md (one per task)
 Each task file must include:
 - **Goal** — what this task accomplishes
@@ -366,7 +384,7 @@ Each task file must include:
 - **Dependencies** — depends on / required by
 - **Estimated Time**
 
-Use descriptive filenames (no numeric prefixes). Example: setup.md, models.md, api.md.
+**Naming (critical):** Use descriptive filenames — `setup.md`, `models.md`, `api.md`. **NO numeric prefixes** (`01-setup.md`, `02-models.md` are WRONG). Execution order is controlled by `overview.md` Task Execution Order table and `state.json`, never by filename ordering.
 
 ### 3. {target}/planning/{feature}/overview.md
 Sections:
@@ -386,6 +404,15 @@ TASKS:
 - <id>: <title> (~<estimate>)
 EXECUTION_ORDER: <id1>, <id2>, ...
 ```
+
+**6.1.3.1 Verify Plan Output**
+
+After sub-agent completes, verify the following files were created:
+- `{target}/planning/{feature}/plan.md` — must exist and be non-empty
+- `{target}/planning/{feature}/tasks/` — must contain at least one `.md` file
+- `{target}/planning/{feature}/overview.md` — must exist and be non-empty
+
+If any file is missing, this is a sub-agent failure. Follow the error handling in 6.2 (display failure, ask user to skip/retry/stop). Do NOT proceed to state.json creation with missing plan files.
 
 **6.1.4 Initialize state.json**
 

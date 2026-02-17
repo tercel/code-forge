@@ -291,6 +291,8 @@ If not clearly specified in the document, use a **single** `AskUserQuestion` com
 
 Extract feature name from filename or document title (convert to kebab-case).
 
+**Output directory:** `{output_dir}` defaults to `planning/` — **NOT** `docs/plans/`, `docs/planning/`, or any other path. Always use the resolved `output_dir` from Step 0 configuration.
+
 Create directory structure and **proceed directly** — no confirmation needed:
 ```
 {output_dir}/{feature_name}/
@@ -299,6 +301,8 @@ Create directory structure and **proceed directly** — no confirmation needed:
 ├── tasks/
 └── state.json
 ```
+
+Example with defaults: `planning/user-auth/`, `planning/user-auth/tasks/`, etc.
 
 ### Step 6: Generate plan.md (via Sub-agent)
 
@@ -331,6 +335,8 @@ Spawn a `Task` tool call with:
 - **Risks and Considerations** — identified technical challenges
 - **Acceptance Criteria** — checklist (tests pass, code review, docs, performance)
 - **References** — related technical docs and examples
+
+**Task ID naming rules (critical):** Task IDs must be descriptive names **without numeric prefixes**. Use `setup`, `models`, `api` — **NOT** `01-setup`, `02-models`, `03-api`. Execution order is controlled by `overview.md` and `state.json`, not by filename ordering or numeric prefixes.
 
 **Sub-agent must return** (as response text, separate from the file it writes) a concise task list summary:
 
@@ -379,7 +385,7 @@ Spawn a `Task` tool call with:
 - **Dependencies** — depends on / required by
 - **Estimated Time**
 
-**Naming:** Use descriptive filenames (`setup.md`, `models.md` — no numeric prefixes). Execution order is defined in `overview.md` and `state.json`, not in filenames.
+**Naming (critical):** Use descriptive filenames: `setup.md`, `models.md`, `api.md` — **NO numeric prefixes** (`01-setup.md`, `02-models.md` are WRONG). Execution order is defined in `overview.md` Task Execution Order table and `state.json` `execution_order` array, never in filenames.
 
 **Sub-agent must return** (as response text) the list of generated files:
 
