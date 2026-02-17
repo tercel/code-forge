@@ -1,8 +1,6 @@
 # Code Forge
 
-> Transform documentation into actionable development plans with status tracking
-
-Combining the **comprehensive depth of deep-\*** with the **standardization of superpowers**, Code Forge transforms documentation into executable development plans.
+> Transform documentation into actionable development plans with task breakdown, TDD steps, and progress tracking.
 
 ## Commands
 
@@ -46,7 +44,9 @@ Analyzes a feature document (or text prompt) and generates an implementation pla
 2. Asks for tech stack, testing strategy, and task granularity
 3. Generates `plan.md` with architecture design and task dependency graph
 4. Creates `tasks/*.md` with TDD-first steps, code examples, and acceptance criteria
-5. Initializes `state.json` for progress tracking
+5. Generates `overview.md` with task execution order table (controls execution sequence)
+6. Initializes `state.json` for progress tracking
+7. Updates project-level `planning/overview.md` with all features and dependencies
 
 **Directory mode:** When given a directory path, plan scans for `*.md` files (tries `docs/features/`, `features/`, then root) and lets you pick one. Works with external paths — the document doesn't need to be in the current project.
 
@@ -182,9 +182,11 @@ Ports a documentation-driven project to a new target language. Initializes the t
 2. Analyzes reference implementation's architecture decisions (from its planning artifacts)
 3. Displays feature list — user selects which to port
 4. Confirms target tech stack once (applied to all features)
-5. Creates target project skeleton (directory, build file, `.code-forge.json`)
+5. Creates target project skeleton (build file, `.gitignore`, `README.md`, `.code-forge.json`)
 6. Batch-generates plans for each selected feature (serial, in dependency order)
-7. Generates project overview
+7. Generates project-level `planning/overview.md`
+
+**Feature specs stay in the docs project** — accessed via relative paths in `.code-forge.json`, not copied to the target.
 
 **After port completes**, the target is a standard code-forge project:
 ```bash
@@ -368,7 +370,8 @@ See: [CONFIGURATION.md](./docs/CONFIGURATION.md)
 ### Naming Conventions
 
 - **Feature directories**: kebab-case (`user-auth`, `payment-gateway`)
-- **Task files**: `{description}.md` (`setup.md`)
+- **Task files**: descriptive names without numeric prefixes (`setup.md`, `models.md` — not `01-setup.md`)
+- **Execution order**: controlled by `overview.md` Task Execution Order table and `state.json`, not by filenames
 - **No tool traces**: No "claude-" or "forge-" prefix
 - **Git friendly**: All files are suitable for commit
 
@@ -385,7 +388,7 @@ See: [CONFIGURATION.md](./docs/CONFIGURATION.md)
   },
   "reference_docs": {
     "sources": ["docs/**/*.md", "README.md"],
-    "exclude": ["docs/plans/**"]
+    "exclude": ["planning/**"]
   },
   "execution": {
     "default_mode": "ask",
