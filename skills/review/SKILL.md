@@ -16,7 +16,7 @@ Review the code quality of a feature's implementation against its plan, checking
 ## Workflow
 
 ```
-Locate Feature → Collect Changes → Multi-Dimension Review (sub-agent) → Generate Report → Update State → Summary
+Locate Feature → Collect Changes → Multi-Dimension Review (sub-agent) → Display Report → Update State → Summary
 ```
 
 ## Context Management
@@ -155,9 +155,11 @@ Spawn a `Task` tool call with:
 
 ---
 
-### Step 4: Generate Review Report
+### Step 4: Display Review Report
 
-Write review report to `{output_dir}/{feature_name}/review.md`:
+Review results are **displayed in the terminal** by default — no file is written. This reflects that reviews are iterative, intermediate checks rather than permanent artifacts.
+
+Display the following report directly in the terminal using markdown:
 
 ```markdown
 # Code Review: {feature_name}
@@ -203,6 +205,10 @@ Write review report to `{output_dir}/{feature_name}/review.md`:
 {final assessment and recommendation: merge, fix then merge, or rework}
 ```
 
+#### 4.1 Optional: Save to File (`--save`)
+
+If the user passed `--save` in the arguments, **also** write the report to `{output_dir}/{feature_name}/review.md`. Otherwise, do NOT create the file.
+
 ---
 
 ### Step 5: Update state.json
@@ -214,11 +220,11 @@ Write review report to `{output_dir}/{feature_name}/review.md`:
      "review": {
        "date": "ISO timestamp",
        "rating": "pass_with_notes",
-       "total_issues": 3,
-       "report": "review.md"
+       "total_issues": 3
      }
    }
    ```
+   - If `--save` was used, also include `"report": "review.md"` in the review object
 3. Update `state.json` `updated` timestamp
 
 ---
@@ -232,7 +238,8 @@ Code Review Complete: {feature_name}
 
 Rating: {overall_rating}
 Issues: {total_issues} ({critical} critical, {warning} warnings, {suggestion} suggestions)
-Report: {output_dir}/{feature_name}/review.md
+{If --save was used:}
+Report saved: {output_dir}/{feature_name}/review.md
 
 {If needs_changes:}
 Recommended actions:
@@ -245,4 +252,6 @@ Recommended actions:
 Ready for next steps:
   /code-forge:status {feature_name}         View final status
   Create a Pull Request
+
+Tip: use --save to persist the review report to disk
 ```

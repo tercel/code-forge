@@ -157,7 +157,7 @@ Reviews completed feature code across 4 dimensions and generates a structured re
 | Security | OWASP top 10, SQL injection, XSS, CSRF, auth |
 | Plan Consistency | Does code match plan.md architecture? |
 
-**Output:** `planning/{feature}/review.md` with findings and recommendations.
+**Output:** Review report displayed in terminal; summary saved to `state.json`. Use `--save` to persist as `planning/{feature}/review.md`.
 
 ---
 
@@ -313,8 +313,7 @@ planning/user-auth/
 │   ├── models.md
 │   ├── auth-logic.md
 │   └── api-endpoints.md
-├── state.json             # Status tracking
-└── review.md              # Code review report (after /code-forge:review)
+└── state.json             # Status tracking (includes review summary)
 ```
 
 ## File Organization Standard
@@ -339,8 +338,7 @@ project/
 │   │   │   ├── setup.md
 │   │   │   ├── models.md
 │   │   │   └── ...
-│   │   ├── state.json
-│   │   └── review.md
+│   │   └── state.json
 │   │
 │   └── payment-gateway/
 │       ├── overview.md
