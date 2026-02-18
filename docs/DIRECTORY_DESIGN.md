@@ -190,7 +190,7 @@ The directory design supports a clean handoff between spec-forge and code-forge:
 For formal projects with the full spec-forge chain:
 
 ```
-/spec-forge user-auth              → docs/user-auth/{prd,srs,tech-design,test-plan}.md  (full chain via orchestrator)
+/spec-forge:spec-forge user-auth   → docs/user-auth/{prd,srs,tech-design,test-plan}.md  (full chain via orchestrator)
 /spec-forge:feature user-auth      → docs/features/user-auth.md (extracted from tech-design)
 /code-forge:plan @docs/features/user-auth.md → planning/user-auth/
 ```

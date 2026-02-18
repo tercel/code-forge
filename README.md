@@ -460,7 +460,7 @@ See: [CONFIGURATION.md](./docs/CONFIGURATION.md)
 
 For formal projects, use the full spec-forge chain first:
 ```bash
-/spec-forge user-auth                  # PRD → SRS → Tech Design → Test Plan
+/spec-forge:spec-forge user-auth       # PRD → SRS → Tech Design → Test Plan
 /spec-forge:feature user-auth          # Extract feature spec from tech design
 /code-forge:plan @docs/features/user-auth.md
 ```
