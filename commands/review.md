@@ -1,6 +1,6 @@
 ---
-description: "Review code quality for a completed feature"
-argument-hint: "[feature-name] [--save]"
+description: "Review code quality for a feature or entire project"
+argument-hint: "[feature-name] [--project] [--save]"
 allowed-tools: [Read, Glob, Grep, Write, Edit, Bash, AskUserQuestion, Task, TaskCreate, TaskUpdate, TaskList, TaskGet]
 ---
 
