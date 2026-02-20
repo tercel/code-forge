@@ -1,7 +1,7 @@
 {
   "name": "code-forge",
   "description": "Forge executable, TDD-driven implementation plans from documentation — with subcommands for planning, execution, porting, debugging, and review",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "author": {
     "name": "tercel",
     "url": "https://github.com/tercel"

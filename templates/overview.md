@@ -14,7 +14,7 @@
 ## Overall Progress
 
 ```
-Overall Progress: ████████░░░░░░░░░░ 40%
+[>>>>>>>>>>>>>>>>                        ] 2/5 modules (40%)
 
 Completed: 2/5 modules
 In Progress: 1/5 modules

@@ -558,7 +558,7 @@ Step 3/5: Implement code
   ├─ Create src/models.py
   └─ ⏳ In progress...
 
-Overall progress: ████░░░░░░ 40%
+[>>>>>>>>>>>>>>>>                        ] 2/5 steps (40%)
 ```
 ```
 

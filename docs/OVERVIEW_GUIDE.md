@@ -124,7 +124,7 @@ graph TD
 ### 6. Overall Progress
 
 ```
-Overall Progress: ████████░░░░░░░░░░ 40%
+[>>>>>>>>>>>>>>>>                        ] 2/5 modules (40%)
 
 Completed: 2/5 modules
 In Progress: 1/5 modules
@@ -171,7 +171,7 @@ If you want to manually adjust the overview (e.g., reorder phases, add notes), y
 - ✅ 01-foundation completed
 
 # Update progress
-Overall Progress: ████░░░░░░░░░░░░░░ 20%
+[>>>>>>>>                                ] 1/5 modules (20%)
 Completed: 1/5 modules
 
 # Add changelog
@@ -199,7 +199,7 @@ Completed: 1/5 modules
 | 02-auth | ... | 🔄 In Progress | 45% | Alice |
 
 # Update overall progress
-Overall Progress: ████████░░░░░░░░░░ 40%
+[>>>>>>>>>>>>>>>>                        ] 2/5 modules (40%)
 ```
 
 ## Relationship with Module Planning
