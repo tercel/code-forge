@@ -631,5 +631,4 @@ If the problem cannot be resolved, provide when creating an issue:
 
 ---
 
-**Last Updated**: 2025-02-13
-**For issues, see**: [Completeness Check](./COMPLETENESS_CHECK.md)
+**Last Updated**: 2026-02-26

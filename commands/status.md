@@ -1,5 +1,5 @@
 ---
-description: "Display feature dashboard and progress"
+description: "Use when checking implementation progress — shows feature dashboard with task completion and next steps"
 argument-hint: "[feature-name]"
 allowed-tools: [Read, Glob, Grep, Write, AskUserQuestion, TaskCreate, TaskUpdate, TaskList, TaskGet]
 ---

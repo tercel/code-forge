@@ -260,16 +260,3 @@ planning/**/state.json
 planning/
 ```
 
-## Comparison with Existing Systems
-
-| Feature | deep-* | superpowers | Code Forge |
-|---------|--------|-------------|------------|
-| File location | Scattered | `docs/plans/` | `planning/` |
-| Naming convention | `claude-*` | Date prefix | Feature name + task name |
-| File count | 20-30+ | 1-2 | 5-10 (structured) |
-| Status tracking | None | None | state.json |
-| Git friendly | No | Yes | Yes |
-| Team collaboration | No | Yes | Yes |
-| Deep planning | Yes | Limited | Yes |
-| Task breakdown | Yes | Limited | Yes |
-| spec-forge integration | No | No | Yes |

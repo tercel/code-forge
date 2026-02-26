@@ -1,5 +1,5 @@
 ---
-description: "Port a project to a new target language"
+description: "Use when porting a project to another language — batch-generates plans for all features in the target language"
 argument-hint: "@<docs-project> --ref <reference-impl> --lang <target-language>"
 allowed-tools: [Read, Glob, Grep, Write, Edit, Bash, AskUserQuestion, Task, TaskCreate, TaskUpdate, TaskList, TaskGet]
 ---

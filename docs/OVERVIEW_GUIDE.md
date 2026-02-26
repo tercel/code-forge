@@ -346,10 +346,10 @@ foundation → schema → registry → executor → decorator
 
 ```bash
 # Basic template
-/Users/tercel/WorkSpace/skills/code-forge/templates/overview.md
+templates/overview.md
 
-# APCore example
-/Users/tercel/WorkSpace/skills/code-forge/examples/apcore-python-overview.md
+# Feature-level template
+templates/feature-overview.md
 ```
 
 ## Summary

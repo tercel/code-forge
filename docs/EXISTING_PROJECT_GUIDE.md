@@ -665,7 +665,6 @@ ls planning/auth-enhancement/tasks/
 
 **Related documents**:
 - [OVERVIEW_GUIDE.md](./OVERVIEW_GUIDE.md) - Multi-module project management
-- [QUICK_START.md](./QUICK_START.md) - Standard usage workflow
-- [examples/apcore-python-overview.md](./examples/apcore-python-overview.md) - Multi-module example
+- [README.md](../README.md) - Full command reference and quick start
 
-**Last updated**: 2025-02-10
+**Last updated**: 2026-02-26

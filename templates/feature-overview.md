@@ -1,6 +1,6 @@
 # [Feature Name]
 
-> Feature module overview template - used inside each `implementation/{feature}/` directory
+> Feature module overview template - used inside each `planning/{feature}/` directory
 
 ## Overview
 

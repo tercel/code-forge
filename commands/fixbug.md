@@ -1,5 +1,5 @@
 ---
-description: "Debug and fix bugs with interactive upstream trace-back"
+description: "Use when fixing a bug in a code-forge tracked feature (has state.json) — traces root cause across 4 levels and syncs upstream plan/task documents"
 argument-hint: "[\"bug description\" | @issue.md]"
 allowed-tools: [Read, Glob, Grep, Write, Edit, Bash, AskUserQuestion, Task, TaskCreate, TaskUpdate, TaskList, TaskGet]
 ---

@@ -1,5 +1,5 @@
 ---
-description: "Execute pending tasks for a feature"
+description: "Use when implementing a feature — executes TDD tasks via sub-agents with state tracking and auto-resume"
 argument-hint: "[feature-name]"
 allowed-tools: [Read, Glob, Grep, Write, Edit, Bash, AskUserQuestion, Task, TaskCreate, TaskUpdate, TaskList, TaskGet]
 ---
