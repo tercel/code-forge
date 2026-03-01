@@ -1,12 +1,27 @@
 {
   "name": "code-forge",
   "description": "Complete development workflow — from TDD-driven implementation plans to execution, debugging, code review, git worktree management, branch lifecycle, and parallel agent dispatch",
-  "version": "0.16.0",
+  "version": "0.16.1",
   "author": {
     "name": "tercel",
     "url": "https://github.com/tercel"
   },
   "repository": "https://github.com/tercel/code-forge",
   "license": "MIT",
-  "keywords": ["planning", "tdd", "task-breakdown", "implementation", "documentation", "debugging", "code-review", "porting", "cross-language", "worktree", "git", "verification", "parallel-agents", "branch-lifecycle"]
+  "keywords": [
+    "planning",
+    "tdd",
+    "task-breakdown",
+    "implementation",
+    "documentation",
+    "debugging",
+    "code-review",
+    "porting",
+    "cross-language",
+    "worktree",
+    "git",
+    "verification",
+    "parallel-agents",
+    "branch-lifecycle"
+  ]
 }
