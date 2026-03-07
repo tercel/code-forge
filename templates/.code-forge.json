@@ -4,8 +4,7 @@
   "_tool": {
     "name": "code-forge",
     "description": "Transform documentation into actionable development plans with task breakdown and status tracking",
-    "url": "https://github.com/tercel/code-forge",
-    "skills_collection": "https://github.com/tercel/claude-code-skills"
+    "url": "https://github.com/tercel/code-forge"
   },
 
   "directories": {
