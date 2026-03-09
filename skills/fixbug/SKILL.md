@@ -27,13 +27,118 @@ Bug Input → Context Scan → Feature Association → Root Cause Diagnosis → 
 
 ### Step 1: Receive Bug Description
 
-Accept input in two modes:
+Accept input in three modes:
+
 - **Prompt text** (e.g., `/code-forge:fixbug login page returns 500 error`) — use the text as bug description
 - **File reference** (e.g., `/code-forge:fixbug @issues/bug-123.md`) — read the file for bug details
+- **Review mode** (`/code-forge:fixbug --review [feature-name]`) — read the review report and batch-fix all issues. See [Step 1R](#step-1r-review-mode-setup) below.
 
 If no input provided, use `AskUserQuestion` to ask: "Describe the bug you encountered."
 
-Store the bug description for subsequent steps.
+For prompt text and file reference modes, store the bug description and continue to Step 2.
+
+For `--review` mode, go to Step 1R.
+
+---
+
+### Step 1R: Review Mode Setup
+
+Locate and parse the review report. The review report lives **in the current conversation context** (displayed by a prior `/code-forge:review` run). A saved file on disk is the fallback.
+
+**Source priority:**
+
+1. **Conversation context (primary):** Look for the most recent review report output in the current conversation. The report starts with `# Code Review:` or `# Project Review:` and contains the structured dimension sections. If found, use it directly.
+
+2. **Saved file (fallback):** Only if no review report exists in the current conversation:
+   - With feature name (`--review my-feature`): read `{output_dir}/{feature_name}/review.md`
+   - Without feature name (`--review`): search `{output_dir}/project-review.md` first, then scan `{output_dir}/*/review.md`
+   - If multiple found: use `AskUserQuestion` to let user select
+
+3. **Neither found:** Show error — "No review report found in this session. Run `/code-forge:review` first, or `/code-forge:review --save` to persist to disk."
+
+4. **Parse issues from the report:**
+   - Extract all issues with severity `blocker`, `critical`, and `warning`
+   - Skip `suggestion`-level issues (these are optional improvements, not bugs)
+   - Group issues by file for efficient fixing
+   - Sort by severity: blockers first, then criticals, then warnings
+
+5. **Present issue summary and confirm:**
+
+   Display:
+   ```
+   Review Report: {feature_name or "project"}
+
+   Found {N} issues to fix:
+     Blockers:  {count}
+     Criticals: {count}
+     Warnings:  {count}
+
+   Issues:
+     1. [{severity}] {file}:{line} — {title}
+     2. [{severity}] {file}:{line} — {title}
+     ...
+   ```
+
+   Use `AskUserQuestion`: "Fix all {N} issues? Or enter issue numbers to fix selectively (e.g., `1,3,5`)."
+
+   - **"all" / "yes"** → process all issues
+   - **Comma-separated numbers** → process only selected issues
+   - **"cancel"** → abort
+
+6. **Batch execution:**
+
+   For each selected issue (or group of issues in the same file):
+   - Set the issue's `title + description + suggestion` as the bug description
+   - The review already provides `file`, `line`, `description`, and `suggestion` — use these directly as the diagnosis. Only spawn a diagnostic sub-agent (Step 4) if the review's suggestion is vague or the fix is non-obvious.
+   - Execute Step 6 (TDD Fix) directly:
+     - **6.1** Write a regression test targeting the specific issue
+     - **6.2** Implement the fix (use the review's `suggestion` as guidance)
+     - **6.3** Run full test suite
+     - **6.4** Commit with message: `fix: {issue title} ({file}:{line})`
+   - **Skip** Steps 2 (Context Scan), 3 (Feature Association), 5 (Upstream Trace-back), and 7 (Doc Sync) — review issues are code-level (Level 1), and file context is already known from the report.
+   - After fixing each issue, display a brief progress line:
+     ```
+     ✅ [{i}/{N}] Fixed: {title} ({file}:{line})
+     ```
+
+7. **Update state.json** (if associated with a feature):
+
+   Add a single aggregated fix record to the `fixes` array:
+   ```json
+   {
+     "bug": "review fixes — {N} issues",
+     "root_cause_level": 1,
+     "root_cause": "Code-level issues identified by review",
+     "fixed_files": ["path/to/file1.ext", "path/to/file2.ext"],
+     "commits": ["abc1234", "def5678"],
+     "doc_updates": [],
+     "fixed_at": "ISO timestamp"
+   }
+   ```
+
+8. **Display batch summary:**
+
+   ```
+   Review Fixes Complete: {feature_name or "project"}
+
+   Fixed: {fixed_count}/{total_count} issues
+     Blockers:  {fixed_blockers}/{total_blockers}
+     Criticals: {fixed_criticals}/{total_criticals}
+     Warnings:  {fixed_warnings}/{total_warnings}
+
+   {If any failed:}
+   ⚠ Could not fix:
+     - {title} ({file}:{line}) — {reason}
+
+   Commits:
+     {commit hashes}
+
+   Next steps:
+     /code-forge:review {feature_name}    Re-run review to verify fixes
+     /code-forge:status {feature_name}    View updated progress
+   ```
+
+**Review mode ends here — do NOT continue to Step 2.**
 
 ---
 
