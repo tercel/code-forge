@@ -300,7 +300,7 @@ If the user provided a feature name (e.g., `/code-forge:review user-auth`):
 
 If the user passed `--project` (e.g., `/code-forge:review --project`):
 
-→ **Project Mode** — go to Step 2P
+→ **Project Mode** with `scope = "full"` — go to Step 2P
 
 #### 1.3 No Arguments
 
@@ -310,9 +310,10 @@ If no arguments provided:
 2. Filter to features with at least one `"completed"` task
 3. Build choice list:
    - If completed features exist: include each as an option, **plus** "Review entire project" as the last option
-   - If no completed features: go to **Project Mode** automatically
-4. If only one option (project review): go to **Project Mode** automatically
+   - If no completed features: go to **Project Mode** with `scope = "changes"` automatically
+4. If only one option (project review): go to **Project Mode** with `scope = "changes"` automatically
 5. If multiple options: use `AskUserQuestion` to let user select
+   - If user selects "Review entire project": go to **Project Mode** with `scope = "changes"`
 
 ---
 
@@ -564,20 +565,34 @@ PLAN_CONSISTENCY:
 
 #### 3P.1 Collect Source Code
 
-Identify and collect project source files for deep code review:
+Identify and collect project source files for deep code review. The collection strategy depends on `scope` (set in Step 1):
+
+**If `scope = "changes"` (default — no arguments or auto-selected):**
+
+1. **Identify changed files (primary scope):**
+   - If on a non-main branch: `git diff main...HEAD --name-only`
+   - If on main branch with uncommitted changes: `git diff HEAD --name-only` + `git diff --cached --name-only` (staged + unstaged)
+   - If on main branch with no uncommitted changes: `git diff HEAD~1 --name-only` (last commit)
+   - Exclude non-source directories: `node_modules/`, `dist/`, `build/`, `.git/`, `vendor/`, `__pycache__/`, the output directory itself
+
+2. **Expand to impact zone (1 level):** For each changed file, also include:
+   - Files that **import or depend on** the changed file (direct dependents — use `Grep` to find import/require/use statements referencing the changed file)
+   - Files that the changed file **imports from** (direct dependencies — read the changed file's import statements)
+   - **Test files** corresponding to the changed files (e.g., `foo.test.ts` for `foo.ts`)
+
+3. **Fallback to full scan:** Only if no changed files are found (clean repo, no recent commits), fall through to the `scope = "full"` strategy below.
+
+**If `scope = "full"` (`--project` flag):**
 
 1. Use project root markers to find source directories (e.g., `src/`, `lib/`, `app/`, `pkg/`, or language-specific patterns)
 2. Exclude non-source directories: `node_modules/`, `dist/`, `build/`, `.git/`, `vendor/`, `__pycache__/`, the output directory itself
-3. If on a non-main branch, prefer `git diff main...HEAD` to scope changed files
-4. If on main branch, scan all source files
+3. Scan all source files
+4. If the project is large (>50 source files), prioritize:
+   - Core modules (entry points, main logic, business logic)
+   - Test files
+   - Configuration and infrastructure files
 
-Build file list for the sub-agent. If the project is large (>50 source files), focus on:
-- Files changed recently (git log)
-- Core modules (entry points, main logic, business logic)
-- Test files
-- Configuration and infrastructure files
-
-Also collect:
+**Both modes also collect:**
 - Package manifests (`package.json`, `Cargo.toml`, `pyproject.toml`, etc.) for dependency review
 - Build/CI configuration if present
 
@@ -867,6 +882,7 @@ If the user passed `--save` in the arguments, **also** write the report to `{out
 
 Use the same report template as Feature Mode (see [Step 4F](#step-4f-feature-mode--display-report)), with these differences:
 - Title: `# Project Review: {project_name}` (instead of feature name)
+- Header adds: `**Scope:** {changes (N changed + M related files) | full (N source files)}`
 - Header adds: `**Reference:** {planning-backed | docs-backed | bare (no reference documents)}`
 - Consistency section adapts to reference level:
   - **planning-backed** → `## Plan Consistency` with criteria met/unmet
