@@ -34,8 +34,7 @@ project/
   "_tool": {
     "name": "code-forge",
     "description": "Transform documentation into actionable development plans with task breakdown and status tracking",
-    "url": "https://github.com/tercel/code-forge",
-    "skills_collection": "https://github.com/tercel/claude-code-skills"
+    "url": "https://github.com/tercel/code-forge"
   },
 
   "directories": {
@@ -233,13 +232,11 @@ The `_tool` section identifies the Code Forge plugin itself. It helps new team m
 | `name` | string | `"code-forge"` | Plugin name |
 | `description` | string | `"Transform documentation..."` | What this tool does |
 | `url` | string | `"https://github.com/tercel/code-forge"` | Plugin repository URL for installation |
-| `skills_collection` | string | `"https://github.com/tercel/claude-code-skills"` | Parent skills collection URL |
 
 **Why include this?**
 - A new team member sees `.code-forge.json` in the project and immediately knows:
   - What tool this config belongs to
   - Where to install it (click the `url`)
-  - What skills collection it's part of
 - This is auto-populated when generating `.code-forge.json` from the template
 - These values are read-only — user/project overrides do not change them
 
