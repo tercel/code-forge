@@ -467,6 +467,7 @@ If a sub-agent fails for a feature:
 - Display: `[{i}/{total}] {feature} — FAILED: {error summary}`
 - Use `AskUserQuestion`: "Feature planning failed."
   - "Skip and continue" — mark as skipped, continue to next feature
+  - "Skip all future failures" — auto-skip any remaining failures without prompting
   - "Retry" — re-dispatch sub-agent
   - "Stop" — exit the batch loop
 

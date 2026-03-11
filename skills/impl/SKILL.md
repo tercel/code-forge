@@ -37,17 +37,20 @@ If the user provided a feature name (e.g., `/code-forge:impl user-auth`):
 
 1. Look for `{output_dir}/{feature_name}/state.json`
 2. If not found, search `{output_dir}/*/state.json` for a feature whose `feature` field matches
-3. If still not found, show error: "Feature '{feature_name}' not found. Run `/code-forge:status` to see available features."
+3. If not found in `output_dir`, **also search `.code-forge-tmp/{feature_name}/state.json`** and `.code-forge-tmp/*/state.json` (plan may have been created with `--tmp`)
+4. If still not found, show error: "Feature '{feature_name}' not found. Run `/code-forge:status` to see available features."
+
+If found in `.code-forge-tmp/`, set `output_dir` to `.code-forge-tmp/` and `tmp_mode` to `true` for the rest of the session.
 
 #### 1.2 Without Argument
 
 If no feature name is provided:
 
-1. Scan `{output_dir}/*/state.json` for all features
+1. Scan **both** `{output_dir}/*/state.json` and `.code-forge-tmp/*/state.json` for all features
 2. Filter to features with `status` = `"pending"` or `"in_progress"` (exclude `"completed"`)
 3. If none found: "No features ready for execution. Run `/code-forge:plan` to create one."
 4. If one found: use it automatically
-5. If multiple found: display table and use `AskUserQuestion` to let user select
+5. If multiple found: display table (mark tmp features with `[tmp]` suffix) and use `AskUserQuestion` to let user select
 
 #### 1.3 Validate Feature State
 
@@ -67,7 +70,7 @@ Use `AskUserQuestion`:
 - **"Start Execution Now (Recommended)"** — execute tasks one by one, auto-track progress → enter Step 11
 - **"Manual Execution Later"** — save plan, show resume instructions (`/code-forge:impl {feature}`)
 - **"Team Collaboration Mode"** — show guidelines: commit plan to Git, claim tasks via `assignee`, sync `state.json`
-- **"Generate Plan Only"** — only generate plan files, stop here
+- **"View Plan Details"** — display plan.md contents for review before executing
 
 ### Step 11: Task Execution Loop (via Sub-agents)
 

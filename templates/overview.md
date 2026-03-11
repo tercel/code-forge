@@ -23,20 +23,15 @@ Pending: 2/5 modules
 
 ## Module Overview
 
-| Module | Description | Priority | Status | Progress | Owner |
-|--------|-------------|----------|--------|----------|-------|
-| [01-foundation](./foundation/) | Project Infrastructure | P0 | ✅ Completed | 100% | - |
-| [02-auth](./auth/) | User Authentication System | P0 | ✅ Completed | 100% | - |
-| [03-api](./api/) | RESTful API | P0 | 🔄 In Progress | 60% | - |
-| [04-frontend](./frontend/) | Frontend Interface | P1 | ⏸️ Pending | 0% | - |
-| [05-deploy](./deploy/) | Deployment Configuration | P2 | ⏸️ Pending | 0% | - |
+| Feature | Description | Status | Progress |
+|---------|-------------|--------|----------|
+| [foundation](./foundation/) | Project Infrastructure | ✅ Completed | 100% |
+| [auth](./auth/) | User Authentication System | ✅ Completed | 100% |
+| [api](./api/) | RESTful API | 🔄 In Progress | 60% |
+| [frontend](./frontend/) | Frontend Interface | ⏸️ Pending | 0% |
+| [deploy](./deploy/) | Deployment Configuration | ⏸️ Pending | 0% |
 
-**Priority Explanation:**
-- **P0** - Must Have: Core functionality, must be completed
-- **P1** - Should Have: Important functionality, should be completed
-- **P2** - Nice to Have: Enhancement features, optional
-
-**Status Explanation:**
+**Status Definitions:**
 - ✅ Completed - All tasks completed
 - 🔄 In Progress - Currently implementing
 - ⏸️ Pending - Not yet started

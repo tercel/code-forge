@@ -306,7 +306,7 @@ If the user passed `--project` (e.g., `/code-forge:review --project`):
 
 If no arguments provided:
 
-1. Scan `{output_dir}/*/state.json` for all features
+1. Scan **both** `{output_dir}/*/state.json` and `.code-forge-tmp/*/state.json` for all features
 2. Filter to features with at least one `"completed"` task
 3. Build choice list:
    - If completed features exist: include each as an option, **plus** "Review entire project" as the last option
@@ -322,7 +322,8 @@ If no arguments provided:
 #### 2F.1 Find Feature
 
 1. Look for `{output_dir}/{feature_name}/state.json`
-2. If not found: show error, list available features
+2. If not found, also check `.code-forge-tmp/{feature_name}/state.json`
+3. If still not found: show error, list available features
 
 #### 2F.2 Load Feature Context
 

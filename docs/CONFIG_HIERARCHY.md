@@ -118,11 +118,6 @@ your-project/
     "input": "docs/features/",
     "output": "planning/"
   },
-  "naming": {
-    "feature_prefix": "",
-    "task_prefix": "",
-    "use_date": false
-  },
   "git": {
     "auto_commit": false,
     "commit_state_file": true,
@@ -284,26 +279,20 @@ Files will be created at...
 Continue?
 ```
 
-## Configuration Override
+## Temporary Mode
 
-### Temporary Configuration Override
-
-Runtime parameters have the highest priority:
+Use `--tmp` to write plan files to `.code-forge-tmp/` instead of the configured output directory:
 
 ```bash
-# Ignore all configuration files
-/code-forge:plan @xxx.md --ignore-config
-
-# Temporarily specify directory
-/code-forge:plan @xxx.md --base-dir custom-dir/
-
-# Temporarily specify output directory
-/code-forge:plan @xxx.md --output implementation-alt/
+/code-forge:plan --tmp "Add user export feature"
+/code-forge:plan --tmp @docs/features/user-auth.md
 ```
+
+Plan files are auto-gitignored and cleaned up by `/code-forge:finish` after merge.
 
 **Priority:**
 ```
-Command-line parameters > Project configuration > User configuration > System default
+--tmp flag > Project configuration > User configuration > System default
 ```
 
 ## Practical Scenarios
@@ -514,9 +503,9 @@ A: `~/.code-forge.json` (user home directory)
 
 A: ✅ Recommended to commit for unified team configuration
 
-### Q: How to temporarily ignore configuration?
+### Q: How to avoid plan files polluting the project?
 
-A: Use `--ignore-config` parameter
+A: Use `--tmp` flag: `/code-forge:plan --tmp "requirement"`. Files go to `.code-forge-tmp/` (auto-gitignored).
 
 ### Q: What if configurations conflict?
 

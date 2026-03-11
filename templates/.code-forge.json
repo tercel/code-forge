@@ -13,17 +13,11 @@
     "output": "planning/"
   },
 
-  "naming": {
-    "feature_prefix": "",
-    "task_prefix": "",
-    "use_date": false
-  },
-
   "git": {
     "auto_commit": false,
     "commit_state_file": true,
     "gitignore_patterns": [
-      "**/.code-forge-temp/"
+      "**/.code-forge-tmp/"
     ]
   },
 

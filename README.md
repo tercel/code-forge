@@ -10,6 +10,7 @@
 | `/code-forge:plan @doc.md` | Generate plan from a feature document |
 | `/code-forge:plan @dir/` | Browse a directory and pick a feature to plan |
 | `/code-forge:plan "requirement"` | Generate plan from a text prompt |
+| `/code-forge:plan --tmp "requirement"` | Generate plan in `.code-forge-tmp/` (no project pollution) |
 | `/code-forge:impl [feature]` | Execute pending tasks for a feature |
 | `/code-forge:status [feature]` | View dashboard or feature detail |
 | **Quality & Debugging** | |
@@ -50,6 +51,10 @@ Analyzes a feature document (or text prompt) and generates an implementation pla
 
 # From a text prompt — auto-creates feature doc first
 /code-forge:plan "Implement JWT-based user authentication"
+
+# Temporary mode — plan files in .code-forge-tmp/ (auto-gitignored)
+/code-forge:plan --tmp "Implement JWT-based user authentication"
+/code-forge:plan --tmp @docs/features/user-auth.md
 ```
 
 **What it does:**
@@ -241,7 +246,7 @@ Completes work on the current branch with four options.
 ```
 
 **Options:**
-1. **Merge to base** — Squash merge to main/base branch
+1. **Merge to base** — No-fast-forward merge to main/base branch
 2. **Create PR** — Push and open a GitHub PR via `gh`
 3. **Keep branch** — Push without merging
 4. **Discard** — Delete branch and worktree (with confirmation gate)
@@ -315,6 +320,41 @@ Ports a documentation-driven project to a new target language.
 /code-forge:review user-auth                      # Review
 /code-forge:finish                                # Merge or PR
 ```
+
+### Joining a Project Midway (No Docs)
+
+When you join an existing project to develop a new feature — no design docs, no prior setup — use this minimal flow:
+
+```bash
+# Step 1: (Optional) Understand the project first
+/code-forge:review --project                      # 14-dimension scan of the codebase
+
+# Step 2: Describe the requirement in plain text — no docs needed
+/code-forge:plan "Add batch CSV export to user list with date range filter"
+
+# Step 3: Execute tasks (TDD-driven)
+/code-forge:impl
+
+# Step 4: Verify and finish
+/code-forge:verify
+/code-forge:finish
+```
+
+**Don't want plan files polluting the project?** Use `--tmp`:
+
+```bash
+# Plan files go to .code-forge-tmp/ (auto-gitignored), not planning/
+/code-forge:plan --tmp "Add batch CSV export to user list with date range filter"
+/code-forge:impl                                  # Automatically finds plans in .code-forge-tmp/
+/code-forge:finish                                # Cleans up .code-forge-tmp/ after merge
+```
+
+**Key points:**
+- `/plan` accepts plain text — formal documents are NOT required
+- `/impl` depends on `/plan` — you cannot skip `/plan` and go directly to `/impl`
+- Use `--tmp` when the project has no `planning/` convention — plan files are auto-gitignored and cleaned up on finish
+- If you want ad-hoc development without task tracking, use `/tdd` instead of `/plan` + `/impl`
+- `/review --project` is optional but recommended when you're unfamiliar with the codebase
 
 ### Ad-hoc Development (No Tracking)
 
@@ -517,6 +557,14 @@ Auto-supported. Stop anytime — `state.json` records current state. Run `/code-
 ### Q: When should I use `debug` vs `fixbug`?
 
 Use `/code-forge:fixbug` when the bug is in a code-forge tracked feature (has `state.json`) — it traces root cause across 4 levels and syncs upstream documents. Use `/code-forge:debug` for general-purpose debugging on any codebase.
+
+### Q: Can I skip `/plan` and go directly to `/impl` with a requirement description?
+
+No. `/impl` executes tasks from an existing plan (`state.json`). Without `/plan`, there are no tasks to execute. The minimum flow is `/plan` → `/impl`. If you want a single-command experience without tracking, use `/code-forge:tdd` instead.
+
+### Q: I don't want plan files cluttering the project. Can I avoid them?
+
+Yes. Use `--tmp`: `/code-forge:plan --tmp "requirement"`. Plan files are written to `.code-forge-tmp/` which is auto-gitignored. `/impl` and `/status` automatically search this location. `/finish` cleans up tmp files after merge or discard.
 
 ### Q: When should I use `tdd` vs `impl`?
 

@@ -43,17 +43,11 @@ project/
     "output": "planning/"         // Output: implementation plans
   },
 
-  "naming": {
-    "feature_prefix": "",          // Feature directory prefix
-    "task_prefix": "",             // Task file prefix
-    "use_date": false              // Whether to use date prefix
-  },
-
   "git": {
     "auto_commit": false,          // Auto-commit after file generation
     "commit_state_file": true,     // Whether to commit state.json
     "gitignore_patterns": [        // Auto-add to .gitignore
-      "**/.code-forge-temp/"
+      "**/.code-forge-tmp/"
     ]
   },
 
@@ -285,17 +279,7 @@ The `_tool` section identifies the Code Forge plugin itself. It helps new team m
 }
 // Result:
 // → user-auth/
-// → tasks/01-setup.md
-
-// Use date prefix
-{
-  "naming": {
-    "use_date": true
-  }
-}
-// Result:
-// → 2025-02-13-user-auth/
-// → tasks/2025-02-13-01-setup.md
+// → tasks/setup.md
 
 // Custom prefix
 {
@@ -306,8 +290,10 @@ The `_tool` section identifies the Code Forge plugin itself. It helps new team m
 }
 // Result:
 // → feat-user-auth/
-// → tasks/task-01-setup.md
+// → tasks/task-setup.md
 ```
+
+> **Note:** The `naming` section is reserved for future use. Currently, task files always use descriptive names without numeric prefixes (e.g., `setup.md`, not `01-setup.md`). Execution order is controlled by `overview.md` and `state.json`.
 
 ### git
 
@@ -575,13 +561,16 @@ cp /path/to/code-forge/templates/.code-forge.json .
 # Team project: enable git.auto_commit and gitignore patterns
 ```
 
-## Ignore Configuration File
+## Temporary Mode
 
-If project has `.code-forge.json` but you want to temporarily ignore it:
+If you don't want plan files in the project, use `--tmp`:
 
 ```bash
-/code-forge:plan @xxx.md --ignore-config
+/code-forge:plan --tmp "Add user export feature"
+/code-forge:plan --tmp @docs/features/user-auth.md
 ```
+
+Plan files are written to `.code-forge-tmp/` (auto-gitignored). `/impl` and `/status` automatically find plans there. `/finish` cleans up after merge.
 
 ## Example: Avoid docs Conflict
 

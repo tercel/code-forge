@@ -159,7 +159,7 @@ Store a concise context summary (~500 words).
 
 Attempt to associate the bug with an existing code-forge feature:
 
-1. Search `{output_dir}/*/state.json` for all features
+1. Search **both** `{output_dir}/*/state.json` and `.code-forge-tmp/*/state.json` for all features
 2. For each feature, check if the bug-related files overlap with the feature's task files (read `tasks/*.md` → "Files Involved" sections)
 3. **Match found** → load the feature's `plan.md` and relevant `tasks/*.md` as additional context. Note the feature name.
 4. **No match found** → mark as standalone bug. Skip upstream trace-back (Steps 5 and 7). Proceed with code-only fix.

@@ -111,6 +111,16 @@ fi
 
 **Option 3:** Do NOT clean up. The worktree stays.
 
+### Step 6: Cleanup Temporary Plan Files
+
+If the feature's plan was stored in `.code-forge-tmp/` (created with `--tmp`):
+
+1. After successful merge (Option 1) or PR creation (Option 2) or discard (Option 4): delete `.code-forge-tmp/{feature_name}/`
+2. If `.code-forge-tmp/` is now empty, remove the directory itself
+3. Display: `Cleaned up temporary plan files: .code-forge-tmp/{feature_name}/`
+
+**Option 3 (Keep):** Do NOT clean up — the tmp plan files stay for future `/impl` sessions.
+
 ### Completion Report
 
 ```
@@ -119,6 +129,7 @@ Branch finished:
   Action:    {Merged / PR created / Kept / Discarded}
   PR URL:    {url} (Option 2 only)
   Worktree:  {removed / preserved}
+  Tmp plan:  {cleaned up / preserved} (only shown for --tmp plans)
 ```
 
 ## Common Mistakes

@@ -38,8 +38,11 @@ Based on arguments:
 #### 2.1 Scan for Features
 
 1. Resolve the output directory: `<base_dir>/<output_dir>/`
-2. Search for all `state.json` files: `<output_dir>/*/state.json` (one level deep)
+2. Search for all `state.json` files in **both** locations:
+   - `<output_dir>/*/state.json` (standard plans)
+   - `.code-forge-tmp/*/state.json` (temporary plans created with `--tmp`)
 3. For each `state.json`, extract: `feature`, `status`, `progress.*`, `metadata.source_doc`, `updated`
+4. Mark features from `.code-forge-tmp/` with `[tmp]` suffix in display
 
 #### 2.2 Display Feature Dashboard
 
@@ -88,7 +91,8 @@ After scanning, regenerate `{output_dir}/overview.md` using Step 4 logic.
 #### 3.1 Locate Feature
 
 1. Look for `{output_dir}/{feature_name}/state.json`
-2. If not found: show error, list available features
+2. If not found, also check `.code-forge-tmp/{feature_name}/state.json`
+3. If still not found: show error, list available features
 
 #### 3.2 Display Feature Detail
 

@@ -30,7 +30,8 @@ Load configuration by priority (each layer deep-merges into previous):
 #### 0.3 Validate Configuration
 
 Validation rules:
-- `directories.base` must NOT contain `..` (security risk)
+- `directories.base`, `directories.input`, and `directories.output` must NOT contain `..` (security risk — path traversal)
+- `directories.base`, `directories.input`, and `directories.output` must NOT start with `/` (must be relative paths)
 - `directories.base` must NOT be a system/source directory (`src/`, `node_modules/`, `build/`, `.git/`)
 - `git.commit_state_file` must be boolean (not string `"true"`)
 - `execution.default_mode` must be one of: `"ask"`, `"manual"`, `"auto"`
@@ -45,6 +46,16 @@ Display a brief configuration summary showing:
 
 Then **proceed directly** — no "Continue?" confirmation needed.
 
+#### 0.5 Handle `--tmp` Flag
+
+If the user's arguments include `--tmp`:
+
+1. Override `output_dir` to `<project_root>/.code-forge-tmp/`
+2. Ensure `.code-forge-tmp/` is in `.gitignore` (same logic as worktree's gitignore safety — check with `git check-ignore -q`, add if not ignored)
+3. Display: `Temporary mode: plan files will be written to .code-forge-tmp/ (gitignored, not committed)`
+
+**Note:** `--tmp` only affects `output_dir`. Input directory and all other config remain unchanged.
+
 #### 0.6 Store Configuration Context
 
 Track resolved values for subsequent steps:
@@ -52,4 +63,5 @@ Track resolved values for subsequent steps:
 - `project_root` — detected project root path
 - `base_dir` — resolved: `<project_root>/<config.directories.base>`
 - `input_dir` — resolved: `<base_dir>/<config.directories.input>`
-- `output_dir` — resolved: `<base_dir>/<config.directories.output>`
+- `output_dir` — resolved: `<base_dir>/<config.directories.output>` (or `<project_root>/.code-forge-tmp/` if `--tmp`)
+- `tmp_mode` — boolean, `true` if `--tmp` was used
