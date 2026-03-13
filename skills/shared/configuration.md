@@ -50,9 +50,9 @@ Then **proceed directly** — no "Continue?" confirmation needed.
 
 If the user's arguments include `--tmp`:
 
-1. Override `output_dir` to `<project_root>/.code-forge-tmp/`
-2. Ensure `.code-forge-tmp/` is in `.gitignore` (same logic as worktree's gitignore safety — check with `git check-ignore -q`, add if not ignored)
-3. Display: `Temporary mode: plan files will be written to .code-forge-tmp/ (gitignored, not committed)`
+1. Override `output_dir` to `<project_root>/.code-forge/tmp/`
+2. Ensure `.code-forge/` is in `.gitignore` (same logic as worktree's gitignore safety — check with `git check-ignore -q .code-forge/`, add if not ignored)
+3. Display: `Temporary mode: plan files will be written to .code-forge/tmp/ (gitignored, not committed)`
 
 **Note:** `--tmp` only affects `output_dir`. Input directory and all other config remain unchanged.
 
@@ -63,5 +63,5 @@ Track resolved values for subsequent steps:
 - `project_root` — detected project root path
 - `base_dir` — resolved: `<project_root>/<config.directories.base>`
 - `input_dir` — resolved: `<base_dir>/<config.directories.input>`
-- `output_dir` — resolved: `<base_dir>/<config.directories.output>` (or `<project_root>/.code-forge-tmp/` if `--tmp`)
+- `output_dir` — resolved: `<base_dir>/<config.directories.output>` (or `<project_root>/.code-forge/tmp/` if `--tmp`)
 - `tmp_mode` — boolean, `true` if `--tmp` was used

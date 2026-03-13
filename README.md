@@ -10,7 +10,7 @@
 | `/code-forge:plan @doc.md` | Generate plan from a feature document |
 | `/code-forge:plan @dir/` | Browse a directory and pick a feature to plan |
 | `/code-forge:plan "requirement"` | Generate plan from a text prompt |
-| `/code-forge:plan --tmp "requirement"` | Generate plan in `.code-forge-tmp/` (no project pollution) |
+| `/code-forge:plan --tmp "requirement"` | Generate plan in `.code-forge/tmp/` (no project pollution) |
 | `/code-forge:impl [feature]` | Execute pending tasks for a feature |
 | `/code-forge:status [feature]` | View dashboard or feature detail |
 | **Quality & Debugging** | |
@@ -52,7 +52,7 @@ Analyzes a feature document (or text prompt) and generates an implementation pla
 # From a text prompt — auto-creates feature doc first
 /code-forge:plan "Implement JWT-based user authentication"
 
-# Temporary mode — plan files in .code-forge-tmp/ (auto-gitignored)
+# Temporary mode — plan files in .code-forge/tmp/ (auto-gitignored)
 /code-forge:plan --tmp "Implement JWT-based user authentication"
 /code-forge:plan --tmp @docs/features/user-auth.md
 ```
@@ -343,10 +343,10 @@ When you join an existing project to develop a new feature — no design docs, n
 **Don't want plan files polluting the project?** Use `--tmp`:
 
 ```bash
-# Plan files go to .code-forge-tmp/ (auto-gitignored), not planning/
+# Plan files go to .code-forge/tmp/ (auto-gitignored), not planning/
 /code-forge:plan --tmp "Add batch CSV export to user list with date range filter"
-/code-forge:impl                                  # Automatically finds plans in .code-forge-tmp/
-/code-forge:finish                                # Cleans up .code-forge-tmp/ after merge
+/code-forge:impl                                  # Automatically finds plans in .code-forge/tmp/
+/code-forge:finish                                # Cleans up .code-forge/tmp/ after merge
 ```
 
 **Key points:**
@@ -564,7 +564,7 @@ No. `/impl` executes tasks from an existing plan (`state.json`). Without `/plan`
 
 ### Q: I don't want plan files cluttering the project. Can I avoid them?
 
-Yes. Use `--tmp`: `/code-forge:plan --tmp "requirement"`. Plan files are written to `.code-forge-tmp/` which is auto-gitignored. `/impl` and `/status` automatically search this location. `/finish` cleans up tmp files after merge or discard.
+Yes. Use `--tmp`: `/code-forge:plan --tmp "requirement"`. Plan files are written to `.code-forge/tmp/` which is auto-gitignored. `/impl` and `/status` automatically search this location. `/finish` cleans up tmp files after merge or discard.
 
 ### Q: When should I use `tdd` vs `impl`?
 

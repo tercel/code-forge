@@ -2,3 +2,11 @@
 *.swp
 *.swo
 *~
+
+# code-forge runtime
+.code-forge/
+.worktrees/
+worktrees/
+
+# diagnostics output
+skills/*/evals/

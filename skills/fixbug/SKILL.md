@@ -13,6 +13,15 @@ Systematically debug and fix bugs with interactive trace-back to upstream docume
 - Need to diagnose whether the root cause is in code, task description, plan, or requirements
 - Want to fix the bug with TDD and keep upstream documents in sync
 
+## Examples
+
+```bash
+/code-forge:fixbug login page returns 500 error    # Diagnose and fix from description
+/code-forge:fixbug @issues/bug-123.md              # Fix from bug report file
+/code-forge:fixbug --review user-auth              # Batch-fix all issues from review report
+/code-forge:fixbug --review                        # Auto-detect review report and fix
+```
+
 ## Workflow
 
 ```
@@ -159,7 +168,7 @@ Store a concise context summary (~500 words).
 
 Attempt to associate the bug with an existing code-forge feature:
 
-1. Search **both** `{output_dir}/*/state.json` and `.code-forge-tmp/*/state.json` for all features
+1. Search **both** `{output_dir}/*/state.json` and `.code-forge/tmp/*/state.json` for all features
 2. For each feature, check if the bug-related files overlap with the feature's task files (read `tasks/*.md` → "Files Involved" sections)
 3. **Match found** → load the feature's `plan.md` and relevant `tasks/*.md` as additional context. Note the feature name.
 4. **No match found** → mark as standalone bug. Skip upstream trace-back (Steps 5 and 7). Proceed with code-only fix.
@@ -172,7 +181,7 @@ If multiple features match, use `AskUserQuestion` to let user select the most re
 
 **Offload to sub-agent** for deep analysis.
 
-Spawn a `Task` tool call with:
+Spawn an `Agent` tool call with:
 - `subagent_type`: `"general-purpose"`
 - `description`: `"Diagnose bug root cause"`
 

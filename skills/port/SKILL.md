@@ -1,6 +1,10 @@
 ---
 name: port
-description: Port a documentation-driven project to a new target language — initializes project skeleton, analyzes reference implementation, and batch-generates plans for selected features.
+description: >
+  Port a documentation-driven project to a new target language — initializes project skeleton,
+  analyzes reference implementation, and batch-generates plans for selected features. Use when
+  converting a project to another language, rewriting in a different language, or creating a
+  multi-language SDK from existing feature specs.
 ---
 
 # Code Forge — Port
@@ -110,7 +114,7 @@ Proceed directly — no confirmation needed.
 
 **Skip if `ref_project_path` is null.**
 
-Spawn a `Task` tool call with:
+Spawn an `Agent` tool call with:
 - `subagent_type`: `"general-purpose"`
 - `description`: `"Analyze reference implementation"`
 
@@ -178,10 +182,10 @@ Feature specs discovered: 7 (from ../apcore/docs/features/)
   ...
 ```
 
-Use `AskUserQuestion` with `multiSelect: true`:
+Use `AskUserQuestion`:
 - Question: "Which features do you want to port to {lang}?"
-- First option: "All features (Recommended)"
-- Remaining options: one per feature
+- First option: "All features (Recommended)" — if selected, set `selected_features` to the full list
+- Remaining options: one per feature — if the user wants multiple (but not all), run additional `AskUserQuestion` rounds until they say "done"
 
 Store `selected_features[]`.
 
@@ -270,7 +274,7 @@ If no reference: omit `reference_docs.sources` and `port.reference_impl`.
 
 #### 5.3 Generate Project Skeleton (Sub-agent)
 
-Spawn a `Task` sub-agent (`subagent_type: "general-purpose"`):
+Spawn an `Agent` sub-agent (`subagent_type: "general-purpose"`):
 
 **Sub-agent prompt:**
 
@@ -339,7 +343,7 @@ mkdir -p <target>/planning/<feature>/tasks/
 
 **6.1.3 Dispatch Plan Sub-agent**
 
-Spawn a `Task` sub-agent (`subagent_type: "general-purpose"`):
+Spawn an `Agent` sub-agent (`subagent_type: "general-purpose"`):
 
 **Sub-agent prompt:**
 

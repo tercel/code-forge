@@ -14,7 +14,7 @@ Planning & Execution:
   /code-forge:plan @doc.md           Generate plan from a feature document
   /code-forge:plan @dir/             Browse a directory and pick a feature to plan
   /code-forge:plan "requirement"     Generate plan from a text prompt
-  /code-forge:plan --tmp "req"       Generate plan in .code-forge-tmp/ (no project pollution)
+  /code-forge:plan --tmp "req"       Generate plan in .code-forge/tmp/ (no project pollution)
   /code-forge:impl [feature]         Execute pending tasks for a feature
   /code-forge:status [feature]       View dashboard or feature detail
 

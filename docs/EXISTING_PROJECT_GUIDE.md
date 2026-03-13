@@ -147,7 +147,7 @@ Use `--tmp` to keep plan files out of the project directory:
 
 ```bash
 /code-forge:plan --tmp "Add payment gateway integration"
-/code-forge:impl          # Finds plans in .code-forge-tmp/ automatically
+/code-forge:impl          # Finds plans in .code-forge/tmp/ automatically
 /code-forge:finish        # Cleans up tmp files after merge
 ```
 

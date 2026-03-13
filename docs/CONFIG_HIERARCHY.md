@@ -281,7 +281,7 @@ Continue?
 
 ## Temporary Mode
 
-Use `--tmp` to write plan files to `.code-forge-tmp/` instead of the configured output directory:
+Use `--tmp` to write plan files to `.code-forge/tmp/` instead of the configured output directory:
 
 ```bash
 /code-forge:plan --tmp "Add user export feature"
@@ -505,7 +505,7 @@ A: ✅ Recommended to commit for unified team configuration
 
 ### Q: How to avoid plan files polluting the project?
 
-A: Use `--tmp` flag: `/code-forge:plan --tmp "requirement"`. Files go to `.code-forge-tmp/` (auto-gitignored).
+A: Use `--tmp` flag: `/code-forge:plan --tmp "requirement"`. Files go to `.code-forge/tmp/` (auto-gitignored).
 
 ### Q: What if configurations conflict?
 

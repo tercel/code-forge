@@ -47,7 +47,7 @@ project/
     "auto_commit": false,          // Auto-commit after file generation
     "commit_state_file": true,     // Whether to commit state.json
     "gitignore_patterns": [        // Auto-add to .gitignore
-      "**/.code-forge-tmp/"
+      "**/.code-forge/"
     ]
   },
 
@@ -570,7 +570,7 @@ If you don't want plan files in the project, use `--tmp`:
 /code-forge:plan --tmp @docs/features/user-auth.md
 ```
 
-Plan files are written to `.code-forge-tmp/` (auto-gitignored). `/impl` and `/status` automatically find plans there. `/finish` cleans up after merge.
+Plan files are written to `.code-forge/tmp/` (auto-gitignored). `/impl` and `/status` automatically find plans there. `/finish` cleans up after merge.
 
 ## Example: Avoid docs Conflict
 

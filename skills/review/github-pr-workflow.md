@@ -65,7 +65,7 @@ Same as the main review skill's project type detection (Step 3F.2 / 3P.2):
 
 ### Step 4: 14-Dimension Review (via Sub-agent)
 
-Spawn a `Task` sub-agent with `subagent_type: "general-purpose"`.
+Spawn an `Agent` sub-agent with `subagent_type: "general-purpose"`.
 
 **Sub-agent prompt must include:**
 
