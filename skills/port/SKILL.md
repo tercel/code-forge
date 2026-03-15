@@ -65,6 +65,17 @@ Step 2 and Step 6 are offloaded to sub-agents. Step 2 uses a single sub-agent to
 
 #### 1.1 Resolve Docs Project Path
 
+**1.1.0 Path-Like Input Guard:** If the docs project argument does NOT start with `@` but looks like a path (contains `/`, starts with `.`, or matches an existing directory on disk), use `AskUserQuestion`:
+
+```
+Your input looks like a directory path: "{input}"
+Did you mean to use @{input}? (directory paths require an @ prefix)
+```
+
+- Options:
+  - "Yes, use as directory path" → prepend `@` and continue
+  - "No, this is not a path" → display usage instructions and stop
+
 Parse the `@<path>` argument:
 1. Resolve to absolute path
 2. Validate directory exists

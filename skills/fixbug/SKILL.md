@@ -42,6 +42,28 @@ Accept input in three modes:
 - **File reference** (e.g., `/code-forge:fixbug @issues/bug-123.md`) — read the file for bug details
 - **Review mode** (`/code-forge:fixbug --review [feature-name]`) — read the review report and batch-fix all issues. See [Step 1R](#step-1r-review-mode-setup) below.
 
+#### 1.0 Path-Like Input Guard
+
+**Before treating input as prompt text, check if it looks like a file/directory path without `@`.** If the input does NOT start with `@` and is NOT `--review`, but matches ANY of these patterns, it is likely a path the user forgot to prefix with `@`:
+
+- Contains `/` (e.g., `issues/bug-123.md`, `../bugs/report.md`)
+- Starts with `.` (e.g., `./bug-report.md`)
+- Ends with `.md` (e.g., `bug-123.md`)
+- Matches an existing file or directory on disk
+
+**Action:** Use `AskUserQuestion`:
+
+```
+Your input looks like a file path: "{input}"
+Did you mean to use file mode? (file paths require an @ prefix)
+```
+
+- Options:
+  - "Yes, use as file path" → prepend `@` and treat as file reference
+  - "No, treat as bug description" → continue as prompt text
+
+---
+
 If no input provided, use `AskUserQuestion` to ask: "Describe the bug you encountered."
 
 For prompt text and file reference modes, store the bug description and continue to Step 2.

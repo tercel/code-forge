@@ -24,6 +24,9 @@ Generate an implementation plan from a feature document or a requirement prompt.
 | "Numeric prefixes help with ordering" | Execution order is in `overview.md` and `state.json`. Files are `setup.md`, not `01-setup.md`. |
 | "I can skip state.json" | `state.json` drives impl, status, fixbug. Without it, no downstream skill works. |
 | "The overview files are optional" | Both project-level and feature-level `overview.md` are mandatory outputs. |
+| "The input looks like a path but has no @, I'll treat it as a prompt" | Run the Step 2.0 path-like input guard. Paths without `@` are almost always user mistakes — ask before proceeding. |
+| "I'll add FE-01- prefixes to feature directories for clarity" | Feature directory names must match the source filename exactly in kebab-case. `core-dispatcher`, not `FE-01-core-dispatcher`. |
+| "I'll generate all features as flat files in one directory" | Each feature gets its own subdirectory with the full multi-file structure. Flat files break all downstream skills. |
 
 ## When to Use
 
@@ -139,6 +142,30 @@ After the input document path is known (after Step 3), remove it from `reference
 
 If the input starts with `@`, skip directly to Step 3.
 
+#### 2.0 Path-Like Input Guard
+
+**Before treating input as a prompt, check if it looks like a file/directory path.** If the input matches ANY of these patterns, it is almost certainly a path the user forgot to prefix with `@`:
+
+- Contains `/` (e.g., `../apcore-cli`, `docs/features/auth.md`)
+- Starts with `.` (e.g., `./src`, `../other-project`)
+- Ends with `.md` (e.g., `user-auth.md`)
+- Matches an existing file or directory on disk
+
+**Action:** Do NOT silently proceed as prompt mode. Instead, use `AskUserQuestion`:
+
+```
+Your input looks like a file/directory path: "{input}"
+Did you mean to use file mode? (paths require an @ prefix)
+```
+
+- Options:
+  - "Yes, use as file path" → prepend `@` and skip to Step 3
+  - "No, treat as text prompt" → continue with Step 2.1
+
+This guard prevents the common mistake of forgetting `@`, which causes the entire workflow to bypass Directory/File Mode and produce incorrect output.
+
+---
+
 When a user provides a text prompt instead of a file path, code-forge:plan delegates feature spec creation to spec-forge:feature. This maintains the separation of concerns: spec-forge owns specification, code-forge owns implementation planning.
 
 #### 2.1 Generate Slug
@@ -211,18 +238,42 @@ If the `@` path resolves to a **directory** (not a file):
    - `<path>/docs/features/*.md`
    - `<path>/features/*.md`
    - `<path>/*.md`
-2. If no `.md` files found: display error `"No feature specs found in {path}"` with the paths tried, then stop
-3. If exactly 1 file found: use it directly (skip selection)
-4. If multiple files found: display list and use `AskUserQuestion` to let user select:
+2. Exclude non-feature files from results: filter out `overview.md`, `README.md`, `index.md`, and any file that is clearly not a feature spec (e.g., changelog, license)
+3. If no `.md` files found: display error `"No feature specs found in {path}"` with the paths tried, then stop
+4. If exactly 1 file found: use it directly (skip selection)
+5. If multiple files found: display list and use `AskUserQuestion` to let user select:
    ```
    Feature specs found in {path}:
-     1. acl-system.md
-     2. core-executor.md
-     3. schema-system.md
+     1. acl-system
+     2. core-executor
+     3. schema-system
      ...
+     N. [Plan all — generate plans for all features sequentially]
    ```
-   - Options: one per file (show filename without `.md`)
-5. Set the selected file as the input document path, then continue to Step 3.2
+   - Options: one per file (show filename without `.md`), plus "Plan all" as the last option
+6. Set the selected file as the input document path, then continue to Step 3.2
+
+**"Plan all" batch mode:** When the user selects "Plan all":
+
+1. Store the full list of feature file paths as `batch_queue`
+2. For each file in `batch_queue`, execute Steps 3.2 through 13 sequentially (one complete plan per feature)
+3. Between features, display a brief progress line: `Completed {n}/{total}: {feature_name}. Next: {next_feature_name}`
+4. After all features are planned, display a batch summary:
+   ```
+   Batch planning complete
+
+   Features planned: {total}
+     {feature_1} — {task_count} tasks
+     {feature_2} — {task_count} tasks
+     ...
+
+   Project overview: {output_dir}/overview.md
+   Next: /code-forge:impl {feature_name}
+   ```
+5. The project-level overview (Step 11) is generated/updated after EACH feature, so it always reflects the latest state
+6. If a feature fails during planning, log the error, skip it, and continue with the next feature. Display skipped features in the batch summary.
+7. **Step 5 answer reuse:** In batch mode, Step 5 (tech stack, testing strategy, granularity) is only asked for the **first feature**. Subsequent features reuse the same answers automatically — unless a feature document explicitly specifies a different tech stack, in which case only that question is re-asked for that feature. This avoids asking the same 3 questions N times.
+8. **Context management:** Batch planning accumulates context across features. For batches of **more than 5 features**, display a warning before starting: `"Planning {N} features sequentially. For very large batches (10+), consider splitting into multiple /code-forge:plan invocations to avoid context exhaustion."` Proceed regardless — this is informational only.
 
 **Path resolution:** Both relative and absolute paths are supported. Relative paths are resolved from the current working directory. External project paths (e.g., `@../../other-project`) are valid — the feature spec does not need to be inside the current project.
 
@@ -275,7 +326,7 @@ Spawn an `Agent` tool call with:
   ```
 
 **Sub-agent must analyze and return:**
-1. **Feature Name** — extracted from filename or document title (kebab-case)
+1. **Feature Name** — extracted from the source **filename** (kebab-case, without `.md` extension). Always use the filename, never the document title. Example: source file `security.md` → feature name `security`, even if the document title is "Security Manager".
 2. **Technical Requirements** — tech stack, frameworks, languages mentioned
 3. **Functional Scope** — 2-3 sentence summary of what needs to be implemented
 4. **Constraints** — performance, security, compatibility requirements
@@ -308,7 +359,29 @@ If not clearly specified in the document, use a **single** `AskUserQuestion` com
 
 ### Step 6: Create Directory Structure
 
-Extract feature name from filename or document title (convert to kebab-case).
+Extract feature name from the source **filename** (convert to kebab-case, strip `.md` extension). Always use the filename — never derive the feature name from the document title, as titles may differ from filenames.
+
+#### 6.0 Output Path Assertion (Hard Gate)
+
+**Before creating any directory or file, run these assertions. If ANY fails, STOP immediately — do not proceed.**
+
+```
+ASSERT: resolved output path does NOT contain "docs/plan"
+ASSERT: resolved output path does NOT contain "docs/plans"
+ASSERT: resolved output path does NOT contain "docs/planning"
+ASSERT: resolved output path equals "{project_root}/{output_dir}/{feature_name}/"
+        where {output_dir} is the value resolved in Step 0 (default: "planning/")
+ASSERT: feature_name does NOT contain numeric prefixes (e.g., "FE-01-", "01-")
+ASSERT: feature_name is kebab-case and matches the source document filename
+        (e.g., source "core-dispatcher.md" → feature_name "core-dispatcher")
+```
+
+On assertion failure: display the violation and the correct path, then stop. Example:
+```
+OUTPUT PATH VIOLATION: about to write to "docs/plans/FE-01-core-dispatcher.md"
+Expected: "planning/core-dispatcher/"
+Fix: use the resolved output_dir from Step 0 configuration
+```
 
 **Output directory:** `{output_dir}` defaults to `planning/` — **NEVER** `docs/plan/`, `docs/plans/`, `docs/planning/`, or any other invented path. If you are about to write to any path other than `{output_dir}/{feature_name}/`, STOP — you are making a mistake. Always use the resolved `output_dir` from Step 0 configuration.
 
@@ -555,6 +628,9 @@ Optionally synchronize tasks to Claude Code's Task system:
 - Using `docs/plan/`, `docs/plans/`, or `docs/planning/` instead of `{output_dir}`
 - Putting task content inside `plan.md` instead of separate `tasks/{name}.md` files
 - Using numeric prefixes on task files (`01-setup.md` instead of `setup.md`)
+- Using numeric prefixes on feature directories (`FE-01-core-dispatcher` instead of `core-dispatcher`)
+- Generating flat files instead of per-feature subdirectories with multi-file structure
+- Treating a path-like input without `@` as a prompt instead of asking the user (Step 2.0 guard)
 - Skipping `state.json` — downstream skills (impl, status, fixbug, finish) cannot operate without it
 - Skipping project-level `overview.md` (Step 11)
 - Running Steps 4, 7, 8 inline instead of delegating to sub-agents via `Agent` tool
