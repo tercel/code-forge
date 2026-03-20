@@ -22,7 +22,7 @@ Generate an implementation plan from a feature document or a requirement prompt.
 | "docs/plan is close enough" | Output dir is `{output_dir}` (default: `planning/`). `docs/plan`, `docs/plans` are ALL wrong. |
 | "I'll create the tasks inline in plan.md" | Tasks go in `tasks/{name}.md` as separate files. Step 8 sub-agent creates them. |
 | "Numeric prefixes help with ordering" | Execution order is in `overview.md` and `state.json`. Files are `setup.md`, not `01-setup.md`. |
-| "I can skip state.json" | `state.json` drives impl, status, fixbug. Without it, no downstream skill works. |
+| "I can skip state.json" | `state.json` drives impl, status, fix. Without it, no downstream skill works. |
 | "The overview files are optional" | Both project-level and feature-level `overview.md` are mandatory outputs. |
 | "The input looks like a path but has no @, I'll treat it as a prompt" | Run the Step 2.0 path-like input guard. Paths without `@` are almost always user mistakes — ask before proceeding. |
 | "I'll add FE-01- prefixes to feature directories for clarity" | Feature directory names must match the source filename exactly in kebab-case. `core-dispatcher`, not `FE-01-core-dispatcher`. |
@@ -631,7 +631,7 @@ Optionally synchronize tasks to Claude Code's Task system:
 - Using numeric prefixes on feature directories (`FE-01-core-dispatcher` instead of `core-dispatcher`)
 - Generating flat files instead of per-feature subdirectories with multi-file structure
 - Treating a path-like input without `@` as a prompt instead of asking the user (Step 2.0 guard)
-- Skipping `state.json` — downstream skills (impl, status, fixbug, finish) cannot operate without it
+- Skipping `state.json` — downstream skills (impl, status, fix, finish) cannot operate without it
 - Skipping project-level `overview.md` (Step 11)
 - Running Steps 4, 7, 8 inline instead of delegating to sub-agents via `Agent` tool
 - Proceeding to Step 13 without running Step 12 verification

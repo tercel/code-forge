@@ -71,7 +71,7 @@ Commands:
   /code-forge:plan "requirement"    Create new plan from prompt
   /code-forge:impl <feature>        Execute tasks for a feature
   /code-forge:status <feature>      View feature detail
-  /code-forge:fixbug "description"  Debug a bug
+  /code-forge:fix "description"  Debug a bug
   /code-forge:review <feature>      Review completed feature
 ```
 
@@ -129,7 +129,7 @@ Progress: 2/5 (40%)
 Commands:
   /code-forge:impl user-auth      Continue execution
   /code-forge:review user-auth    Review completed tasks
-  /code-forge:fixbug "..."        Fix a bug in this feature
+  /code-forge:fix "..."        Fix a bug in this feature
 ```
 
 ---

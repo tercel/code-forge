@@ -17,7 +17,8 @@
 | `/code-forge:review [feature]` | Review code quality for a feature or project |
 | `/code-forge:review --feedback` | Evaluate and respond to incoming review comments |
 | `/code-forge:review --github-pr` | Post 14-dimension review to a GitHub PR |
-| `/code-forge:fixbug "description"` | Debug and fix a bug with upstream trace-back |
+| `/code-forge:fix "description"` | Debug and fix a bug with upstream trace-back |
+| `/code-forge:fix --review` | Batch-fix all issues from a review report |
 | `/code-forge:debug "description"` | Systematic root cause debugging (general-purpose) |
 | **Development Methodology** | |
 | `/code-forge:tdd` | Enforce Red-Green-Refactor cycle (standalone TDD) |
@@ -138,13 +139,15 @@ Comprehensive 14-dimension code review with four modes.
 
 ---
 
-### fixbug — Debug with Upstream Trace-back
+### fix — Debug with Upstream Trace-back
 
 For bugs in code-forge tracked features (has `state.json`). Traces root cause across 4 levels and syncs upstream documents.
 
 ```bash
-/code-forge:fixbug "Login page returns 500 when email has special characters"
-/code-forge:fixbug @bug-report.md
+/code-forge:fix "Login page returns 500 when email has special characters"
+/code-forge:fix @bug-report.md
+/code-forge:fix --review user-auth              # Batch-fix all issues from review report
+/code-forge:fix --review                        # Auto-detect review report and fix
 ```
 
 **Root cause levels:**
@@ -162,7 +165,7 @@ Works on any project — does not require prior code-forge setup.
 
 ### debug — Systematic Root Cause Debugging
 
-General-purpose debugging for any bug, test failure, or unexpected behavior. Use when the issue is NOT tracked by code-forge (no `state.json`). For code-forge features, use `fixbug` instead.
+General-purpose debugging for any bug, test failure, or unexpected behavior. Use when the issue is NOT tracked by code-forge (no `state.json`). For code-forge features, use `fix` instead.
 
 ```bash
 /code-forge:debug "Tests failing after upgrading React to v19"
@@ -300,7 +303,9 @@ Ports a documentation-driven project to a new target language.
 /spec-forge:feature user-auth                     # Generate feature spec
 /code-forge:plan @docs/features/user-auth.md      # Generate plan
 /code-forge:impl user-auth                        # Execute tasks (TDD)
-/code-forge:review user-auth                      # Local quality review
+/code-forge:review user-auth                      # Review — blockers/criticals?
+/code-forge:fix --review                          #   Yes → batch-fix all issues
+/code-forge:review user-auth                      #   Re-review after fix
 /code-forge:review --github-pr                    # Post review to PR
 ```
 
@@ -318,6 +323,7 @@ Ports a documentation-driven project to a new target language.
 /code-forge:plan @docs/features/user-auth.md      # Plan inside worktree
 /code-forge:impl user-auth                        # Implement
 /code-forge:review user-auth                      # Review
+/code-forge:fix --review                          # Fix issues (if any)
 /code-forge:finish                                # Merge or PR
 ```
 
@@ -335,7 +341,11 @@ When you join an existing project to develop a new feature — no design docs, n
 # Step 3: Execute tasks (TDD-driven)
 /code-forge:impl
 
-# Step 4: Verify and finish
+# Step 4: Review and fix
+/code-forge:review                                # Check quality
+/code-forge:fix --review                          # Fix issues (if any)
+
+# Step 5: Verify and finish
 /code-forge:verify
 /code-forge:finish
 ```
@@ -369,7 +379,11 @@ When you join an existing project to develop a new feature — no design docs, n
 
 ```bash
 # Code-forge tracked feature:
-/code-forge:fixbug "Login returns 500 with special chars"
+/code-forge:fix "Login returns 500 with special chars"
+
+# Batch-fix all issues found by review:
+/code-forge:fix --review user-auth
+/code-forge:fix --review                          # Auto-detect feature
 
 # General debugging (no state.json):
 /code-forge:debug "Memory leak in WebSocket handler"
@@ -388,7 +402,8 @@ git pull
 
 # Developer C: Review and post to PR
 /code-forge:review big-feature                    # Local review
-/code-forge:review --github-pr                    # Post to PR
+/code-forge:fix --review                          # Fix issues found by review
+/code-forge:review --github-pr                    # Post review to PR
 
 # Developer B: Handle feedback
 /code-forge:review --feedback                     # Evaluate and respond
@@ -544,7 +559,7 @@ Yes. It ensures team members use the same directory structure.
 
 ### Q: Can I use code-forge on an existing project without prior setup?
 
-Yes. `/code-forge:plan "description"` and `/code-forge:fixbug "description"` work on any project immediately. `/code-forge:tdd`, `/code-forge:debug`, and `/code-forge:verify` also work standalone.
+Yes. `/code-forge:plan "description"` and `/code-forge:fix "description"` work on any project immediately. `/code-forge:tdd`, `/code-forge:debug`, and `/code-forge:verify` also work standalone.
 
 ### Q: Can the feature spec be in a different project?
 
@@ -554,9 +569,9 @@ Yes. Use a path: `/code-forge:plan @../../other-project/docs/features/feature.md
 
 Auto-supported. Stop anytime — `state.json` records current state. Run `/code-forge:impl` to resume.
 
-### Q: When should I use `debug` vs `fixbug`?
+### Q: When should I use `debug` vs `fix`?
 
-Use `/code-forge:fixbug` when the bug is in a code-forge tracked feature (has `state.json`) — it traces root cause across 4 levels and syncs upstream documents. Use `/code-forge:debug` for general-purpose debugging on any codebase.
+Use `/code-forge:fix` when the bug is in a code-forge tracked feature (has `state.json`) — it traces root cause across 4 levels and syncs upstream documents. Use `/code-forge:debug` for general-purpose debugging on any codebase.
 
 ### Q: Can I skip `/plan` and go directly to `/impl` with a requirement description?
 

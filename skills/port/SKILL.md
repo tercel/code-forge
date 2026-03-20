@@ -524,7 +524,7 @@ Next steps:
 - **After port:** `cd` to target project, use `/code-forge:impl {feature}` to execute tasks
 - **With /code-forge:status:** View overall progress across all ported features
 - **With /code-forge:review:** Review completed features
-- **With /code-forge:fixbug:** Debug issues in ported code
+- **With /code-forge:fix:** Debug issues in ported code
 - Port does NOT invoke impl — the user controls when to start implementation
 
 ## Notes

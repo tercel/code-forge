@@ -22,7 +22,7 @@ Quality & Debugging:
   /code-forge:review [feature]       Review code quality for a feature or project
   /code-forge:review --feedback      Evaluate and respond to incoming review comments
   /code-forge:review --github-pr     Post 14-dimension review to a GitHub PR
-  /code-forge:fixbug "description"   Debug and fix a bug with upstream trace-back
+  /code-forge:fix "description"   Debug and fix a bug with upstream trace-back
   /code-forge:debug "description"    Systematic root cause debugging (general-purpose)
 
 Development Methodology:
@@ -40,7 +40,7 @@ Advanced:
 ```
 
 If the user provided arguments ($ARGUMENTS), suggest the correct command. For example:
-- `fixbug "some bug"` → suggest `/code-forge:fixbug "some bug"`
+- `fix "some bug"` → suggest `/code-forge:fix "some bug"`
 - `plan @file.md` → suggest `/code-forge:plan @file.md`
 - `impl feature` → suggest `/code-forge:impl feature`
 - `debug "error"` → suggest `/code-forge:debug "error"`

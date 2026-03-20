@@ -416,14 +416,14 @@ Report saved: {output_dir}/{feature_name}/review.md
   1. {highest priority blocker/critical with file:line}
   2. {next priority fix}
   ...
-  Fix all:    /code-forge:fixbug --review
+  Fix all:    /code-forge:fix --review
   Re-review:  /code-forge:review {feature_name}
 
 {If pass_with_notes (warnings > 0, no blockers/criticals):}
 ⚠ Merge OK with notes — consider fixing:
   1. {top warning}
   2. ...
-  Fix all:    /code-forge:fixbug --review
+  Fix all:    /code-forge:fix --review
 
 {If pass:}
 ✅ Ready for next steps:
@@ -452,14 +452,14 @@ Report saved: {output_dir}/project-review.md
   1. {highest priority blocker/critical with file:line}
   2. {next priority fix}
   ...
-  Fix all:    /code-forge:fixbug --review
+  Fix all:    /code-forge:fix --review
   Re-review:  /code-forge:review --project
 
 {If pass_with_notes (warnings > 0, no blockers/criticals):}
 ⚠ Project quality acceptable with notes — consider fixing:
   1. {top warning}
   2. ...
-  Fix all:    /code-forge:fixbug --review
+  Fix all:    /code-forge:fix --review
 
 {If pass:}
 ✅ Project quality looks good.

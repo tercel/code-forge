@@ -3,7 +3,7 @@ name: debug
 description: >
   Use when encountering any bug, test failure, or unexpected behavior — enforces
   root cause investigation before fixes. Prevents symptom-fixing, masking bugs, and
-  "just try this" approaches. For code-forge features, use code-forge:fixbug instead.
+  "just try this" approaches. For code-forge features, use code-forge:fix instead.
 ---
 
 # Code Forge — Debug
@@ -16,7 +16,7 @@ Systematic root cause debugging for any technical issue.
 - Performance degradation, build failures, integration issues
 - ESPECIALLY when under time pressure or when "one quick fix" seems obvious
 
-**For code-forge features:** Use `/code-forge:fixbug` instead — it adds upstream document tracing and state tracking on top of this methodology.
+**For code-forge features:** Use `/code-forge:fix` instead — it adds upstream document tracing and state tracking on top of this methodology.
 
 ## Iron Law
 

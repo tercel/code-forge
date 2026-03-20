@@ -1,9 +1,9 @@
 ---
-name: fixbug
+name: fix
 description: Debug and fix bugs with interactive upstream trace-back — diagnoses root cause level, confirms upstream document updates, and applies TDD fixes.
 ---
 
-# Code Forge — Fixbug
+# Code Forge — Fix
 
 Systematically debug and fix bugs with interactive trace-back to upstream documents (task descriptions, plans, requirements).
 
@@ -16,10 +16,10 @@ Systematically debug and fix bugs with interactive trace-back to upstream docume
 ## Examples
 
 ```bash
-/code-forge:fixbug login page returns 500 error    # Diagnose and fix from description
-/code-forge:fixbug @issues/bug-123.md              # Fix from bug report file
-/code-forge:fixbug --review user-auth              # Batch-fix all issues from review report
-/code-forge:fixbug --review                        # Auto-detect review report and fix
+/code-forge:fix login page returns 500 error    # Diagnose and fix from description
+/code-forge:fix @issues/bug-123.md              # Fix from bug report file
+/code-forge:fix --review user-auth              # Batch-fix all issues from review report
+/code-forge:fix --review                        # Auto-detect review report and fix
 ```
 
 ## Workflow
@@ -38,9 +38,9 @@ Bug Input → Context Scan → Feature Association → Root Cause Diagnosis → 
 
 Accept input in three modes:
 
-- **Prompt text** (e.g., `/code-forge:fixbug login page returns 500 error`) — use the text as bug description
-- **File reference** (e.g., `/code-forge:fixbug @issues/bug-123.md`) — read the file for bug details
-- **Review mode** (`/code-forge:fixbug --review [feature-name]`) — read the review report and batch-fix all issues. See [Step 1R](#step-1r-review-mode-setup) below.
+- **Prompt text** (e.g., `/code-forge:fix login page returns 500 error`) — use the text as bug description
+- **File reference** (e.g., `/code-forge:fix @issues/bug-123.md`) — read the file for bug details
+- **Review mode** (`/code-forge:fix --review [feature-name]`) — read the review report and batch-fix all issues. See [Step 1R](#step-1r-review-mode-setup) below.
 
 #### 1.0 Path-Like Input Guard
 

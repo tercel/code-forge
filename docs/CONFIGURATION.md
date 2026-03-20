@@ -213,7 +213,7 @@ When running `/code-forge:plan`, code-forge will:
 3. Inject summaries as context into plan generation sub-agents
 4. Generated `plan.md` and `tasks/*.md` will reflect existing architecture and conventions
 
-**Note:** Reference docs are only used at plan time. The generated plan and task files already contain baked-in context — downstream skills (`impl`, `fixbug`, `review`) do not re-read reference docs.
+**Note:** Reference docs are only used at plan time. The generated plan and task files already contain baked-in context — downstream skills (`impl`, `fix`, `review`) do not re-read reference docs.
 
 ## Configuration Field Details
 
@@ -363,7 +363,7 @@ The `_tool` section identifies the Code Forge plugin itself. It helps new team m
 - Each matched file is summarized by a parallel sub-agent (~300-500 bytes each)
 - Summaries are injected as context into plan generation sub-agents (Steps 2, 6, 7)
 - Generated plans and task files contain baked-in reference context
-- Downstream skills (impl, fixbug, review) work from these files — no re-reading needed
+- Downstream skills (impl, fix, review) work from these files — no re-reading needed
 
 **Auto-exclusions:**
 - The output directory (`{base}/{output}/**`) is always excluded to prevent circular references
