@@ -398,6 +398,8 @@ Project mode does not update any `state.json` — there is no single feature sta
 
 ### Step 6: Summary and Next Steps
 
+**CRITICAL — Next-step commands are MANDATORY.** When the review finds any blocker, critical, or warning issues, you MUST include the `/code-forge:fix --review` command in the summary output. Never omit it, never paraphrase it, never skip the next-steps block.
+
 #### 6.1 Feature Mode
 
 Display:
