@@ -53,6 +53,22 @@ Step 9 (overview.md) executes after Steps 7 and 8 because it references task fil
 
 @../shared/configuration.md
 
+**Step 0.5: Project Analysis**
+
+Before planning, understand the project's architecture and tech stack. Read and execute:
+
+@../shared/project-analysis.md
+
+Execute PA.1 (Project Profile), PA.2 (Architecture Analysis), and PA.5 (Existing Test Assessment). This ensures:
+- Tasks are structured around the ACTUAL architecture (not assumed layers)
+- TDD steps reference the ACTUAL test framework
+- Task dependencies reflect REAL module relationships
+- Language-specific patterns are accounted for (e.g., Rust trait bounds, Go interfaces)
+
+The Project Context Summary (PA.7) is passed to the sub-agent in Step 4 as part of the context.
+
+---
+
 **Plan-specific additions to Step 0:**
 
 - **0.2 additional defaults:** `reference_docs.sources` = `[]`, `reference_docs.exclude` = `[]`
@@ -572,9 +588,12 @@ Task Overview:
   ...
 
 Next steps:
-  /code-forge:impl {feature_name}     Execute tasks
-  /code-forge:status {feature_name}   View progress
-  cat {output_dir}/{feature_name}/plan.md   View detailed plan
+  /code-forge:impl {feature_name}                          Execute tasks (TDD)
+  /code-forge:status {feature_name}                        View progress
+
+Optional (before implementation):
+  /spec-forge:test-cases {feature_name}                    Generate test cases first
+  /code-forge:tdd @docs/{feature_name}/test-cases.md       Implement from test cases
 ```
 
 ## Integration with Claude Code Tasks

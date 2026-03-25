@@ -39,6 +39,19 @@ Step 3 dispatches a dedicated sub-agent for each task, so code changes from one 
 
 ---
 
+### Step 0.5: Project Analysis
+
+Before executing tasks, ensure the project context is understood:
+
+@../shared/project-analysis.md
+
+Execute PA.1 (Project Profile), PA.3 (Language-Specific Deep Scan for the feature's modules), and PA.5 (Existing Test Assessment). This context is passed to each task sub-agent so they:
+- Write tests using the CORRECT framework and patterns
+- Follow the project's ACTUAL architecture (not assumed patterns)
+- Handle language-specific constructs properly (Rust lifetimes, Go error chains, etc.)
+
+---
+
 ### Step 1: Locate Feature
 
 #### 1.1 With Feature Name Argument
@@ -184,6 +197,7 @@ Location: {output_dir}/{feature_name}/
 Total time: {actual_time}
 
 Next steps:
-  /code-forge:review {feature_name}   Review code quality
-  /code-forge:status {feature_name}   View final status
+  /code-forge:review {feature_name}                        Review code quality
+  /code-forge:verify                                       Verify all tests pass
+  /code-forge:finish {feature_name}                        Merge / create PR
 ```

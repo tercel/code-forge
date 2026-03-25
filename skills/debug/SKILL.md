@@ -30,6 +30,16 @@ No "let me just try this." No "obvious fix." No guessing. Investigate first.
 Root Cause Investigation → Pattern Analysis → Hypothesis Testing → Implementation (TDD fix)
 ```
 
+## Phase 0: Understand the Project
+
+Before investigating, build situational awareness of the codebase:
+
+@../shared/project-analysis.md
+
+Execute steps PA.1 (Project Profile) and PA.2 (Architecture Analysis) at minimum. For complex bugs, also run PA.3 (Language-Specific Deep Scan) on the affected module and PA.4 (Relationship Mapping) to understand how the bug might propagate.
+
+This context informs Phase 1-4: knowing the architecture tells you WHERE to look; knowing relationships tells you WHAT ELSE might be affected.
+
 ## Four Phases
 
 Complete each phase before moving to the next.

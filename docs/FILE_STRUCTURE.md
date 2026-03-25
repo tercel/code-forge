@@ -12,7 +12,7 @@ project-root/
 │   │   ├── prd.md
 │   │   ├── srs.md
 │   │   ├── tech-design.md
-│   │   └── test-plan.md
+│   │   └── test-cases.md
 │   ├── api/                         # Existing project docs
 │   └── guides/
 │

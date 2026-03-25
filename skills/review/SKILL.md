@@ -47,6 +47,18 @@ Config → Determine Mode → Locate Reference → Collect Scope → Multi-Dimen
 
 The review analysis is offloaded to a sub-agent to handle large diffs without exhausting the main context.
 
+## Project Analysis
+
+Before reviewing code, understand the project's architecture and tech stack:
+
+@../shared/project-analysis.md
+
+Execute PA.1 (Project Profile) and PA.2 (Architecture Analysis). This informs:
+- Which review dimensions apply (D14 Accessibility only for frontend)
+- Language-specific checks (Rust `unsafe` blocks, Go unchecked errors, Python type hints)
+- Architecture-specific checks (layer boundary violations, circular dependencies)
+- The Project Profile determines which patterns are expected vs. suspicious
+
 ## Review Severity Levels
 
 All issues use a 4-tier severity system, ordered by merge-blocking priority:
@@ -170,10 +182,10 @@ If no planning documents found, scan for upstream documentation:
 
 Search paths (in order):
 1. `{input_dir}/*.md` — feature specs
-2. `docs/` directory — PRD, SRS, tech-design, test-plan files
+2. `docs/` directory — PRD, SRS, tech-design, test-cases files
 
 Look for files matching patterns:
-- `**/prd.md`, `**/srs.md`, `**/tech-design.md`, `**/test-plan.md`
+- `**/prd.md`, `**/srs.md`, `**/tech-design.md`, `**/test-cases.md`
 - `**/features/*.md`
 - Any `.md` files directly under `docs/`
 

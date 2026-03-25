@@ -34,6 +34,19 @@ Bug Input → Context Scan → Feature Association → Root Cause Diagnosis → 
 
 ---
 
+### Step 0.5: Project Analysis
+
+Before diagnosing, understand the project's architecture and tech stack:
+
+@../shared/project-analysis.md
+
+Execute PA.1 (Project Profile) and PA.2 (Architecture Analysis). This context determines:
+- WHERE to look for the bug (which layers, which modules)
+- HOW errors propagate (call graph, data flow)
+- WHAT language-specific patterns to check (Rust ownership issues, Go error chains, Python import cycles, etc.)
+
+---
+
 ### Step 1: Receive Bug Description
 
 Accept input in three modes:
