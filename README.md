@@ -6,6 +6,10 @@
 
 | Command | Description |
 |---------|------------|
+| **End-to-End** | |
+| `/code-forge:build @doc.md` | Full pipeline: test cases → plan → impl → review → verify |
+| `/code-forge:build "add feature"` | Same pipeline but derives requirements from prompt + code analysis |
+| `/code-forge:build "add tests"` | Test-only mode: test cases → tdd → review → verify |
 | **Planning & Execution** | |
 | `/code-forge:plan @doc.md` | Generate plan from a feature document |
 | `/code-forge:plan @dir/` | Browse a directory and pick a feature to plan |

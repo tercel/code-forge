@@ -3,9 +3,10 @@ name: tdd
 description: >
   Use when implementing any feature or fix outside code-forge workflow — enforces
   Red-Green-Refactor cycle with mandatory test-first discipline. Supports three modes:
-  (1) Standalone — ad-hoc TDD for quick changes, (2) Auto-Analysis — scans code to
-  design test cases then implements them, (3) Driven — reads a test-cases.md document
-  and implements each case via TDD.
+  (1) Standalone — ad-hoc TDD for quick changes, (2) Auto-Analysis — runs the full
+  spec-forge:test-cases analysis pipeline (project profile, four-layer deep scan,
+  multi-dimensional coverage) then implements all cases via TDD, (3) Driven — reads
+  a test-cases.md document and implements each case via TDD.
 ---
 
 # Code Forge — TDD
@@ -96,74 +97,98 @@ After all cases are implemented:
 
 ## Auto-Analysis Mode — Scan and Test
 
-When the user points to code or says "help me write tests" without a test-cases document:
+When the user points to code or says "help me write tests" without a test-cases document.
 
-### A.0 Project Analysis
+**Iron Rule: Auto-Analysis uses the SAME full analysis as spec-forge:test-cases.** The only difference is the output — auto-analysis produces code directly instead of a document. The analysis quality must be identical.
 
-First, understand the project:
+### A.0 Full Test Case Analysis (same as spec-forge:test-cases Steps 1-5)
 
-@../shared/project-analysis.md
+Execute the **complete** spec-forge:test-cases analysis pipeline. The full workflow is defined in the spec-forge test-cases-generation skill (`spec-forge/skills/test-cases-generation/SKILL.md`). The essential steps are inlined below — follow them exactly:
 
-Execute PA.1 (Project Profile), PA.2 (Architecture Analysis), PA.3 (Language-Specific Deep Scan), and PA.5 (Existing Test Assessment). This ensures:
-- Test framework and runner are correctly identified
-- Language-specific constructs are properly analyzed (Rust traits, Go interfaces, etc.)
-- Architecture informs test strategy (unit vs. integration boundary decisions)
+**Step 1 — Determine Input Mode and Project Profile**
+- Determine input mode: Scan / Code / Spec (from user arguments)
+- Detect project profile: Web API / CLI Tool / Frontend App / AI Agent / Data Pipeline / Function Library / SDK
+- Detect: has database? has auth? has external APIs?
+- Output explicit profile with rationale
 
-### A.1 Analyze Target
+**Step 2 — Deep Scan and Extract (Four Layers)**
+- Use the language-specific deep extraction strategy (Python / TypeScript / Go / Rust / Java)
+- Extract ALL testable units across four layers:
+  - **Interface**: public API surface, type contracts, trait/interface boundaries
+  - **Logic**: branch paths, error chains, state transitions, validation rules
+  - **Architecture**: module structure, layer boundaries, dependency direction
+  - **Relationships**: call graphs, data flow, event propagation, trait implementations
+- Scan existing tests to determine current coverage
+- Run scan verification (file coverage ≥ 90%, module tree completeness, re-export tracking)
+- Produce structured Functional Inventory with all four layers per unit
 
-Using the project context from A.0:
+**Step 3 — Detect Dimensions**
+- Apply built-in dimensions: Coverage Depth (L1/L2/L3)
+- Auto-detect project-specific dimensions (Auth Context, Trigger Mode, Input Source, etc.)
 
-1. **Identify target scope**:
-   - If specific file(s) given → deep-scan those files using the language strategy from PA.3
-   - If no target → use PA.5 results to find files without test coverage
-2. **Extract testable units** using the four-layer model from PA.3:
-   - **Interface**: public functions, methods, routes, components, commands (what CAN be tested)
-   - **Logic**: branch paths, error chains, state transitions (what SHOULD be tested)
-   - **Architecture**: which layer each unit belongs to (determines unit vs. integration test)
-   - **Relationships**: call graph, data flow (determines combination tests)
-3. **Scan existing tests** to identify what's already covered (from PA.5)
-4. **Identify dependencies** between units using PA.4 relationship mapping
+**Step 4 — Confirm Scope with User**
+- Present Profile confirmation: "I detected this as **{profile}** ({rationale}). Correct?"
+- Present scope: "{N} testable units, {X} have tests, {Y} don't. Cover: all / uncovered / specific modules?"
+- Present detected dimensions for confirmation
+- Ask for business rules the code can't reveal
 
-### A.2 Design Test Cases (Internal)
+**Step 5 — Design Test Cases**
+- Per testable unit, generate at minimum:
+  - 1 × L1 (Happy Path)
+  - 2 × L2 (Boundary + Error)
+  - 1 × L3 (Negative — what should NOT happen)
+- For interacting units: pairwise combination cases (L1 both succeed + L2 one fails + L3 should not combine)
+- For auto-detected dimensions: cross with coverage depth using risk-based prioritization
+- Apply conditional sections:
+  - Data Integrity cases (only if project has database)
+  - Security cases (only if project has auth or handles user input)
+  - Performance cases (only if project has latency/throughput requirements)
+- Assign priorities: P0 (critical path) / P1 (important) / P2 (nice-to-have)
+- Build coverage matrix internally: unit × depth, dimension coverage, combination coverage, gap analysis
 
-For each uncovered testable unit, design cases internally:
+**Result**: A complete set of structured test cases in memory — identical quality to what spec-forge:test-cases would produce as a document.
 
-- **L1 (Happy Path)**: 1 case — basic correct behavior
-- **L2 (Boundary/Error)**: 2 cases — edge case + error handling
-- **L3 (Negative)**: 1 case — what should NOT happen
+### A.1 Optional: Save Test Cases Document
 
-For units with interaction relationships:
-- 1 combination case — units working together correctly
+Ask the user: "Save the test cases as `docs/{feature}/test-cases.md` for future reference? (Y/n)"
 
-### A.3 Confirm with User
+- If yes → write the document following the spec-forge:test-cases template, then continue to A.2
+- If no → keep in memory, continue to A.2
 
-Present the analysis:
+### A.2 Implement via TDD
+
+For each test case (sorted by priority: P0 → P1 → P2), follow the same TDD cycle as Driven Mode:
+
+1. **Read the case** — extract preconditions, steps, expected result, not-expected, test infra
+2. **Set up test infrastructure** — if Test Infra is "Real DB", configure TestContainers; if "Mock external", set up mock; if "Temp dir", create temp directory; if "N/A", no setup
+3. **RED** — Write a failing test matching the case specification
+   - Test name should include TC ID: `test("TC-AUTH-001: create user with valid email returns 201", ...)`
+   - Preconditions → test setup; Steps → test actions; Expected result → assertions; Not Expected → negative assertions
+4. **VERIFY RED** — Run the test, confirm it fails correctly
+5. **GREEN** — Write minimal production code to make it pass
+6. **VERIFY GREEN** — Run all tests, confirm clean pass
+7. **REFACTOR** — Clean up if needed
+8. **Report** — "TC-AUTH-001: DONE"
+
+### A.3 Progress Tracking
+
+After each case, display progress (same format as Driven Mode D.4):
 ```
-Found {N} testable units in {scope}:
-  {unit1} (function) — no tests → 4 cases planned
-  {unit2} (route) — partial coverage → 2 cases planned
-  {unit3} (function) — fully covered → skip
-
-Total: {M} test cases to implement
-
-Business logic I can't infer — anything to add?
-(e.g., special rules, constraints, domain-specific edge cases)
+TDD Progress: {completed}/{total} ({percentage}%)
+  [x] TC-AUTH-001: Create user with valid email (P0) — DONE
+  [x] TC-AUTH-010: Duplicate email rejected (P0) — DONE
+  [ ] TC-AUTH-011: Invalid email format (P1) — next
 ```
 
-Wait for user confirmation or additions.
+Ask: "Continue with next case, skip, or pause?"
 
-### A.4 Implement via TDD
+### A.4 Completion
 
-For each designed case, follow the standard TDD cycle:
-
-1. **RED** — Write failing test
-2. **VERIFY RED** — Confirm correct failure
-3. **GREEN** — Minimal code to pass
-4. **VERIFY GREEN** — All tests pass
-5. **REFACTOR** — Clean up
-6. **REPEAT** — Next case
-
-Display progress after each case. Ask to continue/pause periodically.
+After all cases are implemented:
+- Run full test suite
+- Report: total cases implemented, all tests passing, coverage statistics
+- If test cases were saved to file (A.1), report the file path
+- Suggest: "Run `/code-forge:verify` to confirm completion"
 
 ## Standalone Mode — Classic TDD
 
