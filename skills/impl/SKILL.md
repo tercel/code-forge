@@ -4,6 +4,7 @@ description: >
   Execute pending tasks for a feature — TDD-driven implementation with sub-agent isolation
   and progress tracking. Use when starting to build, implement, or code a planned feature,
   resuming partially completed work, or running the next task in a code-forge plan.
+  Supports --repos flag for parallel implementation across multiple repositories.
 ---
 
 # Code Forge — Impl
@@ -15,12 +16,14 @@ Execute pending implementation tasks for a feature, following the plan generated
 - Have a generated plan (`state.json` + `tasks/` directory) ready for execution
 - Need to resume a partially completed feature
 - Need task-by-task execution with TDD and progress tracking
+- **Multi-repo:** Same feature planned across multiple language repos (e.g., Python + TypeScript + Rust)
 
 ## Examples
 
 ```bash
 /code-forge:impl user-auth          # Execute tasks for user-auth feature
 /code-forge:impl                    # Auto-detect pending feature
+/code-forge:impl core-dispatcher --repos ~/apcore-python ~/apcore-typescript ~/apcore-rust
 ```
 
 ## Workflow
@@ -36,6 +39,22 @@ Step 3 dispatches a dedicated sub-agent for each task, so code changes from one 
 ## Detailed Steps
 
 @../shared/configuration.md
+
+---
+
+### Step 0.1: Detect Multi-Repo Mode
+
+If `$ARGUMENTS` does **not** contain `--repos`, skip this step and continue below.
+
+If `--repos` is present: first, locate the skill installation directory by finding this SKILL.md file's parent (use `Glob` for `**/skills/impl/SKILL.md` if needed). Then dispatch `Agent(subagent_type="general-purpose", description="Impl --repos coordinator")` with prompt containing the **resolved absolute paths**:
+
+> Read these two files and follow them exactly:
+> 1. `{resolved_absolute_path}/skills/shared/multi-repo.md` — the protocol steps MR-1~MR-5
+> 2. `{resolved_absolute_path}/skills/impl/multi-repo-defs.md` — the impl-specific definitions
+>
+> User arguments: $ARGUMENTS
+
+Then **stop** — do not continue to Step 0.5.
 
 ---
 
@@ -201,3 +220,4 @@ Next steps:
   /code-forge:verify                                       Verify all tests pass
   /code-forge:finish {feature_name}                        Merge / create PR
 ```
+

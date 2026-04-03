@@ -1,6 +1,6 @@
 ---
-description: "Use when fixing a bug in a code-forge tracked feature (has state.json) — traces root cause across 4 levels and syncs upstream plan/task documents"
-argument-hint: "[\"bug description\" | @issue.md | --review [feature-name]]"
+description: "Use when fixing a bug — traces root cause across 4 levels and syncs upstream documents. Supports --repos for parallel multi-repo fixing."
+argument-hint: "[\"bug description\" | @issue.md | --review [feature-name]] [--repos <repo1> <repo2> ...]"
 allowed-tools: [Read, Glob, Grep, Write, Edit, Bash, AskUserQuestion, Task, TaskCreate, TaskUpdate, TaskList, TaskGet]
 ---
 

@@ -16,6 +16,8 @@ Planning & Execution:
   /code-forge:plan "requirement"     Generate plan from a text prompt
   /code-forge:plan --tmp "req"       Generate plan in .code-forge/tmp/ (no project pollution)
   /code-forge:impl [feature]         Execute pending tasks for a feature
+  /code-forge:impl feature --repos r1 r2
+                                     Implement across multiple repos in parallel
   /code-forge:status [feature]       View dashboard or feature detail
 
 Quality & Debugging:
@@ -24,6 +26,8 @@ Quality & Debugging:
   /code-forge:review --github-pr     Post 14-dimension review to a GitHub PR
   /code-forge:fix "description"      Debug and fix a bug with upstream trace-back
   /code-forge:fix --review           Batch-fix all issues from a review report
+  /code-forge:fix "desc" --repos r1 r2
+                                     Fix a bug across multiple repos in parallel
   /code-forge:debug "description"    Systematic root cause debugging (general-purpose)
 
 Development Methodology:

@@ -1,6 +1,6 @@
 ---
-description: "Use when implementing a feature — executes TDD tasks via sub-agents with state tracking and auto-resume"
-argument-hint: "[feature-name]"
+description: "Use when implementing a feature — executes TDD tasks via sub-agents with state tracking and auto-resume. Supports --repos for parallel multi-repo implementation."
+argument-hint: "[feature-name] [--repos <repo1> <repo2> ...]"
 allowed-tools: [Read, Glob, Grep, Write, Edit, Bash, AskUserQuestion, Task, TaskCreate, TaskUpdate, TaskList, TaskGet]
 ---
 

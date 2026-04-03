@@ -1,6 +1,9 @@
 ---
 name: fix
-description: Debug and fix bugs with interactive upstream trace-back — diagnoses root cause level, confirms upstream document updates, and applies TDD fixes.
+description: >
+  Debug and fix bugs with interactive upstream trace-back — diagnoses root cause level,
+  confirms upstream document updates, and applies TDD fixes.
+  Supports --repos flag for parallel bug fixing across multiple repositories.
 ---
 
 # Code Forge — Fix
@@ -12,6 +15,7 @@ Systematically debug and fix bugs with interactive trace-back to upstream docume
 - Encountered a bug or unexpected behavior in a feature
 - Need to diagnose whether the root cause is in code, task description, plan, or requirements
 - Want to fix the bug with TDD and keep upstream documents in sync
+- **Multi-repo:** Same bug manifests across multiple language repos (e.g., Python + TypeScript + Rust)
 
 ## Examples
 
@@ -20,17 +24,36 @@ Systematically debug and fix bugs with interactive trace-back to upstream docume
 /code-forge:fix @issues/bug-123.md              # Fix from bug report file
 /code-forge:fix --review user-auth              # Batch-fix all issues from review report
 /code-forge:fix --review                        # Auto-detect review report and fix
+/code-forge:fix "connection pool exhaustion" --repos ~/api-python ~/api-typescript ~/api-rust
 ```
 
 ## Workflow
 
 ```
-Bug Input → Context Scan → Feature Association → Root Cause Diagnosis → Trace-back Confirmation → TDD Fix → Doc Sync → Summary
+Bug Input → Context Scan → Feature Association → Root Cause → Trace-back → TDD Fix → Doc Sync → Summary
 ```
 
 ## Detailed Steps
 
 @../shared/configuration.md
+
+---
+
+### Step 0.1: Detect Multi-Repo Mode
+
+If `$ARGUMENTS` does **not** contain `--repos`, skip this step and continue below.
+
+**Note:** `--review` and `--repos` cannot be combined. If both are present, show error: "Cannot combine --review with --repos. Review reports are per-repo — run `/code-forge:fix --review` in each repo separately."
+
+If `--repos` is present (without `--review`): first, locate the skill installation directory by finding this SKILL.md file's parent (use `Glob` for `**/skills/fix/SKILL.md` if needed). Then dispatch `Agent(subagent_type="general-purpose", description="Fix --repos coordinator")` with prompt containing the **resolved absolute paths**:
+
+> Read these two files and follow them exactly:
+> 1. `{resolved_absolute_path}/skills/shared/multi-repo.md` — the protocol steps MR-1~MR-5
+> 2. `{resolved_absolute_path}/skills/fix/multi-repo-defs.md` — the fix-specific definitions
+>
+> User arguments: $ARGUMENTS
+
+Then **stop** — do not continue to Step 0.5.
 
 ---
 
@@ -409,3 +432,4 @@ Next steps:
   /code-forge:status {feature}    View updated progress
   /code-forge:review {feature}    Review all changes
 ```
+
