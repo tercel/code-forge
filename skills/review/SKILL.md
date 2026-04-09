@@ -9,6 +9,18 @@ description: >
 
 # Code Forge — Review
 
+## ⚡ Execution Entry Point (READ THIS FIRST)
+
+**When this skill is loaded, you MUST immediately begin executing the Workflow below — do not wait, do not summarize, do not ask "what should I do now". Skills are operational manuals, not reference documents.** Read Step 1 (Determine Review Mode), perform it, then Step 2, etc., until the workflow completes or you reach an `AskUserQuestion` checkpoint.
+
+If the harness shows you `Successfully loaded skill · N tools allowed`, that message means **the SKILL.md content was injected into your context** — it does NOT mean the skill has run. Skills do not "run" autonomously; you run them by executing the Detailed Steps below.
+
+If you find yourself about to say "the skill didn't produce output", "skill 仍未输出", "falling back to manual review", "回退到手动 review", or anything similar, **STOP**. You have misunderstood how skills work. Go directly to Step 1 of the Detailed Steps and start executing.
+
+The first user-visible action of this skill should be either (a) the output of Step 1 / Step 2 of the workflow, or (b) an `AskUserQuestion` if Step 1 needs disambiguation. Never an apology, never a fallback, never silence.
+
+---
+
 Comprehensive code review against reference documents and engineering best practices. Covers functional correctness, security, resource management, code quality, architecture, performance, testing, error handling, observability, maintainability, backward compatibility, and dependency safety.
 
 Supports four modes:
@@ -72,20 +84,21 @@ All issues use a 4-tier severity system, ordered by merge-blocking priority:
 
 ## Review Dimensions Reference
 
-For the full list of 14 review dimensions with check items, read `references/dimensions.md`.
+For the full list of 15 review dimensions with check items, read `references/dimensions.md`.
 
 **Quick summary by tier:**
 - **Tier 1 (Must-Fix):** D1 Functional Correctness, D2 Security, D3 Resource Management
-- **Tier 2 (Should-Fix):** D4 Code Quality, D5 Architecture, D6 Performance, D7 Test Coverage
+- **Tier 2 (Should-Fix):** D4 Code Quality, D5 Architecture, D6 Performance, **D15 Simplification & Anti-Bloat**, D7 Test Coverage
 - **Tier 3 (Recommended):** D8 Error Handling, D9 Observability, D10 Standards
 - **Tier 4 (Nice-to-Have):** D11 Backward Compat, D12 Maintainability, D13 Dependencies, D14 Accessibility (frontend only)
 
 **Dimension Application Rules:**
 - **D1–D3:** Always apply. Potential merge blockers.
-- **D4–D7:** Always apply. Should-fix items.
+- **D4–D7, D15:** Always apply. Should-fix items.
 - **D8–D10:** Always apply. Flag as warnings/suggestions.
 - **D11–D13:** Always apply but expect mostly suggestions.
 - **D14:** Apply ONLY if `project_type` is `"frontend"` or `"fullstack"`.
+- **D15 (Simplification & Anti-Bloat):** Always apply. Mandatory in every mode (feature, project, GitHub PR). This is the primary defense against incremental bloat from skill-driven workflows — sub-agents MUST grep for existing equivalents before accepting any new symbol, MUST verify external callers exist for every new top-level symbol, and MUST flag scope creep beyond `plan.md`. Never skip D15 even on small changes.
 
 When spawning review sub-agents, instruct them to read `references/dimensions.md` for the full check items.
 

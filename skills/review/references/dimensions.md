@@ -96,6 +96,43 @@ Check items:
 - **Payload size:** Fetching all columns when only a few needed, unbounded result sets, no pagination
 - **Frontend:** Unnecessary re-renders, missing memoization, layout thrashing, large bundle imports
 
+### D15: Simplification & Anti-Bloat
+
+Does this change keep the codebase lean, or does it pile on redundancy and dead weight? This dimension is **mandatory for every review** — it is the primary defense against incremental bloat from skill-driven (spec-forge / code-forge / apcore-skills) workflows that bias toward "add new" over "reuse existing".
+
+**Mindset:** Treat every new file, function, class, abstraction, parameter, config knob, and dependency as a liability that must justify itself against what already exists. The default answer is "reuse or extend", not "create new".
+
+Check items:
+- **Reuse over new:** Was an equivalent or near-equivalent function/class/utility already present in the project? Grep for similar names, similar signatures, similar string literals — if the new code reimplements something that exists, flag it as `critical` (must merge into the existing one) and do not let it slip through as duplication.
+- **Dead code from this change:** New functions/classes/exports/types/constants that are defined but never referenced anywhere in the diff or in the rest of the codebase. Flag at `warning` minimum; `critical` if they form a parallel unused subsystem.
+- **Pre-existing dead code touched by this change:** If the change modifies a file that contains already-dead symbols (unused imports, unreachable branches, commented-out blocks, never-called helpers, stale `TODO` placeholders), flag them — the review pass is the right time to clean them out, not "later".
+- **Speculative abstraction:** Base classes, interfaces, plugin systems, generics, factories, or "extension points" introduced for hypothetical future needs that have exactly one (or zero) current callers. Flag at `warning`. Demand the simpler concrete implementation until a second caller actually exists.
+- **Premature parameterization:** Function parameters, config keys, environment variables, or feature flags added "in case someone needs to tune this" but with only one call site passing the default. Flag at `warning`.
+- **Wrapper / passthrough functions:** New functions whose body is a single call to another function with the same arguments, or that only rename fields without adding logic. Flag at `warning`.
+- **Parallel implementations:** A new module that does roughly what an existing module already does, but slightly differently. Most common failure mode of skill-driven feature work. Flag at `critical` — propose merging.
+- **Copy-paste blocks:** Two or more code blocks (≥ 5 lines) that are structurally identical or differ only in literals. Flag at `warning` and propose extraction — but only if the extracted form is genuinely simpler, not a forced abstraction.
+- **Scope creep beyond the plan:** Files, modules, or features added that are not required by the feature's `plan.md` / spec / task list. Flag at `warning`; `critical` if they introduce new dependencies or new public API.
+- **Backward-compat shims for code that was never released:** `_legacy_*` aliases, deprecated re-exports, "removed" comments, renamed `_unused` variables for code that exists only on this branch. Flag at `warning` — delete instead.
+- **Defensive code for impossible states:** Validation, null checks, try/except, or fallbacks guarding scenarios that the type system or upstream invariants already prevent. Flag at `suggestion`.
+- **Comment / docstring bloat:** Comments restating what the code obviously does, auto-generated docstrings on trivial helpers, file-level banner comments with no information. Flag at `suggestion`.
+- **Configuration knobs nobody asked for:** New entries in `config.{json,yaml,toml}`, new CLI flags, new env vars not driven by an explicit requirement. Flag at `warning`.
+- **Dependency creep:** A new third-party dependency pulled in to do something that 10 lines of project code (or an existing dependency) could do. Flag at `warning`; `critical` if the dependency is large, unmaintained, or duplicates an existing one.
+
+**Sub-agent execution requirements for D15:**
+1. **Grep before flagging additions.** Before claiming "new function `foo` is fine", run a project-wide search for similar names and signatures. The sub-agent must demonstrate it looked for existing equivalents.
+2. **Read import graphs.** For every new top-level symbol in the diff, verify at least one caller exists outside the file that defines it. Symbols with zero external callers go on the dead-code list.
+3. **Compare against `plan.md` / spec.** Anything in the diff that is not traceable to a planned task or acceptance criterion is scope creep — list it.
+4. **Net-LOC sanity check.** If the change adds significantly more lines than the plan estimated, and the excess is not test code, surface this in the report as a signal of likely bloat.
+
+**Severity guidance for D15:**
+- `critical` — duplicate implementation of existing functionality; large parallel subsystem; new dependency that overlaps an existing one
+- `warning` — unused new symbols; speculative abstractions; passthrough wrappers; copy-paste blocks; unjustified new config/flags
+- `suggestion` — defensive code for impossible states; comment bloat; minor stylistic redundancy
+
+D15 is **always applied** regardless of project type, language, or reference level. It is the only dimension whose explicit job is to push back on the additive bias of automated planning skills.
+
+---
+
 ### D7: Test Coverage & Verifiability
 
 Are critical paths tested? Are tests meaningful?
@@ -210,7 +247,8 @@ Check items:
 ## Dimension Application Rules
 
 - **D1–D3 (Tier 1):** Always apply. These are potential merge blockers.
-- **D4–D7 (Tier 2):** Always apply. These are should-fix items.
+- **D4–D7, D15 (Tier 2):** Always apply. These are should-fix items.
 - **D8–D10 (Tier 3):** Always apply. Flag as warnings/suggestions.
 - **D11–D13 (Tier 4):** Always apply but expect mostly suggestions.
 - **D14 (Accessibility/i18n):** Apply ONLY if `project_type` is `"frontend"` or `"fullstack"`.
+- **D15 (Simplification & Anti-Bloat):** Always apply, in every mode and on every project type. This dimension exists specifically to counter the additive bias of automated planning skills (spec-forge / code-forge / apcore-skills) and must never be skipped, even for small diffs.

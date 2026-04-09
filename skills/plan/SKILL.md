@@ -8,6 +8,18 @@ description: >
 
 # Code Forge — Plan
 
+## ⚡ Execution Entry Point (READ THIS FIRST)
+
+**When this skill is loaded, you MUST immediately begin executing the Workflow below — do not wait, do not summarize, do not ask "what should I do now". Skills are operational manuals, not reference documents.** Read Step 0 (Configuration), then Step 0.5 (Project Analysis), then Steps 1, 2, 3, ... in order, until the workflow completes or you reach an `AskUserQuestion` checkpoint.
+
+If the harness shows you `Successfully loaded skill · N tools allowed`, that message means **the SKILL.md content was injected into your context** — it does NOT mean the skill has run. Skills do not "run" autonomously; you run them by executing the Detailed Steps below.
+
+If you find yourself about to say "the skill didn't produce output", "skill 仍未输出", "falling back to manual planning", "回退到手动 plan", or anything similar, **STOP**. You have misunderstood how skills work. Go directly to the first executable step and start.
+
+The first user-visible action of this skill should be either (a) the output of the early steps of the workflow, or (b) an `AskUserQuestion` if a step needs disambiguation. Never an apology, never a fallback, never silence.
+
+---
+
 Generate an implementation plan from a feature document or a requirement prompt.
 
 ## Iron Law
@@ -27,6 +39,8 @@ Generate an implementation plan from a feature document or a requirement prompt.
 | "The input looks like a path but has no @, I'll treat it as a prompt" | Run the Step 2.0 path-like input guard. Paths without `@` are almost always user mistakes — ask before proceeding. |
 | "I'll add FE-01- prefixes to feature directories for clarity" | Feature directory names must match the source filename exactly in kebab-case. `core-dispatcher`, not `FE-01-core-dispatcher`. |
 | "I'll generate all features as flat files in one directory" | Each feature gets its own subdirectory with the full multi-file structure. Flat files break all downstream skills. |
+| "Step 4.5 reuse discovery is optional, the user just wants the plan" | Step 4.5 is mandatory. Skipping it is the #1 cause of bloat across spec-forge / code-forge / apcore-skills workflows — the planner ends up generating tasks that recreate utilities, helpers, and entire subsystems that already exist. |
+| "I'll just trust the LLM to know what already exists" | The LLM does not know. It must `Grep` and `Read` the actual project. Step 4.5 forces this empirically. |
 
 ## When to Use
 
@@ -38,12 +52,12 @@ Generate an implementation plan from a feature document or a requirement prompt.
 ## Workflow
 
 ```
-Input (Document or Prompt) → Analysis → Planning → Task Breakdown → Status Tracking
+Input → Analysis → Reuse Discovery → Planning → Task Breakdown → Status Tracking
 ```
 
 ## Context Management
 
-Steps 4, 7, and 8 are offloaded to sub-agents via the `Agent` tool to prevent context window exhaustion on large projects. The main context retains only concise summaries returned by each sub-agent, while full document analysis, file generation, and code implementation happen in isolated sub-agent contexts that are discarded after completion.
+Steps 4, 4.5, 7, and 8 are offloaded to sub-agents via the `Agent` tool to prevent context window exhaustion on large projects. The main context retains only concise summaries returned by each sub-agent, while full document analysis, reuse discovery, file generation, and code implementation happen in isolated sub-agent contexts that are discarded after completion.
 
 **Actual execution order:** Steps 0 through 13, in sequential order.
 
@@ -354,6 +368,87 @@ Spawn an `Agent` tool call with:
 
 **Important:** Store the returned summary for use in Steps 5 and 7.
 
+### Step 4.5: Reuse & Existing-Code Discovery (via Sub-agent)
+
+**This step is mandatory. It is the primary defense against incremental bloat.** Before any task is generated, the planner MUST verify what already exists in the project that could be reused or extended, so the resulting plan biases toward "extend existing" instead of "add new".
+
+Skipping this step is the most common way that skill-driven planning produces parallel implementations, duplicate utilities, and bloated codebases over time.
+
+**Offload to a sub-agent** to keep grep output and file reads out of the main context.
+
+Spawn an `Agent` tool call with:
+- `subagent_type`: `"general-purpose"`
+- `description`: `"Discover reusable code for {feature_name}"`
+
+**Sub-agent prompt must include:**
+- The structured summary from Step 4 (Key Components, Functional Scope, Technical Requirements)
+- The Project Context Summary (PA.7) from Step 0.5
+- The project root path
+- Explicit instructions below
+
+**Sub-agent must do all of the following and return a structured report:**
+
+1. **Component-by-component reuse search.** For each entry in "Key Components" from the Step 4 summary:
+   - Grep the project for similar names, related keywords, and likely synonyms (e.g., for a planned `UserAuthService`, search for `auth`, `login`, `session`, `credential`, `User.*Service`, etc.)
+   - Read any matching files at least at signature level
+   - Decide one of: `REUSE` (existing code already does this — do not build it), `EXTEND` (existing code is close — modify it), `NEW` (genuinely no overlap — build new)
+
+2. **Utility / helper survey.** Scan the project for existing utility modules (`utils/`, `lib/`, `helpers/`, `common/`, shared modules) and list utilities relevant to the planned work. Future tasks must prefer these over reimplementing.
+
+3. **Configuration / constants survey.** Identify existing configuration files, constants, enums, and environment variables relevant to the feature so the plan extends them rather than introducing parallel knobs.
+
+4. **Test scaffolding survey.** Identify existing test fixtures, factories, mocks, and helper modules that new tests should reuse.
+
+5. **Anti-duplication callouts.** Explicitly call out any place where the planned feature, as described in the Step 4 summary, would naively duplicate something that already exists. The plan generator (Step 7) must address each callout.
+
+6. **Deletion candidates.** While searching, note any existing dead code, stale TODOs, or obsolete helpers in the touched areas. The plan should optionally include a cleanup task.
+
+**Sub-agent must return** (as response text) this exact structured format:
+
+```
+REUSE_REPORT for {feature_name}
+
+COMPONENT_DECISIONS:
+- component: {planned_component_name}
+  decision: REUSE | EXTEND | NEW
+  existing: {file:line if reuse/extend, or "none" if new}
+  rationale: {one sentence}
+
+EXISTING_UTILITIES:
+- {file:symbol} — {what it does, why it's relevant}
+
+EXISTING_CONFIG:
+- {file:key} — {what it controls}
+
+EXISTING_TEST_SCAFFOLDING:
+- {file:symbol} — {fixture/mock/factory description}
+
+ANTI_DUPLICATION_CALLOUTS:
+- {planned thing} would duplicate {existing thing at file:line} — {how to avoid}
+
+DELETION_CANDIDATES:
+- {file:line} — {dead code / stale TODO description}
+
+NEW_CODE_BUDGET:
+- expected_new_files: {N}
+- expected_extended_files: {N}
+- justification: {one sentence}
+```
+
+**Main context retains:** Only this report (~2-3KB). Store it as `reuse_report` for use in Steps 7 and 8.
+
+**Hard rule for Steps 7 and 8:** The plan and task files generated downstream MUST reference the `reuse_report`:
+- Every component the report marked `REUSE` becomes a "use existing X" note in the plan, NOT a build task.
+- Every component marked `EXTEND` becomes a task that names the existing file to modify.
+- Every `ANTI_DUPLICATION_CALLOUT` must be addressed in the plan (either by following the callout or by explicitly justifying why a parallel implementation is necessary).
+- Every `EXISTING_UTILITY`, `EXISTING_CONFIG`, and `EXISTING_TEST_SCAFFOLDING` entry must be referenced from at least one task that would otherwise have reinvented it.
+- If `DELETION_CANDIDATES` is non-empty, the plan should include a `cleanup` task (or fold the deletions into adjacent tasks).
+- The `NEW_CODE_BUDGET` becomes the expected upper bound for the implementation. Step 7 should not generate a plan that wildly exceeds it without explicit justification.
+
+Pass `reuse_report` into the Step 7 and Step 8 sub-agent prompts as a section titled `## Existing Code to Reuse (MANDATORY)` followed by the full report. The sub-agents must be told: "You are forbidden from generating tasks that recreate anything listed in this report. If a task seems to need such a thing, the task must instead reference the existing symbol."
+
+---
+
 ### Step 5: Ask for Additional Information
 
 If not clearly specified in the document, use a **single** `AskUserQuestion` combining up to 3 questions. Skip any question already answered by the document:
@@ -423,6 +518,8 @@ Spawn an `Agent` tool call with:
 **Sub-agent prompt must include:**
 - The input document file path (sub-agent re-reads the original for full context)
 - The structured summary from Step 4 (paste it into the prompt)
+- The `reuse_report` from Step 4.5 — paste it verbatim under a `## Existing Code to Reuse (MANDATORY)` section, followed by this instruction: **"You are forbidden from generating tasks that recreate anything listed in this report. Components marked REUSE become 'use existing X' notes, not build tasks. Components marked EXTEND become tasks that name the existing file to modify. Every ANTI_DUPLICATION_CALLOUT must be addressed. Every EXISTING_UTILITY / EXISTING_CONFIG / EXISTING_TEST_SCAFFOLDING entry must be referenced from at least one task that would otherwise reinvent it. If DELETION_CANDIDATES is non-empty, include a `cleanup` task. Stay within the NEW_CODE_BUDGET unless you explicitly justify exceeding it."**
+- The **design-first discipline** — paste the contents of `@../shared/design-first.md` under a `## Design Discipline (MANDATORY)` section, followed by this instruction: **"Generated tasks MUST be shaped by design-first principles. Prefer 'modify existing X' over 'create new Y' wherever the reuse report or your own analysis indicates an existing structure can absorb the change. Tasks that create new files must justify why an existing file cannot host the change. Tasks that introduce new abstractions (base classes, interfaces, plugin systems, factories) must name at least two concrete callers — speculative abstraction is forbidden. Public interfaces stay stable unless the source document explicitly authorizes a break."**
 - User answers from Step 5 (tech stack choice, testing strategy, task granularity)
 - The output file path: `{output_dir}/{feature_name}/plan.md`
 - Instructions to write the plan file AND return a concise task list summary
@@ -468,6 +565,7 @@ Spawn an `Agent` tool call with:
 **Sub-agent prompt must include:**
 - The plan file path: `{output_dir}/{feature_name}/plan.md` (sub-agent reads it from disk)
 - The task list summary returned by Step 7 (paste it into the prompt)
+- The `reuse_report` from Step 4.5 — paste it verbatim under a `## Existing Code to Reuse (MANDATORY)` section. Instruct: **"For every task you generate, the 'Files Involved' section must prefer existing files over new ones whenever the reuse report indicates an existing equivalent. Each task's 'Steps' section must explicitly reference the relevant entries from EXISTING_UTILITIES, EXISTING_CONFIG, or EXISTING_TEST_SCAFFOLDING when applicable. Tasks that touch areas containing DELETION_CANDIDATES should fold the deletions in."**
 - The tasks directory path: `{output_dir}/{feature_name}/tasks/`
 - All the principles and format requirements below
 - If `reference_summaries` is non-empty, include a `## Reference Context` section:
@@ -652,5 +750,7 @@ Optionally synchronize tasks to Claude Code's Task system:
 - Treating a path-like input without `@` as a prompt instead of asking the user (Step 2.0 guard)
 - Skipping `state.json` — downstream skills (impl, status, fix, finish) cannot operate without it
 - Skipping project-level `overview.md` (Step 11)
-- Running Steps 4, 7, 8 inline instead of delegating to sub-agents via `Agent` tool
+- Running Steps 4, 4.5, 7, 8 inline instead of delegating to sub-agents via `Agent` tool
+- Skipping Step 4.5 reuse discovery — this is the #1 source of incremental bloat across skill-driven workflows
+- Generating tasks that recreate symbols listed in `reuse_report` instead of extending the existing ones
 - Proceeding to Step 13 without running Step 12 verification

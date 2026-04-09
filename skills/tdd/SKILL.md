@@ -11,6 +11,18 @@ description: >
 
 # Code Forge — TDD
 
+## ⚡ Execution Entry Point (READ THIS FIRST)
+
+**When this skill is loaded, you MUST immediately begin executing the Workflow below — do not wait, do not summarize, do not ask "what should I do now". Skills are operational manuals, not reference documents.** Read Step 0 (Determine Mode), perform it, then enter the appropriate mode (Driven / Auto-Analysis / Standalone) and follow its steps, until the workflow completes or you reach an `AskUserQuestion` checkpoint.
+
+If the harness shows you `Successfully loaded skill · N tools allowed`, that message means **the SKILL.md content was injected into your context** — it does NOT mean the skill has run. Skills do not "run" autonomously; you run them by executing the Detailed Steps below.
+
+If you find yourself about to say "the skill didn't produce output", "skill 仍未输出", "falling back to manual TDD", "回退到手动 TDD", or anything similar, **STOP**. You have misunderstood how skills work. Go directly to Step 0 and start executing.
+
+The first user-visible action of this skill should be either (a) the output of Step 0 / the chosen mode's first step, or (b) an `AskUserQuestion` if mode detection needs disambiguation. Never an apology, never a fallback, never silence.
+
+---
+
 Test-Driven Development enforcement for any code change, with built-in code analysis.
 
 ## When to Use
@@ -27,6 +39,14 @@ Test-Driven Development enforcement for any code change, with built-in code anal
 **NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST.**
 
 No exceptions. Not for "simple" changes. Not for "obvious" fixes. Not when under time pressure.
+
+## Design Discipline (Mandatory, Applies to All Modes)
+
+Before any RED step in any mode (Driven, Auto-Analysis, Standalone), you MUST run the design-first pre-code checklist: read the relevant subsystem, consider the optimal interface-stable design, and decide whether to refactor existing code or add new code. The TDD cycle's REFACTOR step is the second enforcement point — every GREEN must be followed by a real consideration of whether the new code is the cleanest shape, not the most expedient one.
+
+This discipline is the upstream defense against patch-first development. Read it once at the start of every session and again whenever you are tempted to add a new branch / wrapper / parallel module instead of refactoring:
+
+@../shared/design-first.md
 
 ## Step 0: Determine Mode
 
@@ -242,6 +262,7 @@ If other tests **fail**: fix them now, before proceeding.
 - Remove duplication, improve names, extract helpers
 - Keep all tests green throughout
 - Do NOT add new behavior during refactor
+- **Apply design-first here.** Look at the GREEN code in the context of the surrounding subsystem. Did GREEN push you toward a patch (new branch, new wrapper, parallel path) when a small refactor of the existing structure would have been cleaner? If so, refactor now while the test is green. The REFACTOR step is not optional — it is the moment design-first is enforced inside the TDD cycle. See `@../shared/design-first.md` for the discipline.
 
 #### 6. REPEAT
 
