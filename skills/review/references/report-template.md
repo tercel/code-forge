@@ -34,6 +34,9 @@ Display the following report directly in the terminal using markdown.
 
 **Issue Breakdown:** {blocker_count} blockers · {critical_count} critical · {warning_count} warnings · {suggestion_count} suggestions
 
+**Call-Graph Coverage:** {N} public symbols analyzed · {n_partial} partial chains · {n_suspicious} suspicious chains
+{If METHOD_CHAINS_DEFERRED non-empty:} ⚠ {N} symbols deferred — not analyzed. Reasons: {comma-separated reasons}
+
 ---
 
 ## Tier 1 — Must-Fix Before Merge

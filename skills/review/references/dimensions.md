@@ -8,8 +8,12 @@ The following dimensions are used in both Feature Mode and Project Mode reviews.
 
 Does the code actually implement what it should? This is the highest-priority dimension.
 
+**D1 must be applied against the `METHOD_CHAINS` call graph produced by pre-analysis, not against the surface method body.** A method can pass surface reading yet fail D1 because its chain omits expected work — that is exactly the failure mode `METHOD_CHAINS` exists to expose.
+
 Check items:
 - **Requirements fulfillment:** Does the code implement the specified behavior correctly?
+- **Chain completeness (sourced from METHOD_CHAINS):** For every entry with `chain_completeness != matches_purpose`, emit a finding. A `partial` chain — the method's stated purpose implies steps the chain omits (e.g., public method `register` documented to validate-id-format + resolve-deps + insert-into-index + emit-event, but chain only does insert + emit — validate and resolve are missing) — is `critical`. A `suspicious` chain — the chain contradicts the method's name/signature/promise (e.g., method named `discover` returns a count but no state mutation updates the main index peers would update; method named `register` silently overwrites without raising on duplicate when the signature implies strict mode) — is `blocker`. Quote the `gaps[]` list in the description.
+- **Defensive gap on external inputs (sourced from METHOD_CHAINS `external_inputs`):** For every external-input path where `guarded: false` AND the source is genuinely external (user-facing API, plugin callback return value, config file, network payload, deserialized blob), emit a `critical` finding. Examples: `for entry of externalList` with no null/array-check; `dict["key"]` subscript on a deserialized payload with no `KeyError` / `in` guard; `json.loads(req.body).foo` with no schema validation. This is D1's territory, NOT D15's "defensive code for impossible states" — D15 flags guards against *impossible* states (upstream invariant or type system already prevents); D1 flags missing guards against *possible* states (external input genuinely can be malformed).
 - **Boundary conditions:** Off-by-one errors, empty collections, zero/negative values, max values, null/undefined
 - **Concurrency & race conditions:** Shared mutable state, missing locks/synchronization, TOCTOU bugs
 - **Idempotency:** Are operations safe to retry? Are duplicate requests handled?
@@ -38,6 +42,8 @@ Check items:
 ### D3: Resource Management & Lifecycle
 
 Are all acquired resources properly released? This is especially critical for long-running services.
+
+**Source signal from METHOD_CHAINS:** for every `kind: mutate` step whose detail is a resource acquisition (`lock.acquire`, `open(...)`, `connect(...)`, `setInterval`, `addEventListener`, `spawn`, `start_transaction`), the same chain must contain the matching release step on every exit path. Missing release on the error path is the most common D3 finding and is visible in the chain as an acquire step without a corresponding release before the `raise` / `return Err` steps.
 
 Check items:
 - **Event listeners:** `addEventListener` without `removeEventListener` on cleanup
@@ -113,7 +119,7 @@ Check items:
 - **Copy-paste blocks:** Two or more code blocks (≥ 5 lines) that are structurally identical or differ only in literals. Flag at `warning` and propose extraction — but only if the extracted form is genuinely simpler, not a forced abstraction.
 - **Scope creep beyond the plan:** Files, modules, or features added that are not required by the feature's `plan.md` / spec / task list. Flag at `warning`; `critical` if they introduce new dependencies or new public API.
 - **Backward-compat shims for code that was never released:** `_legacy_*` aliases, deprecated re-exports, "removed" comments, renamed `_unused` variables for code that exists only on this branch. Flag at `warning` — delete instead.
-- **Defensive code for impossible states:** Validation, null checks, try/except, or fallbacks guarding scenarios that the type system or upstream invariants already prevent. Flag at `suggestion`.
+- **Defensive code for impossible states:** Validation, null checks, try/except, or fallbacks guarding scenarios that the type system or upstream invariants already prevent. Flag at `suggestion`. **Do NOT apply this check to external-input paths** — iteration over plugin return values, subscript into deserialized config, reads from the network, etc., are genuinely external and can be malformed regardless of upstream invariants. Missing guards on those paths are a **D1 finding, not a D15 one**. Check `METHOD_CHAINS[].external_inputs[]` to distinguish: `guarded: false` on an external-input path is D1 territory; `guarded: true` on a type-system-guaranteed-non-external path is D15 territory.
 - **Comment / docstring bloat:** Comments restating what the code obviously does, auto-generated docstrings on trivial helpers, file-level banner comments with no information. Flag at `suggestion`.
 - **Configuration knobs nobody asked for:** New entries in `config.{json,yaml,toml}`, new CLI flags, new env vars not driven by an explicit requirement. Flag at `warning`.
 - **Dependency creep:** A new third-party dependency pulled in to do something that 10 lines of project code (or an existing dependency) could do. Flag at `warning`; `critical` if the dependency is large, unmaintained, or duplicates an existing one.
@@ -154,6 +160,8 @@ Check items:
 ### D8: Error Handling & Robustness
 
 Are errors properly caught, classified, reported, and recovered from?
+
+**Source signal from METHOD_CHAINS:** cross-reference the `raise` steps in every chain against the method's documented error contract (from docstring, plan.md, or spec). A chain that raises an error type not documented is a D8 finding (missing error contract). A chain whose `external_inputs[]` path can throw but which has no `try/except` upstream in the graph is a D8 robustness finding. A chain that catches broadly (`except Exception` leaf) and emits no `raise` step is a **swallowed exception** — always flag at `critical` minimum.
 
 Check items:
 - **Swallowed exceptions:** Catch blocks that silently ignore errors (empty catch, catch-and-log-only for critical ops)
@@ -245,6 +253,8 @@ Check items:
 - **Screen reader:** Dynamic content changes announced; focus management correct
 
 ## Dimension Application Rules
+
+**MANDATORY pre-analysis: `METHOD_CHAINS` must be produced BEFORE any dimension is applied.** See the parent SKILL.md §Call-Graph Discipline and `sub-agent-format.md` §METHOD_CHAINS. All dimensions below are applied against the call graph, not against raw method bodies. D1, D3, D8, and D15 have explicit "source signal from METHOD_CHAINS" paragraphs — consult them when deciding which dimension a finding belongs to.
 
 - **D1–D3 (Tier 1):** Always apply. These are potential merge blockers.
 - **D4–D7, D15 (Tier 2):** Always apply. These are should-fix items.

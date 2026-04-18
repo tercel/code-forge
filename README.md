@@ -20,7 +20,7 @@
 | **Quality & Debugging** | |
 | `/code-forge:review [feature]` | Review code quality for a feature or project |
 | `/code-forge:review --feedback` | Evaluate and respond to incoming review comments |
-| `/code-forge:review --github-pr` | Post 14-dimension review to a GitHub PR |
+| `/code-forge:review --github-pr` | Post 15-dimension review to a GitHub PR |
 | `/code-forge:fix "description"` | Debug and fix a bug with upstream trace-back |
 | `/code-forge:fix --review` | Batch-fix all issues from a review report |
 | `/code-forge:debug "description"` | Systematic root cause debugging (general-purpose) |
@@ -112,7 +112,7 @@ Auto-regenerates `planning/overview.md` on each run.
 
 ### review — Code Quality Review
 
-Comprehensive 14-dimension code review with four modes.
+Comprehensive 15-dimension code review with four modes. Every invocation runs a **mandatory call-graph pre-analysis** (`METHOD_CHAINS`) before applying dimensions — a method's actual call chain is the subject of review, not its surface body. This catches "method looks complete but silently skips an expected validation / mutation / guard" bugs that surface reading misses.
 
 ```bash
 /code-forge:review user-auth       # Feature mode — review against plan.md
@@ -122,12 +122,12 @@ Comprehensive 14-dimension code review with four modes.
 /code-forge:review --github-pr 123 # GitHub PR mode — specific PR number
 ```
 
-**Review dimensions (14):**
+**Review dimensions (15):**
 
 | Tier | Dimensions | Merge Policy |
 |------|-----------|--------------|
 | Tier 1 — Must-Fix | D1: Functional Correctness, D2: Security, D3: Resource Management | Must fix before merge |
-| Tier 2 — Should-Fix | D4: Code Quality, D5: Architecture, D6: Performance, D7: Test Coverage | Should fix |
+| Tier 2 — Should-Fix | D4: Code Quality, D5: Architecture, D6: Performance, D7: Test Coverage, **D15: Simplification & Anti-Bloat** | Should fix |
 | Tier 3 — Recommended | D8: Error Handling, D9: Observability, D10: Standards | Recommended |
 | Tier 4 — Nice-to-Have | D11: Backward Compat, D12: Maintainability, D13: Dependencies, D14: Accessibility | Track as tech debt |
 
@@ -137,7 +137,7 @@ Comprehensive 14-dimension code review with four modes.
 - **Feature mode** — Reviews a feature against its `plan.md` acceptance criteria
 - **Project mode** — Reviews entire project against planning docs, upstream docs, or bare
 - **Feedback mode** — Evaluates incoming review comments; classifies each as correct/YAGNI/partially correct/incorrect/unclear/style preference; implements valid fixes with TDD
-- **GitHub PR mode** — Runs 14-dimension review on a PR diff, filters out suggestions (noise reduction), posts as a single GitHub comment with severity badges and file links
+- **GitHub PR mode** — Runs 15-dimension review on a PR diff, filters out suggestions (noise reduction), posts as a single GitHub comment with severity badges and file links. **Aborts the PR post if the call-graph pre-analysis is incomplete** — never posts a review of uncertain depth to a public PR.
 
 **Output:** Terminal display by default. Use `--save` to persist to disk. GitHub PR mode posts directly to GitHub.
 
@@ -337,7 +337,7 @@ When you join an existing project to develop a new feature — no design docs, n
 
 ```bash
 # Step 1: (Optional) Understand the project first
-/code-forge:review --project                      # 14-dimension scan of the codebase
+/code-forge:review --project                      # 15-dimension scan of the codebase
 
 # Step 2: Describe the requirement in plain text — no docs needed
 /code-forge:plan "Add batch CSV export to user list with date range filter"

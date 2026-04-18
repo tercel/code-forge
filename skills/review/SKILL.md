@@ -2,7 +2,7 @@
 name: review
 description: >
   Use when reviewing code, handling review feedback, or posting a review to a GitHub PR —
-  14-dimension quality analysis for features or entire projects (generate mode), structured
+  15-dimension quality analysis for features or entire projects (generate mode), structured
   evaluation and response to incoming review comments (feedback mode via --feedback flag),
   or automated PR review posted as a GitHub comment (--github-pr flag).
 ---
@@ -27,7 +27,7 @@ Supports four modes:
 - **Feature mode:** Review a single feature against its `plan.md`
 - **Project mode:** Review the entire project against planning documents or upstream docs
 - **Feedback mode:** Evaluate and respond to incoming code review comments (`--feedback`)
-- **GitHub PR mode:** Post a 14-dimension review as a comment on a GitHub PR (`--github-pr`)
+- **GitHub PR mode:** Post a 15-dimension review as a comment on a GitHub PR (`--github-pr`)
 
 ## When to Use
 
@@ -81,6 +81,46 @@ All issues use a 4-tier severity system, ordered by merge-blocking priority:
 | `critical`   | :warning:     | Significant quality/correctness concern.              | **Must fix before merge** |
 | `warning`    | :large_orange_diamond:     | Recommended fix. Could cause issues over time.        | Should fix              |
 | `suggestion` | :blue_book:     | Nice-to-have improvement. Can address later.          | Nice-to-have            |
+
+## Call-Graph Discipline (Mandatory Pre-Analysis)
+
+**Before applying any dimension, the review sub-agent MUST build a call graph for every public method in the review scope.** This is a procedural requirement, not a new dimension. It exists because surface-level reading of a method body is structurally blind to a class of bugs: a method may look complete, have the right signature, match the declared plan/spec, yet silently skip a validation call, lack a null-guard on external input, or omit an expected state mutation. These bugs are visible in the call graph and invisible in the method body alone.
+
+**The graph must enumerate, for every public method:**
+1. **Every step in the execution path — including steps inside private helpers called from the public method.** When a public method calls a private helper defined in the same reviewed scope (same file, or a nearby private module within the review set), you MUST open that helper and **inline its steps** (validations, mutations, raises, iterates, subscripts, calls-to-further-helpers) into the public method's chain. Do NOT leave a private same-scope helper as an opaque `call` step — that hides exactly the bugs this discipline exists to catch (a public method `discover` whose private helper `_discover_custom` silently indexes `entry["module_id"]` without a KeyError guard is invisible if you stop expansion at the `call` boundary).
+2. **Leaves of the graph are ONLY:** stdlib calls, third-party library calls, framework calls, or private helpers that live in a different module NOT currently in the reviewed file set. Represent these as `ext_call` steps with no further expansion.
+3. **Every validation performed anywhere in the chain** (early `if/raise`, `assert`, `match`, type guards, schema validation, Protocol checks, `isinstance`, `instanceof`) — including validations inside inlined private helpers.
+4. **Every state mutation anywhere in the chain** (writes to `self.x` / `this.x`, inserts into maps/sets/lists, event emissions, lock acquisitions, external I/O) — including mutations inside inlined private helpers.
+5. **Every error raised anywhere in the chain** (`raise`, `throw`, `return Err`, `return nil, err`) — including raises inside inlined private helpers.
+6. **Every external input path anywhere in the chain** (iteration over arguments, subscript/indexing into external data — especially data returned by plugin/discoverer/factory callbacks, deserialization of user/plugin/config input, network reads) — including paths inside inlined private helpers. This is where defensive-gap bugs live and they are almost always inside private helpers.
+
+**Inlining convention.** When inlining a private helper's steps into a public method's chain, prefix the `detail` field with the helper name for traceability, e.g.:
+
+```
+- { kind: call,      detail: "_discover_custom(rootPaths)", line: 257 }
+- { kind: call,      detail: "  _discover_custom → custom_discoverer.discover(roots)", line: 262 }
+- { kind: iterate,   detail: "  _discover_custom → for entry in custom_modules", line: 263 }
+- { kind: subscript, detail: "  _discover_custom → entry['module_id']  (unguarded, KeyError crashes loop)", line: 269 }
+```
+
+The indentation + `helper_name →` prefix preserves the call hierarchy without needing a separate nested-list structure. The reviewer who reads the chain can tell at a glance which step is rooted where.
+
+**The graph is produced as structured output (see `references/sub-agent-format.md` `METHOD_CHAINS` section)** — the sub-agent shows its work. An empty or missing `METHOD_CHAINS` section means the sub-agent skipped the pre-analysis; the orchestrator MUST reject the report and re-run.
+
+**Why this is procedural, not a dimension.** The graph is an *input* to dimensions D1 (correctness), D3 (resource), D8 (error handling), D15 (anti-bloat), and others — not a finding category itself. Dimensions are applied to the graph, not to the raw method body. Findings that emerge from graph inspection still belong to their natural dimension (e.g., "method skips a validation its docstring promises" → D1; "method exits without releasing a lock it acquired" → D3).
+
+**Scope.** The discipline applies to **every public method of every class, every exported function, and every entry-point / CLI command** in the reviewed files. Private helpers do NOT get their own top-level `METHOD_CHAINS` entry — but their steps (validations, mutations, raises, iterates, subscripts) MUST be inlined into the chain of the public method that invokes them, using the inlining convention above. Stopping expansion at `call: _private_helper` without inlining its body is a **pre-analysis failure**; the orchestrator rejects such chains. Test files are exempt.
+
+**Anti-rationalization:**
+
+| Thought | Reality |
+|---------|---------|
+| "The method is only 10 lines, the graph is trivial, skip it" | The Rust `discover_internal` bug in apcore-rust was in a short method. Short methods that skip expected work are exactly what the graph catches — the absence of a call is invisible to surface reading. Always build the graph. |
+| "The plan / spec says the method does X, so it does X" | Do not trust the plan. Verify X is actually invoked by reading the chain to its leaves. A common skill-driven bug: the plan says "implement validate_module_id", the impl file adds a `validate_module_id` function, but no caller ever invokes it. |
+| "The method calls a well-named helper, the helper must be doing its job" | Never infer behavior from function names. Open the helper and verify. A helper called `validate_foo()` may be a stub, may early-return on a wrong branch, may not actually validate. |
+| "This is defensive code for impossible states, D15 says flag it as suggestion" | D15 targets defensive code for states that the type system or upstream invariant actually prevents. Defensive code for **possible** states — external-facing iteration, subscript into user/plugin-supplied dicts, deserialization paths — is D1 territory (functional correctness). Do not downgrade to suggestion when the input source is genuinely external. |
+| "No reference document, can't check purpose" | In bare mode you cannot check against a spec, but you can still check **internal consistency**: does the method name imply a contract (`discover`, `register`, `validate`) that the chain contradicts? Does the public API promise a return shape that the chain does not produce? Graph inspection still yields signal. |
+| "The public method just calls `_private_helper()` — that's one `call` step, chain done" | NO. The most common place for defensive-gap bugs and missing-validation bugs is **inside private helpers** — a public method with a clean three-line body whose private helper does an unguarded subscript into plugin output, or an iterate over possibly-null external data, is the exact case this discipline exists to catch. When a `call` targets a private helper defined in the same reviewed scope, you MUST open it and inline its steps per the inlining convention. "Stop at the first `call` boundary" produces the illusion of a clean chain while the bug hides one level deeper. If your METHOD_CHAINS for a public method is ≤3 steps because its body was "just delegation", you almost certainly skipped inlining — go back and expand. |
 
 ## Review Dimensions Reference
 
@@ -260,11 +300,12 @@ Spawn an `Agent` tool call with:
 - List of all affected files (sub-agent reads them)
 - The acceptance criteria from `plan.md`
 - Detected project type
+- **MANDATORY pre-analysis instruction:** *"Before applying any review dimension, read every affected file in full and build a call graph for every public method / exported function / entry point in those files. Enumerate — for each — the helpers it calls (to leaves within the reviewed scope), the validations it performs, the state mutations it executes, the errors it raises, and its external-input paths (iteration over arguments, subscript into external data, deserialization). Output this as the `METHOD_CHAINS` section per `references/sub-agent-format.md`. Only after producing METHOD_CHAINS may you apply dimensions. Do not trust method names, plan claims, or helper-function purity — open and read every callee. See the §Call-Graph Discipline section of the parent SKILL.md for the full protocol and anti-rationalization guard."*
 - Instructions to review across all applicable dimensions below
 - The severity level definitions (blocker / critical / warning / suggestion)
-- Instruction: **"For each issue, specify severity, file path, line number/range, what's wrong, and how to fix it. Use the Review Comment Formula: Problem → Why it matters → Suggested fix."**
+- Instruction: **"For each issue, specify severity, file path, line number/range, what's wrong, and how to fix it. Use the Review Comment Formula: Problem → Why it matters → Suggested fix. When the issue was discovered via the call graph (e.g., a missing validation call, a skipped state mutation, an unguarded external input), reference the relevant METHOD_CHAINS entry in the description."**
 
-**Review dimensions to apply:** Follow [Dimension Application Rules](#dimension-application-rules).
+**Review dimensions to apply:** Follow [Dimension Application Rules](#dimension-application-rules). **Apply dimensions AGAINST the call graph, not against the surface method body.** A method whose body reads cleanly but whose chain omits expected work is a D1 finding, not a pass.
 
 Additionally, always check **Plan Consistency** (feature mode specific):
 - All acceptance criteria from `plan.md` are met
@@ -336,9 +377,10 @@ Spawn an `Agent` tool call with:
 - If docs-backed: extracted requirements (as checklist for consistency dimension only)
 - The severity level definitions (blocker / critical / warning / suggestion)
 - Explicit instruction: **"Read every source file. Review the code itself — its logic, structure, correctness, and quality. Reference documents are only used as criteria for the consistency check, not as the subject of review."**
-- Instruction: **"For each issue, specify severity, file path, line number/range, what's wrong, and how to fix it. Use the Review Comment Formula: Problem → Why it matters → Suggested fix."**
+- **MANDATORY pre-analysis instruction:** *"Before applying any review dimension, read every source file in full and build a call graph for every public method / exported function / entry point in those files. Enumerate — for each — the helpers it calls (to leaves within the reviewed scope), the validations it performs, the state mutations it executes, the errors it raises, and its external-input paths (iteration over arguments, subscript into external data, deserialization). Output this as the `METHOD_CHAINS` section per `references/sub-agent-format.md`. Only after producing METHOD_CHAINS may you apply dimensions. Do not trust method names, plan/doc claims, or helper-function purity — open and read every callee. In bare mode (no reference), use the method's name, signature, and public-API promises as the internal consistency check target. See the §Call-Graph Discipline section of the parent SKILL.md for the full protocol and anti-rationalization guard."*
+- Instruction: **"For each issue, specify severity, file path, line number/range, what's wrong, and how to fix it. Use the Review Comment Formula: Problem → Why it matters → Suggested fix. When the issue was discovered via the call graph (e.g., a missing validation call, a skipped state mutation, an unguarded external input), reference the relevant METHOD_CHAINS entry in the description."**
 
-**Review dimensions to apply:** Follow [Dimension Application Rules](#dimension-application-rules).
+**Review dimensions to apply:** Follow [Dimension Application Rules](#dimension-application-rules). **Apply dimensions AGAINST the call graph, not against the surface method body.** A method whose body reads cleanly but whose chain omits expected work is a D1 finding, not a pass.
 
 Additionally, apply the appropriate **Consistency** check based on reference level:
 
@@ -366,6 +408,8 @@ Additionally, apply the appropriate **Consistency** check based on reference lev
 
 Review results are **displayed in the terminal** by default — no file is written. This reflects that reviews are iterative, intermediate checks rather than permanent artifacts.
 
+**Orchestrator validation (before display):** Verify the sub-agent's response contains a non-empty `METHOD_CHAINS` section with at least one entry per public method / exported function in the affected files. If `METHOD_CHAINS` is missing, empty, or lists fewer public symbols than the affected files contain, **reject the response and re-invoke the sub-agent** with an explicit reminder: *"Your previous response was missing METHOD_CHAINS or covered only a subset of public symbols. Re-read every affected file and produce the full call graph per §Call-Graph Discipline before applying dimensions."* Do not display a report built on a skipped pre-analysis — the user would get false confidence. Retry at most twice; after the second failure, surface a visible warning in the report output: `⚠ Sub-agent failed to produce full call-graph — findings may miss chain-level bugs. Consider running /apcore-skills:sync (cross-language projects) or re-running review on a smaller scope.`
+
 Follow the report template in `references/report-template.md` (Feature mode variant).
 
 #### 4F.1 Optional: Save to File (`--save`)
@@ -377,6 +421,8 @@ If the user passed `--save` in the arguments, **also** write the report to `{out
 ---
 
 ### Step 4P: Project Mode — Display Report
+
+**Orchestrator validation (before display):** Same rule as Step 4F — verify `METHOD_CHAINS` covers every public method / exported function in the collected source files. Reject + re-invoke if missing or thin. In project mode the file set can be large; the sub-agent MAY split METHOD_CHAINS into groups-by-file, but total coverage must hit every public symbol. If the sub-agent legitimately cannot cover every symbol within a single response (e.g., 500+ public functions), it MUST explicitly list the un-analyzed symbols in a `METHOD_CHAINS_DEFERRED` block with reason `"scope-too-large"` — this surfaces to the user as: `⚠ {N} public symbols not analyzed due to scope — consider narrowing via --project scope=changes or per-feature review`. Never silently skip.
 
 Follow the report template in `references/report-template.md` (Project mode variant).
 

@@ -23,7 +23,7 @@ Planning & Execution:
 Quality & Debugging:
   /code-forge:review [feature]       Review code quality for a feature or project
   /code-forge:review --feedback      Evaluate and respond to incoming review comments
-  /code-forge:review --github-pr     Post 14-dimension review to a GitHub PR
+  /code-forge:review --github-pr     Post 15-dimension review to a GitHub PR
   /code-forge:fix "description"      Debug and fix a bug with upstream trace-back
   /code-forge:fix --review           Batch-fix all issues from a review report
   /code-forge:fix "desc" --repos r1 r2

@@ -1,6 +1,6 @@
 # GitHub PR Review Workflow
 
-Post a 14-dimension code review directly to a GitHub Pull Request as a comment.
+Post a 15-dimension code review directly to a GitHub Pull Request as a comment.
 
 ## Prerequisites
 
@@ -63,7 +63,7 @@ Same as the main review skill's project type detection (Step 3F.2 / 3P.2):
 - Check for backend indicators (server entries, API routes, DB models)
 - Record: `project_type`
 
-### Step 4: 14-Dimension Review (via Sub-agent)
+### Step 4: 15-Dimension Review (via Sub-agent)
 
 Spawn an `Agent` sub-agent with `subagent_type: "general-purpose"`.
 
@@ -74,11 +74,12 @@ Spawn an `Agent` sub-agent with `subagent_type: "general-purpose"`.
 - The full diff content
 - List of changed files (sub-agent reads each file for full context)
 - Detected project type
-- **All 14 review dimensions** from the main SKILL.md's [Review Dimensions Reference]
+- **All 15 review dimensions** from the main SKILL.md's [Review Dimensions Reference]
 - The 4-tier severity definitions (blocker / critical / warning / suggestion)
-- Instruction: **"Review ONLY the changes in this PR diff. Do not flag pre-existing issues. For each issue, specify severity, file path, line number/range, title, description, and fix suggestion."**
+- **MANDATORY pre-analysis instruction:** *"Before applying any review dimension, read every changed file in full and build a call graph for every public method / exported function touched by the diff. Enumerate helpers called, validations performed, state mutations executed, errors raised, and external-input paths. Output as `METHOD_CHAINS` per `references/sub-agent-format.md`. Only after producing METHOD_CHAINS may you apply dimensions. Scope note: the graph is rooted at symbols MODIFIED by the diff — not every public symbol in every changed file. Do not trust method names or helper-function purity — open and read every callee. See the §Call-Graph Discipline section of the main review SKILL.md."*
+- Instruction: **"Review ONLY the changes in this PR diff. Do not flag pre-existing issues. For each issue, specify severity, file path, line number/range, title, description, and fix suggestion. When an issue was discovered via the call graph, reference the relevant METHOD_CHAINS entry."**
 
-**Sub-agent must return the same structured format** as the main review skill (REVIEW_SUMMARY + per-dimension sections).
+**Sub-agent must return the same structured format** as the main review skill (REVIEW_SUMMARY + per-dimension sections + **METHOD_CHAINS**). The orchestrator MUST verify METHOD_CHAINS is populated (covers every diff-modified public symbol) before posting to GitHub — a review posted to a public PR without the pre-analysis would be worse than no review because reviewers would wrongly trust its completeness. If the sub-agent fails the METHOD_CHAINS check twice, abort the post and surface the failure locally; do NOT post an incomplete review to the PR.
 
 ### Step 5: Filter Issues for GitHub
 
@@ -98,7 +99,7 @@ Format the comment body:
 ```markdown
 ### Code Review — {pr_title}
 
-**14-dimension review** · {blocker_count} blockers · {critical_count} critical · {warning_count} warnings
+**15-dimension review** · {blocker_count} blockers · {critical_count} critical · {warning_count} warnings
 **Merge readiness:** {ready | fix_required | rework_required}
 
 ---
@@ -117,7 +118,7 @@ Format the comment body:
 
 {Final verdict: 1-2 sentences summarizing whether the PR is ready to merge}
 
-<sub>🤖 Generated with [Claude Code](https://claude.ai/code) · code-forge:review · 14 dimensions · {total_issues_posted} issues</sub>
+<sub>🤖 Generated with [Claude Code](https://claude.ai/code) · code-forge:review · 15 dimensions · {total_issues_posted} issues</sub>
 ```
 
 **Severity badges:**
@@ -135,7 +136,7 @@ https://github.com/{repo_slug}/blob/{head_sha}/{file_path}#L{start}-L{end}
 ```markdown
 ### Code Review — {pr_title}
 
-No issues found. Reviewed across 14 dimensions: functional correctness, security, resource management, code quality, architecture, performance, test coverage, error handling, observability, standards, backward compatibility, maintainability, dependencies, and accessibility.
+No issues found. Reviewed across 15 dimensions: functional correctness, security, resource management, code quality, architecture, performance, test coverage, simplification & anti-bloat, error handling, observability, standards, backward compatibility, maintainability, dependencies, and accessibility.
 
 <sub>🤖 Generated with [Claude Code](https://claude.ai/code) · code-forge:review</sub>
 ```
