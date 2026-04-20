@@ -20,13 +20,15 @@ METHOD_CHAINS:
   chain:
     # Ordered list of steps the method actually performs, INCLUDING steps inlined from private helpers.
     # Step kinds:
-    #   call: <helper_name>           — function/method invocation; when the helper is a private same-scope
-    #                                    helper, IMMEDIATELY follow with its inlined steps (indented detail +
-    #                                    "helper_name →" prefix). Do NOT leave a same-scope private call as
-    #                                    a bare step without inlined body.
-    #   ext_call: <lib.func>          — LEAF — stdlib, third-party library, framework, OR private helper
-    #                                    defined in a DIFFERENT file not in the reviewed set. Only form that
-    #                                    is not expanded.
+    #   call: <helper_name>           — function/method invocation. Expansion depends on tier:
+    #                                    Tier 1 (same-module private helper)  → IMMEDIATELY follow with fully
+    #                                                                            inlined body using "  helper →" prefix
+    #                                    Tier 2 (cross-module callee in diff) → follow with depth-1 inlined body
+    #                                                                            using "  X:Module.method →" prefix
+    #                                    Tier 3 (stdlib / third-party / not   → use `ext_call` instead — no expansion
+    #                                              in diff)
+    #   ext_call: <lib.func>          — LEAF — tier 3 only. stdlib, third-party library, framework, OR private
+    #                                    helper defined in a file NOT in the review scope (neither primary nor tier2).
     #   validate: <condition>         — early-return / raise / assert guard
     #   mutate: <target>              — write to state (self.x, map insert, event emit, lock acquire, I/O)
     #   raise: <ErrorType>            — error raised / thrown / returned-as-Err
@@ -41,15 +43,26 @@ METHOD_CHAINS:
     #   lock: <target>                — lock acquire (a specialization of `mutate` when a RLock/Mutex is the subject)
     #   yield: <value>                — generator yield (context manager __enter__/__exit__ boundaries)
     #
-    # INLINING CONVENTION (mandatory for same-scope private helpers):
-    # Follow the `call` step with the helper's body, each step's `detail` prefixed by two spaces + the
-    # helper name + " → ". Two-level: "    HELPER_A → HELPER_B → step". Example:
+    # THREE-TIER INLINING CONVENTION (per §Call-Graph Discipline):
+    # Tier 1 — same-module private helper: follow `call` with full recursive inlining, "  helper →" prefix.
+    #          Two-level nesting: "    HELPER_A → HELPER_B → step" (additional indent per depth).
+    # Tier 2 — cross-module callee ALSO in the review scope: follow `call` with DEPTH-1 inlining (top-level
+    #          body only, do not recurse deeper), "  X:Module.method →" prefix. The `X:` marker signals the
+    #          cross-module boundary crossing.
     #
+    #     # Tier 1 example (same-module private helper):
     #     - { kind: call,      detail: "_discover_custom(rootPaths)",                                   line: 257 }
     #     - { kind: call,      detail: "  _discover_custom → custom_discoverer.discover(roots)",        line: 262 }
     #     - { kind: iterate,   detail: "  _discover_custom → for entry in custom_modules",              line: 263 }
     #     - { kind: subscript, detail: "  _discover_custom → entry['module_id'] (unguarded)",           line: 269 }
     #     - { kind: raise,     detail: "  _discover_custom → KeyError uncaught, aborts whole loop",     line: 269 }
+    #
+    #     # Tier 2 example (cross-module callee in diff, depth-1):
+    #     - { kind: call,      detail: "DisplayResolver.resolve(node)",                                 line: 45 }
+    #     - { kind: call,      detail: "  X:DisplayResolver.resolve → for surface in node.surfaces",    line: 78 }
+    #     - { kind: subscript, detail: "  X:DisplayResolver.resolve → surface['values']  (unguarded)",  line: 82 }
+    #     - { kind: raise,     detail: "  X:DisplayResolver.resolve → TypeError if not dict",           line: 85 }
+    #     - { kind: ext_call,  detail: "  X:DisplayResolver.resolve → _apply_coerce(surface) [tier3]",  line: 90 }
     #
     # Example for a public method with a straight-line body + one inlined helper:
     - { kind: validate, detail: "id matches ^[a-z][a-z0-9_]*$", line: 45 }
@@ -70,11 +83,18 @@ METHOD_CHAINS:
   # Each gap must correspond to a D1 (or D3 / D8) finding below — the chain is the evidence, the finding is the verdict.
   - <description of a step that `purpose` implies but `chain` omits, OR a contradiction>
   external_inputs:
-  # Every iterate / subscript / deserialize step from `chain` — INCLUDING steps inlined from private helpers.
-  # A public method's body can look clean while its chain's `external_inputs` is non-empty because of an
-  # unguarded subscript/iterate inside a private helper. This is expected and exactly the bug-class the
-  # discipline catches.
-  - { source: <name>, guarded: <true | false>, guard_detail: "<null-check | try/except | type guard | schema | none>", via: "<direct | helper_name>" }
+  # Every iterate / subscript / deserialize step from `chain` — INCLUDING steps inlined from tier-1 helpers
+  # AND tier-2 cross-module callees. A public method's body can look clean while its chain's `external_inputs`
+  # is non-empty because of an unguarded subscript/iterate inside a private helper OR inside a cross-module
+  # callee that's also in the diff. Both classes are bugs this discipline catches.
+  - source: <name>
+    guarded: <true | false>
+    guard_detail: "<null-check | try/except | type guard | schema | none>"
+    via: "<direct | helper_name | X:Module.method>"
+    # via values:
+    #   "direct"              — iterate/subscript in the public method's own body
+    #   "<helper_name>"       — inside a tier-1 inlined private helper
+    #   "X:<Module.method>"   — inside a tier-2 inlined cross-module callee (in diff)
 
 # If the sub-agent cannot cover every public symbol in a single response (very large project scope), it MUST list
 # the uncovered symbols here instead of silently skipping. The orchestrator surfaces this to the user.
@@ -194,4 +214,199 @@ CONSISTENCY:
   - <criterion not met>
   scope_issues:
   - <unplanned additions or missing documented features>
+```
+
+---
+
+## Per-Module Sub-agent Format
+
+Used by each parallel per-module agent in the layered review path (3F.4b / 3P.3b). Contains intra-module dimensions only — D5, D7, D10-D15 are deferred to the cross-module agent.
+
+```
+MODULE_REVIEW_SCOPE:
+  group_id: <string — e.g. "src/binding", "serializers">
+  primary_files: [<file paths reviewed in full by this agent — same as input>]
+  tier2_files: [<subset of input `in_diff_files` that this agent actually opened for depth-1 cross-module expansion; files never touched during chain-building are NOT listed here even if they were in in_diff_files>]
+
+METHOD_CHAINS:
+# Scope: public symbols in this module group's PRIMARY files only (tier-2 files' symbols
+# are NOT top-level entries — they appear only as inlined steps inside primary-module chains).
+# Three-tier inlining per §Call-Graph Discipline:
+#   Tier 1 (same-module private helpers)     → full recursive inlining, "  helper →" prefix
+#   Tier 2 (cross-module callees in diff)    → depth-1 inlining,        "  X:Module.method →" prefix
+#   Tier 3 (stdlib, third-party, not in diff) → ext_call leaf, no expansion
+# Test files are exempt.
+- symbol: <ClassName.method_name | function_name>
+  file: <path — must be one of primary_files>
+  line: <number>
+  purpose: <one-line purpose>
+  chain: [... steps per three-tier inlining convention ...]
+  chain_completeness: <matches_purpose | partial | suspicious>
+  gaps: [...]
+  external_inputs:
+  # external_inputs[].via values:
+  #   "direct"              — iterate/subscript happens in the public method's own body
+  #   "<helper_name>"       — happens inside a tier-1 inlined private helper
+  #   "X:<Module.method>"   — happens inside a tier-2 inlined cross-module callee
+  - { source: <name>, guarded: <true | false>, guard_detail: "<...>", via: "<direct | helper_name | X:Module.method>" }
+  tier2_callees:
+  # Every tier-2 cross-module callee inlined in this chain — lets the orchestrator cross-check
+  # coverage and deduplicate issues that also get flagged by the agent owning the callee's module.
+  - callee: <Module.method>
+    callee_file: <path>
+    lines_referenced: [<line numbers in callee_file that were inlined>]
+
+METHOD_CHAINS_DEFERRED:
+- symbol: <ClassName.method_name>
+  file: <path>
+  reason: <scope-too-large | unreadable-source | generated-code>
+
+INTRA_MODULE_SUMMARY:
+  total_issues: <number>
+  blocker_count: <number>
+  critical_count: <number>
+  warning_count: <number>
+  suggestion_count: <number>
+
+FUNCTIONAL_CORRECTNESS:              # D1
+  rating: <pass | warning | critical>
+  issues:
+  - severity: <blocker | critical | warning | suggestion>
+    file: path/to/file.ext
+    line: <number or range>
+    title: <short title>
+    description: <problem → why it matters → suggested fix>
+    suggestion: <how to fix>
+
+SECURITY:                            # D2
+  rating: <pass | warning | critical>
+  issues: [same structure]
+
+RESOURCE_MANAGEMENT:                 # D3
+  rating: <pass | warning | critical>
+  issues: [same structure]
+
+CODE_QUALITY:                        # D4
+  rating: <good | acceptable | needs_work>
+  issues:
+  - severity: <critical | warning | suggestion>
+    file: path/to/file.ext
+    line: <number or range>
+    title: <short title>
+    description: <problem → why it matters>
+    suggestion: <how to fix>
+
+PERFORMANCE:                         # D6
+  rating: <good | acceptable | needs_work>
+  issues: [same structure as D4]
+
+ERROR_HANDLING_AND_OBSERVABILITY:    # D8 + D9
+  rating: <good | acceptable | needs_work>
+  issues:
+  - severity: <warning | suggestion>
+    file: path/to/file.ext
+    line: <number or range>
+    category: <error_handling | logging | metrics | tracing>
+    title: <short title>
+    description: <problem → why it matters>
+    suggestion: <how to fix>
+```
+
+---
+
+## Cross-Module Sub-agent Format
+
+Used by the single cross-module aggregation agent in the layered review path (3F.5 / 3P.4). Receives all per-module METHOD_CHAINS. Applies cross-cutting dimensions and consistency checks.
+
+```
+CROSS_MODULE_SUMMARY:
+  modules_analyzed: <number>
+  total_cross_issues: <number>
+  blocker_count: <number>
+  critical_count: <number>
+  warning_count: <number>
+  suggestion_count: <number>
+
+ARCHITECTURE:                        # D5
+  rating: <good | acceptable | needs_work>
+  issues:
+  - severity: <blocker | critical | warning | suggestion>
+    file: path/to/file.ext
+    line: <number or range>
+    title: <short title>
+    description: <problem → why it matters>
+    suggestion: <how to fix>
+
+TEST_COVERAGE:                       # D7
+  rating: <good | acceptable | needs_work>
+  coverage_gaps:
+  - severity: <critical | warning | suggestion>
+    file: path/to/source.ext
+    description: <what scenario is untested>
+
+SIMPLIFICATION_ANTI_BLOAT:          # D15
+  rating: <good | acceptable | needs_work>
+  issues:
+  - severity: <critical | warning | suggestion>
+    file: path/to/file.ext
+    line: <number or range>
+    title: <short title>
+    description: <problem → why it matters>
+    suggestion: <how to fix>
+
+MAINTAINABILITY_AND_COMPATIBILITY:   # D10 + D11 + D12 + D13
+  rating: <good | acceptable | needs_work>
+  issues:
+  - severity: <warning | suggestion>
+    file: path/to/file.ext
+    line: <number or range>
+    category: <standards | backward_compat | tech_debt | dependencies>
+    title: <short title>
+    description: <problem → why it matters>
+    suggestion: <how to fix>
+
+CROSS_MODULE_CONSISTENCY:
+  # Five checks — one entry each. status: consistent means no issues found for that pattern.
+  patterns:
+  - pattern: <coerce_guard | traceback_preservation | re_export | error_convention | defensive_depth>
+    status: <consistent | inconsistent | not_applicable>
+    issues:
+    - severity: <critical | warning>
+      files: [<file_a>, <file_b>]           # both the module that has the pattern and the one that doesn't
+      description: <module A does X; module B has equivalent code path but omits X>
+      suggestion: <apply the same pattern in module B at file:line>
+
+SECOND_ORDER_REVIEW:
+  # Extracted fix patterns from per-module METHOD_CHAINS and findings.
+  # Each entry = one fix pattern identified in the diff.
+  fix_patterns:
+  - pattern_description: <e.g., "coerce non-dict display surface values before key access">
+    applied_in_modules: [<group_id_a>]
+    missing_in_modules: [<group_id_b>, <group_id_c>]   # empty list = no structural parity violation
+    severity: <critical | warning | not_applicable>
+    issues:
+    - severity: <critical | warning>
+      files: [<file where fix is missing>]
+      description: <structural parity violation description>
+      suggestion: <exact fix to apply>
+
+# Consistency section — one of the three below based on mode/reference_level:
+
+PLAN_CONSISTENCY:             # Feature mode OR planning-backed project mode
+  criteria_met: <X/Y>
+  unmet_criteria:
+  - <criterion not met>
+  scope_issues:
+  - <unplanned additions or missing planned features>
+
+CONSISTENCY:                  # Docs-backed project mode
+  type: doc_consistency
+  rating: <good | acceptable | needs_work>
+  criteria_met: <X/Y>
+  unmet_criteria:
+  - <criterion not met>
+  scope_issues:
+  - <undocumented features or missing requirements>
+
+# bare project mode: omit consistency section entirely; note "bare — consistency skipped" in CROSS_MODULE_SUMMARY
 ```
