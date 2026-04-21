@@ -42,16 +42,21 @@ Display the following report directly in the terminal using markdown.
 | Metric | Value | Threshold (healthy / advisory / flagged) | Status |
 |---|---|---|---|
 | Verdict | {verdict_emoji_concatenated} **{verdict}** | — | — |
-| Finding density | {finding_density}/100 LOC | ≤ 2.0 / 2.0–3.0 / > 3.0 → noisy | {✅ / ⚠ / 🚨} |
+| Finding density | {finding_density}/100 LOC | ≤ 1.0 / 1.0–2.0 / > 2.0 → noisy | {✅ / ⚠ / 🚨} |
 | Critical share | {critical_share_pct}% | ≤ 5% / 5–10% / > 10% → inflated (skipped if total < 10) | {✅ / ⚠ / 🚨 / —} |
 | Auto-downgrade share | {auto_downgrade_share_pct}% | ≤ 15% / 15–30% / > 30% → gated (skipped if pre-downgrade top < 3) | {✅ / ⚠ / 🚨 / —} |
+| Drop share | {drop_share_pct}% | ≤ 20% / 20–40% / > 40% → fabricating (skipped if raw findings < 10) | {✅ / ⚠ / 🚨 / —} |
 | LOC reviewed | {LOC_reviewed} | — | — |
 | Top severity (pre-downgrade → post) | {top_pre_downgrade} → {top_post} | — | — |
+| Raw → post-drop findings | {raw_findings_count} → {total_issues} | — | — |
 
 Status legend: ✅ healthy band · ⚠ advisory band (no flag raised but worth noting) · 🚨 unhealthy band (flag raised) · — exempted (small report).
 
 {If any Suppression-Gate auto-downgrades occurred:}
-**Suppression-Gate downgrades ({n_total} total):** {n_missing_evidence} missing-evidence · {n_speculative} speculative-phrasing · {n_trust_boundary} internal-trust-boundary
+**Suppression-Gate downgrades ({n_auto_downgrades} total):** {n_missing_evidence} missing-evidence · {n_trust_boundary} internal-trust-boundary
+
+{If any Suppression-Gate drops occurred:}
+**Suppression-Gate drops ({dropped_total} total):** {n_speculative} speculative-phrasing · {n_warning_no_downside} warning-no-observable-downside · {n_suggestion_no_benefit} suggestion-no-concrete-benefit
 
 {If verdict != healthy, render one block-quote line per raised flag:}
 > ⚠ {flag_name}: {hint per SKILL.md §6.3 Verdict Emoji & Hints}

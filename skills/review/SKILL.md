@@ -89,10 +89,10 @@ All issues use a 4-tier severity system, ordered by merge-blocking priority. **S
 |--------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
 | `blocker`    | :no_entry: | Production data loss, security breach with a real attacker model, or crash on normal-use inputs. Reproducible on day one. **Requires `evidence` field.**                                                                             | **Must fix before merge** |
 | `critical`   | :warning: | Demonstrable correctness bug with a concrete reachable trigger in the project's actual use case, producing observable wrong behavior. **NOT:** design preferences, pattern inconsistencies, speculative edge cases. **Requires `evidence` field.** | **Must fix before merge** |
-| `warning`    | :large_orange_diamond: | Fix recommended. Cross-module inconsistency, missing-but-recommended guards on plausibly-bad input, missing tests on important paths, silent convention divergence. `evidence` field SHOULD be provided when non-obvious.            | Should fix                |
-| `suggestion` | :blue_book: | Nice-to-have codebase improvement. Defensive-improvement ideas for unlikely scenarios, comment clarifications, stylistic polish. `evidence` field optional.                                                                          | Nice-to-have              |
+| `warning`    | :large_orange_diamond: | Fix recommended **with a concrete, named downside** — cross-module inconsistency that produces divergent caller behavior, missing guard on a GENUINELY external input (Gate 2), missing test on a path with an observable failure mode, silent divergence from a convention the project enforces for a behavioral reason. **NOT** pure pattern or stylistic divergence. If you cannot name the observable downside in one line, the finding is noise — drop. `evidence` SHOULD be provided; when omitted, the description itself must name the downside. | Should fix                |
+| `suggestion` | :blue_book: | Concrete improvement with an observable benefit — dead code deletion, comment clarifying a non-obvious invariant, extraction of a duplicated block that has drifted. **NOT** "defensive improvements for unlikely scenarios", **NOT** speculative "might be clearer / nicer / simpler" preferences. If the benefit cannot be named concretely and the code is functional as-is, drop. `evidence` optional. | Nice-to-have              |
 
-**Speculative-phrasing downgrade rule.** If a finding's description relies on speculative phrasing ("could theoretically", "if X ever happens", "in case someone", "potentially might"), downgrade one level — or drop if already `suggestion`. Full protocol in §Finding Suppression Gate Gate 3.
+**Speculative-phrasing drop rule.** If a finding's description relies on speculative phrasing ("could theoretically", "if X ever happens", "in case someone", "potentially might", "might be nicer", "smells wrong", "feels off"), **DROP the finding at ANY severity**. Previously this was "downgrade one level", but downgrading merely relocated noise into `warning`/`suggestion` where no further gate ran; the only action that actually cleans the report is to drop. The rescue path is to rewrite the description with a concrete, reachable trigger and re-submit. Full protocol in §Finding Suppression Gate Gate 3.
 
 ## Call-Graph Discipline (Mandatory Pre-Analysis)
 
@@ -220,12 +220,12 @@ Re-check the severity you assigned after writing the description. Each level has
 
 - **`blocker`** — Production data loss, security breach with a real attacker model, or crash on normal-use inputs. Reproducible failure mode the user hits on day one.
 - **`critical`** — Demonstrable correctness bug with a concrete, reachable trigger in the project's actual use case, affecting observable behavior. **NOT:** design preferences, "inconsistent with sibling code", speculative edge cases, or defensive-improvement suggestions.
-- **`warning`** — Fix recommended; will likely cause issues over time or under sustained use. Includes cross-module inconsistency, missing-but-recommended guards on plausibly-bad input, missing tests for important paths, silent divergence from project conventions.
-- **`suggestion`** — Nice-to-have codebase improvement. Defensive-improvement ideas for unlikely scenarios, comment clarifications, stylistic polish.
+- **`warning`** — Fix recommended with a concrete, reproducible downside. Cross-module inconsistency that causes divergent caller behavior, missing guard on a GENUINELY external input (Gate 2), missing test on a path with an observable failure mode, silent divergence from a convention the project enforces with a behavioral reason. **NOT** pure pattern/style divergence — if you cannot name the observable downside, the finding is noise. Drop it.
+- **`suggestion`** — Concrete improvement with an observable benefit (dead code deletion, comment clarifying a non-obvious invariant, extraction of a duplicated drifted block). **NOT** "defensive improvements for unlikely scenarios", **NOT** speculative "might be nicer to" preferences. If the benefit cannot be named concretely and the code is functional as-is, drop.
 
 **Downgrade rules — apply these mechanically:**
 
-1. If the description contains any of the speculative phrases from Gate 1, **downgrade one level** (or drop if already `suggestion`).
+1. If the description contains any of the speculative phrases from Gate 1, **DROP the finding entirely — do not downgrade-and-keep**. Speculative phrasing is a Gate 1 failure at ANY severity (critical, warning, OR suggestion). Downgrading preserves the noise in the report; dropping is the correct action. The only rescue path: rewrite the description citing a concrete, reachable trigger. If you cannot, drop.
 2. If the finding describes a **design choice** (fail-fast vs collect-errors, sync vs async, strict vs permissive) without pointing to a concrete observable failure in the chosen design, **max severity is `warning`**. "Inconsistent with sibling writer" is a warning-level consistency note, not a critical.
 3. If the finding is "code doesn't validate an input", check Gate 2 first. If the input source is internal/trusted and type-checked, **drop**. If external, **critical** is warranted only when a malformed input produces a concrete wrong behavior (not just "raises an unexpected exception type").
 4. If the finding's fix is "add a guard / add a log / add a doc comment / rename for clarity" with no observable bug behind it, **max severity is `suggestion`**.
@@ -268,6 +268,9 @@ This table is the mirror of the Call-Graph Discipline anti-rationalization table
 | "`yaml.dump` instead of `yaml.safe_dump` is a known footgun" | Footgun-awareness is not the same as a bug. If `metadata` in this codebase is built from primitives under the project's invariants, `yaml.dump` produces the same output as `safe_dump`. Findings of the form "if the codebase ever does X, Y would break" are Gate 1 failures. Drop unless the codebase actually does X. |
 | "Non-atomic file write — what if the process crashes mid-write" | For a developer tool generating source files for local dev, a partial file on crash is a rerun-and-fix problem, not a correctness bug. Flag only when the artifact is load-bearing in production (data files, DB state, append-only logs). |
 | "The method ignores the `ctx` / `cancellation` / `deadline` parameter" | Only a finding if ignoring it produces observable wrong behavior (hung request, leaked resource). If the method completes in microseconds and cancellation is cosmetic, drop or `suggestion`. |
+| "Module A does X, module B does Y — that's inconsistency" | Not every difference is a bug. Different modules often serve different logical roles (different trust boundaries, different lifecycle positions, different caller contracts). Inconsistency only matters if it produces divergent **observable behavior** (different caller results, different error handling semantics, test gap). Pure pattern divergence with identical observable behavior is noise — drop. Contract-symmetry pre-flight required before flagging as a cross-module consistency issue. |
+| "This is a style / readability improvement — at worst a `suggestion`" | Only if the benefit is concrete and observable: removes dead code, clarifies a non-obvious invariant, eliminates duplication that has drifted. "Might be clearer", "could be simpler", "consider using X", "for readability" are preferences, not findings. If you cannot name the concrete benefit in one line, **drop** — the orchestrator's suggestion-level concrete-benefit check will drop it anyway; pre-empt by not emitting. |
+| "I'm going to downgrade this from critical to warning to be safe" | Downgrade-and-keep was the old policy and it failed: noise relocated from `critical` into `warning`/`suggestion` where no further gate ran. The new policy is: speculative phrasing → **DROP at any severity**; warning without named downside → **DROP**; suggestion without named benefit → **DROP**. If the finding survives a drop check, keep its original severity; if it would only survive after downgrade, it would not have survived the lower-severity drop check either — so drop it now. |
 
 ## Review Dimensions Reference
 
@@ -543,11 +546,13 @@ After all per-module agents complete, spawn **one cross-module aggregation sub-a
 
 **CROSS_MODULE_CONSISTENCY — apply all five checks (findings subject to §Finding Suppression Gate):**
 
-1. **Coerce/guard pattern:** If module A guards `entry.get("key", default)` on dict external inputs, do all sibling modules with structurally equivalent dict-subscript external inputs follow the same pattern? Flag inconsistency as `critical` **only if the underlying input is genuinely external per Gate 2**; otherwise `warning` (pure convention divergence) or drop.
-2. **Traceback preservation:** If module A uses `raise X from e` or passes `exc_info=True` in exception logging, are all modules in the diff consistent? Flag inconsistency as `warning`.
-3. **Re-export completeness:** For every new public symbol introduced in a submodule, verify it appears in the package `__init__.py` / `index.ts` / `__all__` if the project re-exports its API surface. Flag missing re-exports as `warning`.
-4. **Error handling convention:** Same error base class hierarchy and chaining approach used across all modules? Flag deviation as `warning`.
-5. **Defensive coding depth:** If module A added input validation guards for a specific data path, are all modules with structurally equivalent data paths at the same validation depth? Flag depth mismatch as `critical` **only when the input is genuinely external per Gate 2**; otherwise `warning` or drop.
+**Contract-symmetry pre-flight (MANDATORY for every pattern below).** Before flagging any inconsistency, the sub-agent MUST verify the two modules have symmetric contracts: same data-class shape, same lifecycle position, same trust boundary, same caller expectations. Modules that *look* structurally similar but serve different logical roles (one handles user input, one handles constants; one is public API, one is an internal helper; one is invoked at request time, one at startup) are NOT subject to consistency checks — their differences are intentional. If contract symmetry cannot be demonstrated in one line, **drop the finding** — do not flag as warning. This pre-flight exists to prevent the common failure: "A and B look similar, A has guard X, B does not, therefore B is buggy" — the assumption is false whenever A and B serve different roles.
+
+1. **Coerce/guard pattern:** If module A guards `entry.get("key", default)` on dict external inputs, do all sibling modules with structurally equivalent dict-subscript external inputs follow the same pattern? Flag inconsistency as `critical` **only if the underlying input is genuinely external per Gate 2 AND contract symmetry holds**; otherwise `warning` (pure convention divergence) or drop.
+2. **Traceback preservation:** If module A uses `raise X from e` or passes `exc_info=True` in exception logging, are all modules in the diff consistent? Flag inconsistency as `warning` **only when** (a) contract symmetry holds and (b) the sub-agent names the observable downside — lost root-cause info when the exception actually fires, with the exception path demonstrably reachable. Pure stylistic divergence (one module uses `from e`, one doesn't, but both are never logged or surfaced to a debug tool) → drop.
+3. **Re-export completeness:** For every new public symbol introduced in a submodule, verify it appears in the package `__init__.py` / `index.ts` / `__all__` if the project re-exports its API surface. Flag missing re-exports as `warning` **only when** the sub-agent demonstrates at least one external consumer (outside the submodule) that would need the symbol from the top-level package — grep for imports of other symbols at the top level; if nothing imports from the top level for this submodule's public API, re-export is not a convention. New internal symbols that have no external caller → drop (not API surface).
+4. **Error handling convention:** Same error base class hierarchy and chaining approach used across all modules? Flag deviation as `warning` **only when** (a) contract symmetry holds and (b) the sub-agent names how the deviation causes a concrete downstream handling failure (e.g., a `except ProjectError` catch block elsewhere in the codebase will miss the deviating module's errors). Pure class-hierarchy aesthetics with no caller consequence → drop.
+5. **Defensive coding depth:** If module A added input validation guards for a specific data path, are all modules with structurally equivalent data paths at the same validation depth? Flag depth mismatch as `critical` **only when the input is genuinely external per Gate 2 AND contract symmetry holds**; otherwise `warning` or drop.
 
 **SECOND_ORDER_REVIEW — active prevention of D-series ("whack-a-mole") bugs:**
 
@@ -555,7 +560,7 @@ For each fix pattern visible in the diff (identifiable from per-module METHOD_CH
 1. Extract the fix pattern (e.g., "coerce non-dict display surface values", "snapshot sys.path before exec_module", "preserve traceback on scan failure", "emit `suggested_alias` in serializer output")
 2. Identify all code paths in OTHER modules in the diff that handle structurally similar data flows
 3. Verify the same fix has been applied to each structurally similar path
-4. If the fix is missing in any sibling module, emit a `critical` finding **(subject to Gate 2 — if the input is internal/trusted, downgrade to `warning` or drop)**: *"Fix pattern applied in {module_A} was not propagated to {module_B} — structural parity violation. Pattern: {description}. Expected location: {file:line estimate}. Evidence: {concrete reachable trigger showing the gap matters}."*
+4. If the fix is missing in any sibling module, emit a `critical` finding **(subject to Gate 2 — if the input is internal/trusted under the project's threat model, DROP the finding entirely; if the input is genuinely external AND contract-symmetry holds between the modules per §CROSS_MODULE_CONSISTENCY pre-flight, keep as `critical`; downgrading to `warning` without a named observable downside is noise and will be dropped by Step 4F validation #4 anyway)**: *"Fix pattern applied in {module_A} was not propagated to {module_B} — structural parity violation. Pattern: {description}. Expected location: {file:line estimate}. Evidence: {concrete reachable trigger showing the gap matters}."*
 
 **Plan Consistency** (always, feature mode):
 - All acceptance criteria from `plan.md` are met across the full combined module set
@@ -700,38 +705,47 @@ Review results are **displayed in the terminal** by default — no file is writt
 5. Append a **Cross-Module section** to the report (see `references/report-template.md` §Cross-Module section).
 
 **Suppression-Gate validation (after merge, before display, both paths):**
-1. **Evidence presence:** For every issue at `critical` or `blocker` severity, verify `evidence` is present and non-empty (more than 10 characters of meaningful content — not "see description" or "TBD"). If any critical/blocker is missing evidence, **reject and re-invoke the originating sub-agent** with the message: *"The following critical/blocker findings are missing required `evidence` per §Finding Suppression Gate: [list]. Either supply concrete reachability evidence (the input that triggers the failure + the observable wrong behavior + the trust-boundary argument for D2) or downgrade / drop the finding."* Retry once per agent; after second failure, the orchestrator MUST automatically downgrade those findings to `warning` and append a `[Auto-downgraded: missing evidence]` marker to their description.
-2. **Speculative-phrase scan:** Scan all critical/blocker descriptions for the speculative tells (`could theoretically`, `if .* ever`, `in case someone`, `potentially might`, `non-deterministic`). Auto-downgrade any matching critical/blocker by one level and append `[Auto-downgraded: speculative phrasing]` to the description. (Surface a single line in the summary noting how many findings were auto-downgraded so users can spot quota-filling behavior.)
-3. **Trust-boundary check on D2/defensive-gap:** For every critical or blocker in the SECURITY (D2) section or any "missing guard / defensive gap" finding in FUNCTIONAL_CORRECTNESS (D1), verify `evidence` references a genuinely external input source (network / untrusted user / cross-tenant / third-party API / uploaded file). If `evidence` describes only an internal/trusted source (project's own files, hard-coded config, type-checked function arguments) and the project type is `library` / `cli` / `unknown`, auto-downgrade to `warning` with marker `[Auto-downgraded: internal trust boundary]`. (For `frontend` / `backend` / `fullstack` projects, do NOT auto-downgrade — these often face genuinely untrusted user input and the sub-agent's classification of "internal" deserves more scrutiny than the orchestrator can provide; surface as-is and let the human reviewer decide.)
+1. **Evidence presence (critical/blocker):** For every issue at `critical` or `blocker` severity, verify `evidence` is present and non-empty (more than 10 characters of meaningful content — not "see description" or "TBD"). If any critical/blocker is missing evidence, **reject and re-invoke the originating sub-agent** with the message: *"The following critical/blocker findings are missing required `evidence` per §Finding Suppression Gate: [list]. Either supply concrete reachability evidence (the input that triggers the failure + the observable wrong behavior + the trust-boundary argument for D2) or downgrade / drop the finding."* Retry once per agent; after second failure, the orchestrator MUST automatically downgrade those findings to `warning` and append a `[Auto-downgraded: missing evidence]` marker to their description.
+2. **Speculative-phrase scan (ALL severities — DROP, do not downgrade):** Scan EVERY finding's description — at `blocker`, `critical`, `warning`, AND `suggestion` — for the speculative tells (`could theoretically`, `if .* ever`, `in case someone`, `potentially might`, `non-deterministic`, `might be nicer`, `smells wrong`, `feels off`, `consider .* just in case`). **DROP each matching finding entirely** — do NOT downgrade-and-keep. Track the drop count by severity and surface it in the report summary. Rationale: the previous "downgrade one level" policy merely relocated noise from `critical`/`warning` into `warning`/`suggestion` where no further gate ran; dropping is the only action that actually cleans the report.
+3. **Trust-boundary check on D2/defensive-gap (critical/blocker):** For every critical or blocker in the SECURITY (D2) section or any "missing guard / defensive gap" finding in FUNCTIONAL_CORRECTNESS (D1), verify `evidence` references a genuinely external input source (network / untrusted user / cross-tenant / third-party API / uploaded file). If `evidence` describes only an internal/trusted source (project's own files, hard-coded config, type-checked function arguments) and the project type is `library` / `cli` / `unknown`, auto-downgrade to `warning` with marker `[Auto-downgraded: internal trust boundary]`. (For `frontend` / `backend` / `fullstack` projects, do NOT auto-downgrade — these often face genuinely untrusted user input and the sub-agent's classification of "internal" deserves more scrutiny than the orchestrator can provide; surface as-is and let the human reviewer decide.)
+4. **Warning-level observable-downside check (DROP rule):** For every `warning`-severity finding that SURVIVED step 2, verify its description OR `evidence` explicitly names the observable downside — divergent caller behavior, concrete test failure mode, specific maintenance cost with example, or a missing guard whose input source is genuinely external per Gate 2. Findings that merely report pattern/style divergence (*"module A uses X, module B uses Y"*, *"inconsistent with sibling writer"*) with NO named observable downside are **dropped**. Track the drop count and surface it in the report summary. This closes the loophole where the previous validation only scrutinized critical/blocker while warning was a free pass.
+5. **Suggestion-level concrete-benefit check (DROP rule):** For every `suggestion`-severity finding that SURVIVED step 2, verify its description names a specific, observable benefit — dead code to delete, non-obvious invariant the comment would clarify, concrete duplication to extract. Findings that merely float a preference (*"might be clearer"*, *"could be simpler"*, *"consider refactoring"*, *"for readability"*) with NO named benefit are **dropped**. Track the drop count and surface it in the report summary.
 
 **Report Health computation (after Suppression-Gate validation, before display):**
 
-Compute three health metrics from the merged findings, then derive a single verdict.
+Compute four health metrics from the merged findings, then derive a single verdict.
 
 **Definitions:**
 - `top_pre_downgrade` = number of findings that were `critical` or `blocker` BEFORE the Suppression-Gate auto-downgrade pass ran (i.e., includes findings that were subsequently downgraded). Track this count separately during the auto-downgrade pass.
 - `top_post` = `blocker_count + critical_count` after auto-downgrade.
-- `n_auto_downgrades` = `n_missing_evidence + n_speculative + n_trust_boundary`.
-- Note: by construction, `top_pre_downgrade = top_post + n_auto_downgrades`.
+- `n_auto_downgrades` = `n_missing_evidence + n_trust_boundary` — only the TWO validation steps that actually downgrade (steps 1 and 3). Speculative-phrase matches are now DROPS, not downgrades, and are tracked in `dropped_total` instead.
+- `n_speculative` = count of findings dropped by step 2 (speculative-phrase scan, across all severities).
+- `n_warning_no_downside` = count of warnings dropped by step 4 (no named observable downside).
+- `n_suggestion_no_benefit` = count of suggestions dropped by step 5 (no named concrete benefit).
+- `dropped_total` = `n_speculative + n_warning_no_downside + n_suggestion_no_benefit`.
+- `raw_findings_count` = `total_issues + dropped_total` — the sub-agent's raw output count BEFORE any drop.
+- Invariants: `top_pre_downgrade = top_post + n_auto_downgrades`; `raw_findings_count = total_issues + dropped_total`.
 
 **Metrics:**
 1. **Finding density** = `total_issues / max(LOC_reviewed / 100, 1)` — issues per 100 LOC reviewed. `LOC_reviewed` = sum of lines across `primary_files` (deduplicate when a file appears in multiple module groups; count each file once).
 2. **Critical share** = `top_post / max(total_issues, 1)` — fraction of findings still at top severity after the gate.
 3. **Auto-downgrade share** = `n_auto_downgrades / max(top_pre_downgrade, 1)` — fraction of would-be top-severity findings that the gate had to lower.
+4. **Drop share** = `dropped_total / max(raw_findings_count, 1)` — fraction of raw candidate findings that the gate dropped (from speculative-phrase scan, warning observable-downside check, and suggestion concrete-benefit check combined). `raw_findings_count = total_issues + dropped_total`; `dropped_total` is the sum of drops from validation steps 2, 4, and 5.
 
 **Per-metric flag rules (each metric independently raises a flag):**
 
 | Metric | Flag raised when | Flag name |
 |---|---|---|
-| Finding density | `> 3.0` | **noisy** |
+| Finding density | `> 2.0` | **noisy** |
 | Critical share | `> 0.10` (10%) AND `total_issues ≥ 10` (small-report exemption: under 10 total findings, the share is too sensitive to be meaningful) | **inflated** |
 | Auto-downgrade share | `> 0.30` (30%) AND `top_pre_downgrade ≥ 3` (small-report exemption: under 3 top-severity candidates, the share is too sensitive) | **gated** |
+| Drop share | `> 0.40` (40%) AND `raw_findings_count ≥ 10` (small-report exemption: under 10 raw findings, the share is too sensitive) | **fabricating** |
 
-The in-between bands (density 2.0–3.0, critical share 5–10%, auto-downgrade share 15–30%) are advisory only — they do NOT raise a flag, but the report header SHOULD show them with a yellow indicator (⚠) so the user can see borderline conditions.
+The in-between bands (density 1.0–2.0, critical share 5–10%, auto-downgrade share 15–30%, drop share 20–40%) are advisory only — they do NOT raise a flag, but the report header SHOULD show them with a yellow indicator (⚠) so the user can see borderline conditions. The **fabricating** flag catches sub-agents whose prompt is systematically generating noise the gate then has to remove — if the gate drops >40% of the raw output, the sub-agent is not being careful and the remaining 60% also deserves scrutiny.
 
 **Verdict assembly:**
 - **`healthy`** — no flags raised
-- Otherwise — comma-joined list of raised flags in this order: `noisy`, `inflated`, `gated` (e.g., `"noisy,gated"`)
+- Otherwise — comma-joined list of raised flags in this order: `noisy`, `inflated`, `gated`, `fabricating` (e.g., `"noisy,fabricating"`)
 
 Record the verdict and the three numeric metrics in the report header (see `references/report-template.md` §Report Health) and in `state.json` `review.health` (feature mode only — see Step 5F). Persist `top_pre_downgrade` as well so trend analysis across runs can distinguish "gate caught fewer because there were fewer attempts" from "gate caught fewer because the prompt is now better".
 
@@ -753,14 +767,16 @@ If the user passed `--save` in the arguments, **also** write the report to `{out
 
 *Layered path (3P.3b + 3P.4):* Apply the same merge and validation logic as Step 4F layered path — verify per-module METHOD_CHAINS coverage, verify cross-module agent produced CROSS_MODULE_CONSISTENCY and SECOND_ORDER_REVIEW sections, merge all findings, deduplicate by `(file, line, title)`, construct unified REVIEW_SUMMARY. Append a **Cross-Module section** to the report.
 
-**Suppression-Gate validation (after merge, before display, both paths):** Apply the same three checks as Step 4F:
-1. **Evidence presence** — every critical/blocker requires non-empty `evidence`; reject and re-invoke originating agent, auto-downgrade after second failure with `[Auto-downgraded: missing evidence]` marker.
-2. **Speculative-phrase scan** — auto-downgrade any critical/blocker whose description matches `could theoretically` / `if .* ever` / `in case someone` / `potentially might` / `non-deterministic` with `[Auto-downgraded: speculative phrasing]` marker.
-3. **Trust-boundary check** — auto-downgrade D2/defensive-gap critical/blocker findings whose `evidence` describes an internal/trusted source for `library` / `cli` / `unknown` project types, with `[Auto-downgraded: internal trust boundary]` marker. (Skip auto-downgrade for `frontend` / `backend` / `fullstack` — let humans review those.)
+**Suppression-Gate validation (after merge, before display, both paths):** Apply the same five checks as Step 4F:
+1. **Evidence presence (critical/blocker)** — every critical/blocker requires non-empty `evidence`; reject and re-invoke originating agent, auto-downgrade after second failure with `[Auto-downgraded: missing evidence]` marker.
+2. **Speculative-phrase scan (ALL severities — DROP)** — scan every finding at every severity for the speculative tells (`could theoretically` / `if .* ever` / `in case someone` / `potentially might` / `non-deterministic` / `might be nicer` / `smells wrong` / `feels off`). **Drop matching findings entirely** — do not downgrade-and-keep. Track drops by severity.
+3. **Trust-boundary check (critical/blocker)** — auto-downgrade D2/defensive-gap critical/blocker findings whose `evidence` describes an internal/trusted source for `library` / `cli` / `unknown` project types, with `[Auto-downgraded: internal trust boundary]` marker. (Skip auto-downgrade for `frontend` / `backend` / `fullstack` — let humans review those.)
+4. **Warning-level observable-downside check (DROP)** — for every surviving `warning`, verify description or `evidence` names the observable downside; pure pattern/style divergence with no named downside is dropped.
+5. **Suggestion-level concrete-benefit check (DROP)** — for every surviving `suggestion`, verify a specific, observable benefit is named; preference-only findings (*"might be clearer"*, *"consider refactoring"*) are dropped.
 
-Surface a single line in the report summary noting the number of auto-downgrades, so users can spot quota-filling or trust-boundary mistakes without reading the full report.
+Surface a single summary line in the report noting the number of auto-downgrades AND the number of drops per severity, so users can spot quota-filling, trust-boundary mistakes, or noise generation without reading the full report.
 
-**Report Health computation (after Suppression-Gate validation, before display):** Same three-metric computation as Step 4F (finding density, critical share, auto-downgrade share) and same verdict thresholds (`healthy` / `noisy` / `inflated` / `gated`). Record the verdict and metrics in the report header per `references/report-template.md` §Report Health. (Project mode does not write to `state.json`, so the health record only appears in the displayed report.)
+**Report Health computation (after Suppression-Gate validation, before display):** Same four-metric computation as Step 4F (finding density, critical share, auto-downgrade share, drop share) and same verdict thresholds (`healthy` / `noisy` / `inflated` / `gated` / `fabricating`). Record the verdict and metrics in the report header per `references/report-template.md` §Report Health. (Project mode does not write to `state.json`, so the health record only appears in the displayed report.)
 
 Follow the report template in `references/report-template.md` (Project mode variant).
 
@@ -792,21 +808,27 @@ If the user passed `--save` in the arguments, **also** write the report to `{out
          "finding_density": 1.4,
          "critical_share": 0.16,
          "auto_downgrade_share": 0.0,
+         "drop_share": 0.08,
          "loc_reviewed": 850,
          "top_pre_downgrade": 2,
          "top_post": 2,
+         "raw_findings_count": 13,
          "auto_downgrades": {
            "missing_evidence": 0,
-           "speculative_phrasing": 0,
            "internal_trust_boundary": 0
+         },
+         "drops": {
+           "speculative_phrasing": 1,
+           "warning_no_observable_downside": 0,
+           "suggestion_no_concrete_benefit": 0
          }
        }
      }
    }
    ```
-   - `health.verdict` is one of `healthy` / `noisy` / `inflated` / `gated` (or comma-joined when multiple flags apply, e.g. `"noisy,gated"`)
+   - `health.verdict` is one of `healthy` / `noisy` / `inflated` / `gated` / `fabricating` (or comma-joined when multiple flags apply, e.g. `"noisy,fabricating"`)
    - If `--save` was used, also include `"report": "review.md"` in the review object
-   - Persisting `health` enables trend analysis across runs — a project whose `auto_downgrade_share` rises across runs is a signal that the review prompts need reinforcement
+   - Persisting `health` enables trend analysis across runs — a rising `auto_downgrade_share` signals that the review prompts need reinforcement; a rising `drop_share` signals the sub-agent is systematically generating noise (speculative / style-only / benefit-less findings) and the prompt needs tightening
 3. Update `state.json` `updated` timestamp
 
 → Go to Step 6
@@ -835,8 +857,8 @@ Code Review Complete: {feature_name}
 Rating: {overall_rating}
 Merge Readiness: {merge_readiness}
 Issues: {total_issues} ({blocker_count} blockers, {critical_count} critical, {warning_count} warnings, {suggestion_count} suggestions)
-Report Health: {verdict_emoji_concatenated} {verdict} · density {finding_density}/100 LOC · critical share {critical_share_pct}% · auto-downgrades {n_auto_downgrades}
-{If verdict != healthy, append one block-quote line PER raised flag (in order noisy, inflated, gated):}
+Report Health: {verdict_emoji_concatenated} {verdict} · density {finding_density}/100 LOC · critical share {critical_share_pct}% · auto-downgrades {n_auto_downgrades} · drops {dropped_total}
+{If verdict != healthy, append one block-quote line PER raised flag (in order noisy, inflated, gated, fabricating):}
   ⚠ {flag_name}: {hint per §6.3 Verdict Emoji & Hints}
 {If --save was used:}
 Report saved: {output_dir}/{feature_name}/review.md
@@ -874,8 +896,8 @@ Rating: {overall_rating}
 Merge Readiness: {merge_readiness}
 Reference: {planning-backed (N plans) | docs-backed (N documents) | bare}
 Issues: {total_issues} ({blocker_count} blockers, {critical_count} critical, {warning_count} warnings, {suggestion_count} suggestions)
-Report Health: {verdict_emoji_concatenated} {verdict} · density {finding_density}/100 LOC · critical share {critical_share_pct}% · auto-downgrades {n_auto_downgrades}
-{If verdict != healthy, append one block-quote line PER raised flag (in order noisy, inflated, gated):}
+Report Health: {verdict_emoji_concatenated} {verdict} · density {finding_density}/100 LOC · critical share {critical_share_pct}% · auto-downgrades {n_auto_downgrades} · drops {dropped_total}
+{If verdict != healthy, append one block-quote line PER raised flag (in order noisy, inflated, gated, fabricating):}
   ⚠ {flag_name}: {hint per §6.3 Verdict Emoji & Hints}
 {If --save was used:}
 Report saved: {output_dir}/project-review.md
@@ -907,14 +929,16 @@ Use this table for the `Report Health` line (both feature and project mode):
 | Flag | Emoji | One-line hint |
 |---|---|---|
 | (none — `healthy`) | ✅ | (no hint — line ends after the metrics) |
-| `noisy` | 🔊 | Density > 3 issues per 100 LOC — likely quota-filling. Re-read findings critically; many may be marginal. |
+| `noisy` | 🔊 | Density > 2 issues per 100 LOC — likely quota-filling. Re-read findings critically; many may be marginal. |
 | `inflated` | 🎈 | Critical share > 10% post-downgrade — severity inflation surviving the gate. Re-check Gate 3 calibration on top findings. |
 | `gated` | 🚧 | Auto-downgrade share > 30% — gate caught widespread bypass attempts. Sub-agent prompt may need reinforcement. |
+| `fabricating` | 🛑 | Drop share > 40% — the gate dropped nearly half the raw findings as speculative/style-only/benefit-less. The remaining findings also deserve scrutiny; the sub-agent prompt is systematically generating noise. |
 
-**Multi-flag rendering:** Concatenate emojis in the order `noisy,inflated,gated` (e.g., `🔊🎈` for `noisy,inflated`). Display each flag's hint on its own line below the metrics. Example:
+**Multi-flag rendering:** Concatenate emojis in the order `noisy,inflated,gated,fabricating` (e.g., `🔊🛑` for `noisy,fabricating`). Display each flag's hint on its own line below the metrics. Example:
 
 ```
-Report Health: 🔊🚧 noisy,gated · density 4.1/100 LOC · critical share 6% · auto-downgrades 5
-  ⚠ noisy: Density > 3 issues per 100 LOC — likely quota-filling. Re-read findings critically; many may be marginal.
+Report Health: 🔊🚧🛑 noisy,gated,fabricating · density 3.1/100 LOC · critical share 6% · auto-downgrades 5 · drops 12
+  ⚠ noisy: Density > 2 issues per 100 LOC — likely quota-filling. Re-read findings critically; many may be marginal.
   ⚠ gated: Auto-downgrade share > 30% — gate caught widespread bypass attempts. Sub-agent prompt may need reinforcement.
+  ⚠ fabricating: Drop share > 40% — the gate dropped nearly half the raw findings as speculative/style-only/benefit-less. The remaining findings also deserve scrutiny; the sub-agent prompt is systematically generating noise.
 ```
