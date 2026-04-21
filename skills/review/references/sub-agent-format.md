@@ -6,6 +6,8 @@ The review sub-agent must return results in the following structured YAML format
 
 **`METHOD_CHAINS` is MANDATORY and comes first — the orchestrator rejects any response without it.** See the §Call-Graph Discipline section of the parent SKILL.md for the protocol. The sub-agent must produce one `METHOD_CHAINS` entry per public method / exported function / entry-point in the reviewed scope, then apply dimensions against the graph, not against surface method bodies.
 
+**`evidence` field is MANDATORY for every `critical` and `blocker` finding.** See §Finding Suppression Gate in the parent SKILL.md. The orchestrator rejects critical/blocker findings missing `evidence` and (after one re-invoke) auto-downgrades them with a `[Auto-downgraded: missing evidence]` marker. `evidence` SHOULD be present for `warning` findings when non-obvious; OPTIONAL for `suggestion`. The field must show: (a) the concrete input/condition that triggers the failure, (b) the observable wrong behavior, and (c) for D2 / D1-defensive-gap findings, the trust-boundary argument per Gate 2.
+
 ```
 METHOD_CHAINS:
 # One entry per public method / exported function / entry-point.
@@ -123,14 +125,15 @@ FUNCTIONAL_CORRECTNESS:                              # D1
     title: <short title>
     description: <what's wrong and why it matters>
     suggestion: <how to fix>
+    evidence: <REQUIRED for critical/blocker; SHOULD be present for warning when non-obvious. One to three lines: (a) concrete trigger input, (b) observable wrong behavior, (c) trust-boundary argument for D1 defensive-gap findings (per §Finding Suppression Gate Gate 2).>
 
 SECURITY:                                            # D2
   rating: <pass | warning | critical>
-  issues: [same structure as D1]
+  issues: [same structure as D1 — evidence REQUIRED for critical/blocker, must include trust-boundary argument]
 
 RESOURCE_MANAGEMENT:                                 # D3
   rating: <pass | warning | critical>
-  issues: [same structure as D1]
+  issues: [same structure as D1 — evidence REQUIRED for critical/blocker]
 
 CODE_QUALITY:                                        # D4
   rating: <good | acceptable | needs_work>
@@ -141,14 +144,15 @@ CODE_QUALITY:                                        # D4
     title: <short title>
     description: <what's wrong and why it matters>
     suggestion: <how to fix>
+    evidence: <REQUIRED for critical; SHOULD be present for warning when non-obvious>
 
 ARCHITECTURE:                                        # D5
   rating: <good | acceptable | needs_work>
-  issues: [same structure as D4]
+  issues: [same structure as D4 — evidence REQUIRED for critical]
 
 PERFORMANCE:                                         # D6
   rating: <good | acceptable | needs_work>
-  issues: [same structure as D4]
+  issues: [same structure as D4 — evidence REQUIRED for critical]
 
 TEST_COVERAGE:                                       # D7
   rating: <good | acceptable | needs_work>
@@ -156,6 +160,7 @@ TEST_COVERAGE:                                       # D7
   - severity: <critical | warning | suggestion>
     file: path/to/source.ext
     description: <what scenario is untested>
+    evidence: <REQUIRED for critical: which observable behavior is at risk because the path is untested>
 
 ERROR_HANDLING_AND_OBSERVABILITY:                     # D8 + D9
   rating: <good | acceptable | needs_work>
@@ -167,6 +172,7 @@ ERROR_HANDLING_AND_OBSERVABILITY:                     # D8 + D9
     title: <short title>
     description: <what's wrong and why it matters>
     suggestion: <how to fix>
+    evidence: <SHOULD be present for warning when non-obvious; OPTIONAL for suggestion>
 
 MAINTAINABILITY_AND_COMPATIBILITY:                    # D10 + D11 + D12 + D13
   rating: <good | acceptable | needs_work>
@@ -178,6 +184,7 @@ MAINTAINABILITY_AND_COMPATIBILITY:                    # D10 + D11 + D12 + D13
     title: <short title>
     description: <what's wrong and why it matters>
     suggestion: <how to fix>
+    evidence: <SHOULD be present for warning when non-obvious; OPTIONAL for suggestion>
 
 ACCESSIBILITY:                                       # D14 (frontend/fullstack only)
   rating: <good | acceptable | needs_work | skipped>
@@ -188,6 +195,7 @@ ACCESSIBILITY:                                       # D14 (frontend/fullstack o
     title: <short title>
     description: <what's wrong and why it matters>
     suggestion: <how to fix>
+    evidence: <SHOULD be present for warning when non-obvious>
 ```
 
 ## Consistency Section (mode-specific)
@@ -277,14 +285,15 @@ FUNCTIONAL_CORRECTNESS:              # D1
     title: <short title>
     description: <problem → why it matters → suggested fix>
     suggestion: <how to fix>
+    evidence: <REQUIRED for critical/blocker; for D1 defensive-gap findings MUST include trust-boundary argument per §Finding Suppression Gate Gate 2>
 
 SECURITY:                            # D2
   rating: <pass | warning | critical>
-  issues: [same structure]
+  issues: [same structure — evidence REQUIRED for critical/blocker, MUST include trust-boundary argument]
 
 RESOURCE_MANAGEMENT:                 # D3
   rating: <pass | warning | critical>
-  issues: [same structure]
+  issues: [same structure — evidence REQUIRED for critical/blocker]
 
 CODE_QUALITY:                        # D4
   rating: <good | acceptable | needs_work>
@@ -295,10 +304,11 @@ CODE_QUALITY:                        # D4
     title: <short title>
     description: <problem → why it matters>
     suggestion: <how to fix>
+    evidence: <REQUIRED for critical>
 
 PERFORMANCE:                         # D6
   rating: <good | acceptable | needs_work>
-  issues: [same structure as D4]
+  issues: [same structure as D4 — evidence REQUIRED for critical]
 
 ERROR_HANDLING_AND_OBSERVABILITY:    # D8 + D9
   rating: <good | acceptable | needs_work>
@@ -310,6 +320,7 @@ ERROR_HANDLING_AND_OBSERVABILITY:    # D8 + D9
     title: <short title>
     description: <problem → why it matters>
     suggestion: <how to fix>
+    evidence: <SHOULD be present for warning when non-obvious; OPTIONAL for suggestion>
 ```
 
 ---
@@ -336,6 +347,7 @@ ARCHITECTURE:                        # D5
     title: <short title>
     description: <problem → why it matters>
     suggestion: <how to fix>
+    evidence: <REQUIRED for critical/blocker>
 
 TEST_COVERAGE:                       # D7
   rating: <good | acceptable | needs_work>
@@ -343,6 +355,7 @@ TEST_COVERAGE:                       # D7
   - severity: <critical | warning | suggestion>
     file: path/to/source.ext
     description: <what scenario is untested>
+    evidence: <REQUIRED for critical: which observable behavior is at risk because the path is untested>
 
 SIMPLIFICATION_ANTI_BLOAT:          # D15
   rating: <good | acceptable | needs_work>
@@ -353,6 +366,7 @@ SIMPLIFICATION_ANTI_BLOAT:          # D15
     title: <short title>
     description: <problem → why it matters>
     suggestion: <how to fix>
+    evidence: <REQUIRED for critical: what duplicate / parallel implementation / scope creep is concretely demonstrated, with file references>
 
 MAINTAINABILITY_AND_COMPATIBILITY:   # D10 + D11 + D12 + D13
   rating: <good | acceptable | needs_work>
@@ -364,6 +378,7 @@ MAINTAINABILITY_AND_COMPATIBILITY:   # D10 + D11 + D12 + D13
     title: <short title>
     description: <problem → why it matters>
     suggestion: <how to fix>
+    evidence: <SHOULD be present for warning when non-obvious; OPTIONAL for suggestion>
 
 CROSS_MODULE_CONSISTENCY:
   # Five checks — one entry each. status: consistent means no issues found for that pattern.
@@ -375,6 +390,7 @@ CROSS_MODULE_CONSISTENCY:
       files: [<file_a>, <file_b>]           # both the module that has the pattern and the one that doesn't
       description: <module A does X; module B has equivalent code path but omits X>
       suggestion: <apply the same pattern in module B at file:line>
+      evidence: <REQUIRED for critical: trust-boundary argument (per Gate 2) showing the missing guard in module B is a real bug, not pattern divergence on internal/trusted data>
 
 SECOND_ORDER_REVIEW:
   # Extracted fix patterns from per-module METHOD_CHAINS and findings.
@@ -389,6 +405,7 @@ SECOND_ORDER_REVIEW:
       files: [<file where fix is missing>]
       description: <structural parity violation description>
       suggestion: <exact fix to apply>
+      evidence: <REQUIRED for critical: concrete reachable trigger showing the missing fix in module B produces observable wrong behavior, AND trust-boundary argument per Gate 2>
 
 # Consistency section — one of the three below based on mode/reference_level:
 

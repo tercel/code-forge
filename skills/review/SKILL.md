@@ -83,14 +83,16 @@ Execute PA.1 (Project Profile) and PA.2 (Architecture Analysis). This informs:
 
 ## Review Severity Levels
 
-All issues use a 4-tier severity system, ordered by merge-blocking priority:
+All issues use a 4-tier severity system, ordered by merge-blocking priority. **Severity is assigned strictly per the definitions below and re-verified by §Finding Suppression Gate Gate 3 before the finding is emitted.**
 
-| Severity     | Symbol | Meaning                                               | Merge Policy            |
-|--------------|--------|-------------------------------------------------------|-------------------------|
-| `blocker`    | :no_entry:     | Production risk. Data loss, security breach, crash.   | **Must fix before merge** |
-| `critical`   | :warning:     | Significant quality/correctness concern.              | **Must fix before merge** |
-| `warning`    | :large_orange_diamond:     | Recommended fix. Could cause issues over time.        | Should fix              |
-| `suggestion` | :blue_book:     | Nice-to-have improvement. Can address later.          | Nice-to-have            |
+| Severity     | Symbol | Meaning                                                                                                                                                                                                                              | Merge Policy              |
+|--------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
+| `blocker`    | :no_entry: | Production data loss, security breach with a real attacker model, or crash on normal-use inputs. Reproducible on day one. **Requires `evidence` field.**                                                                             | **Must fix before merge** |
+| `critical`   | :warning: | Demonstrable correctness bug with a concrete reachable trigger in the project's actual use case, producing observable wrong behavior. **NOT:** design preferences, pattern inconsistencies, speculative edge cases. **Requires `evidence` field.** | **Must fix before merge** |
+| `warning`    | :large_orange_diamond: | Fix recommended. Cross-module inconsistency, missing-but-recommended guards on plausibly-bad input, missing tests on important paths, silent convention divergence. `evidence` field SHOULD be provided when non-obvious.            | Should fix                |
+| `suggestion` | :blue_book: | Nice-to-have codebase improvement. Defensive-improvement ideas for unlikely scenarios, comment clarifications, stylistic polish. `evidence` field optional.                                                                          | Nice-to-have              |
+
+**Speculative-phrasing downgrade rule.** If a finding's description relies on speculative phrasing ("could theoretically", "if X ever happens", "in case someone", "potentially might"), downgrade one level — or drop if already `suggestion`. Full protocol in §Finding Suppression Gate Gate 3.
 
 ## Call-Graph Discipline (Mandatory Pre-Analysis)
 
@@ -170,6 +172,102 @@ The indentation + prefix preserves the call hierarchy without needing a separate
 | "No reference document, can't check purpose" | In bare mode you cannot check against a spec, but you can still check **internal consistency**: does the method name imply a contract (`discover`, `register`, `validate`) that the chain contradicts? Does the public API promise a return shape that the chain does not produce? Graph inspection still yields signal. |
 | "The public method just calls `_private_helper()` — that's one `call` step, chain done" | NO. The most common place for defensive-gap bugs and missing-validation bugs is **inside private helpers** — a public method with a clean three-line body whose private helper does an unguarded subscript into plugin output, or an iterate over possibly-null external data, is the exact case this discipline exists to catch. When a `call` targets a private helper defined in the same reviewed scope, you MUST open it and inline its steps per the inlining convention. "Stop at the first `call` boundary" produces the illusion of a clean chain while the bug hides one level deeper. If your METHOD_CHAINS for a public method is ≤3 steps because its body was "just delegation", you almost certainly skipped inlining — go back and expand. |
 | "The method calls into another module — that's cross-module, so it's an `ext_call` leaf" | Only true if the callee is NOT in the current review scope. If the callee's file is **also being modified in this diff**, it is part of the same logical change unit and must be expanded at tier-2 (depth-1) with the `X:` marker. Treating an in-diff cross-module callee as opaque produces exactly the failure mode the layered-review architecture exists to prevent: defensive gaps that straddle module boundaries become invisible to both the per-module agent (didn't open the callee) and the cross-module agent (received only chain summaries, can't re-derive the gap). If `CallerModule.foo()` calls `CalleeModule.bar()` and both files are in the diff, the per-module agent handling `CallerModule` MUST open `CalleeModule.bar` and inline its top-level body. |
+
+## Finding Suppression Gate (Mandatory Pre-Emission Check)
+
+**Before the sub-agent writes ANY finding into the output YAML, it MUST pass that finding through the four gates below.** A finding that fails a gate is either DROPPED or DOWNGRADED per the gate's instructions. This discipline is required because the dimensional framework in `references/dimensions.md` pushes the agent toward exhaustive per-dimension checking — without counter-pressure, that bias produces speculative noise: "if metadata ever holds non-primitives", "could theoretically RecursionError on self-referential dicts", "attacker-controlled `module_id` in a dev tool reading the user's own local files". Such findings waste reviewer attention, inflate counts, and erode trust in the report.
+
+The gates are applied **after** call-graph analysis and dimension classification, **before** the issue is serialized into the YAML output. Every finding in the final report is an output of this gate.
+
+### Gate 1 — Reachability
+
+**Question:** Under the project's actual use case — the one the README / project type / threat model describes — is the failure mode reachable by a concrete input the user could hit?
+
+**Drop the finding if any of these is true:**
+- The trigger requires inputs that the project's use case excludes (e.g., "self-referential dict causes RecursionError" in a YAML config written by humans — humans don't author self-referential YAML).
+- The trigger requires bugs in upstream code that the type system or upstream invariant already prevents.
+- The description starts with or leans on: **"if X ever happens"**, **"could theoretically"**, **"in case someone passes"**, **"potentially might"**, **"non-deterministic in unspecified scenario"**. These phrases are speculative tells — the finding has no concrete reproduction path.
+- The "failure" requires the developer to author malicious input against their own tool (e.g., "a malicious scanner could emit `\"\"\"` in the module_id" — the developer writing their own scanner is not a threat actor).
+
+**Keep the finding** only when there is a concrete, demonstrable input reachable in the project's actual use case. Record the trigger in the issue's `evidence` field.
+
+### Gate 2 — Trust Boundary (applies to D1 defensive-gap and all D2 security findings)
+
+**Question:** Does the input source actually cross a trust boundary the project's threat model recognizes?
+
+**External sources (real trust boundary) — D1/D2 findings here are valid:**
+- Network requests / HTTP / WebSocket / RPC payloads from untrusted peers
+- Untrusted user input (form fields, query params, uploaded files)
+- Third-party API responses
+- Cross-tenant / cross-user data in a multi-tenant system
+- Public package / plugin registries consumed by published software
+- Files uploaded or fetched from outside the project's own repo
+
+**Internal sources (NO trust boundary) — D1/D2 findings here are noise; DROP unless the project declares a stricter threat model in its README / SECURITY.md:**
+- The project's own source files being scanned by the project's own tooling (dev tools, code generators, linters, build scripts)
+- Hard-coded constants committed to the repo
+- Config files committed to the repo that the developer themselves authored
+- Function arguments inside a single trusted process with type-checked signatures
+- Data produced by the project's own build pipeline upstream of the point in question
+
+**Canonical anti-pattern to drop:** *"`module_id` could contain `\"\"\"` and inject code into the generated docstring if a malicious scanner / malicious YAML / malicious developer produces it."* The developer running their own dev tool against their own code is not in the threat model. Drop.
+
+**Keep the finding** when the input genuinely crosses a recognized trust boundary, OR the project is itself security-sensitive (auth, crypto, payment processing, multi-tenant SaaS, anything handling secrets of parties other than the developer). **When in doubt for a clearly internal developer tool, drop.**
+
+### Gate 3 — Severity Calibration
+
+Re-check the severity you assigned after writing the description. Each level has a STRICT meaning:
+
+- **`blocker`** — Production data loss, security breach with a real attacker model, or crash on normal-use inputs. Reproducible failure mode the user hits on day one.
+- **`critical`** — Demonstrable correctness bug with a concrete, reachable trigger in the project's actual use case, affecting observable behavior. **NOT:** design preferences, "inconsistent with sibling code", speculative edge cases, or defensive-improvement suggestions.
+- **`warning`** — Fix recommended; will likely cause issues over time or under sustained use. Includes cross-module inconsistency, missing-but-recommended guards on plausibly-bad input, missing tests for important paths, silent divergence from project conventions.
+- **`suggestion`** — Nice-to-have codebase improvement. Defensive-improvement ideas for unlikely scenarios, comment clarifications, stylistic polish.
+
+**Downgrade rules — apply these mechanically:**
+
+1. If the description contains any of the speculative phrases from Gate 1, **downgrade one level** (or drop if already `suggestion`).
+2. If the finding describes a **design choice** (fail-fast vs collect-errors, sync vs async, strict vs permissive) without pointing to a concrete observable failure in the chosen design, **max severity is `warning`**. "Inconsistent with sibling writer" is a warning-level consistency note, not a critical.
+3. If the finding is "code doesn't validate an input", check Gate 2 first. If the input source is internal/trusted and type-checked, **drop**. If external, **critical** is warranted only when a malformed input produces a concrete wrong behavior (not just "raises an unexpected exception type").
+4. If the finding's fix is "add a guard / add a log / add a doc comment / rename for clarity" with no observable bug behind it, **max severity is `suggestion`**.
+
+### Gate 4 — Quota Avoidance
+
+**The dimension list does NOT impose a finding quota. Empty dimensions are a VALID and CORRECT result.**
+
+If you finish analyzing D8 / D11 / D13 / etc. and have zero real findings, write `issues: []` for that dimension and move on. **DO NOT produce a marginal finding to "show you reviewed the dimension"** — the orchestrator never penalizes empty dimensions; it rejects fabricated ones.
+
+Symptoms that you are quota-filling (stop and drop the finding):
+- You are writing a finding whose severity you had to argue yourself into.
+- The finding's `why it matters` requires a three-step hypothetical chain ("if A and then B and then C").
+- You reached for the finding because the dimension felt under-utilized, not because you found a problem.
+
+The one exception is **D15 (Simplification & Anti-Bloat)** where empty findings are still valid but the agent must *demonstrate* it grep'd for duplicates and read import graphs — see D15's execution requirements in `dimensions.md`.
+
+### Output requirement — `evidence` field
+
+Every finding at **`blocker` or `critical` severity MUST include a non-empty `evidence` field** (one to three lines) explaining how the failure is reachable in actual use — the concrete trigger input, the observable wrong behavior, and, where relevant, the trust-boundary argument that Gate 2 checked.
+
+- **`warning`** findings SHOULD include `evidence` when non-obvious.
+- **`suggestion`** findings MAY include `evidence` but it is not required.
+
+The orchestrator rejects any `critical` or `blocker` finding missing the `evidence` field and returns it to the sub-agent with the instruction: *"Either supply concrete reachability evidence or downgrade / drop the finding per §Finding Suppression Gate."*
+
+### Anti-rationalization (over-flagging direction)
+
+This table is the mirror of the Call-Graph Discipline anti-rationalization table. That one counters "I want to drop this finding"; this one counters "I want to flag this finding" — the bias introduced by the dimensional framework.
+
+| Thought | Reality |
+|---------|---------|
+| "The input *could* be malformed if an attacker controls it" | Check Gate 2. Internal / trusted / type-checked input sources do not have an attacker. The attack scenario is fictional. Drop. |
+| "I haven't found anything in D8 / D11 / D13 yet — I should produce something" | Empty dimensions are valid. Gate 4. Filling a dimension with marginal findings to show effort is the primary cause of over-flagging. Move on. |
+| "This is inconsistent with how the sibling module does it" | Inconsistency is a `warning`, not a `critical`, unless the inconsistency itself produces a wrong observable behavior. Pure pattern divergence is `warning` at most. Gate 3 rule 2. |
+| "The fix is one line — might as well flag it" | Fix effort does not determine severity. A one-line fix to a non-bug is still a non-bug. If you can't name the observable failure, drop. |
+| "If I phrase the description carefully, the finding sounds plausible" | If you need "could theoretically" or "in case someone" to make it sound plausible, it failed Gate 1. Drop or downgrade. |
+| "The code doesn't validate this input — that smells wrong" | Lack of validation is only a finding if (Gate 2) the input is genuinely external AND (Gate 1) a malformed input is reachable in actual use. Internal type-checked call sites do not need runtime validation. |
+| "Patterns A and B are mixed in this file — that's a code smell" | A code smell is not a bug. Without a concrete observable failure, `suggestion` at most — often drop. |
+| "`yaml.dump` instead of `yaml.safe_dump` is a known footgun" | Footgun-awareness is not the same as a bug. If `metadata` in this codebase is built from primitives under the project's invariants, `yaml.dump` produces the same output as `safe_dump`. Findings of the form "if the codebase ever does X, Y would break" are Gate 1 failures. Drop unless the codebase actually does X. |
+| "Non-atomic file write — what if the process crashes mid-write" | For a developer tool generating source files for local dev, a partial file on crash is a rerun-and-fix problem, not a correctness bug. Flag only when the artifact is load-bearing in production (data files, DB state, append-only logs). |
+| "The method ignores the `ctx` / `cancellation` / `deadline` parameter" | Only a finding if ignoring it produces observable wrong behavior (hung request, leaked resource). If the method completes in microseconds and cancellation is cosmetic, drop or `suggestion`. |
 
 ## Review Dimensions Reference
 
@@ -370,11 +468,12 @@ Spawn an `Agent` tool call with:
 - The acceptance criteria from `plan.md`
 - Detected project type
 - **MANDATORY pre-analysis instruction:** *"Before applying any review dimension, read every affected file in full and build a call graph for every public method / exported function / entry point in those files. Enumerate — for each — the helpers it calls (to leaves within the reviewed scope), the validations it performs, the state mutations it executes, the errors it raises, and its external-input paths (iteration over arguments, subscript into external data, deserialization). Output this as the `METHOD_CHAINS` section per `references/sub-agent-format.md`. Only after producing METHOD_CHAINS may you apply dimensions. Do not trust method names, plan claims, or helper-function purity — open and read every callee. See the §Call-Graph Discipline section of the parent SKILL.md for the full protocol and anti-rationalization guard."*
-- Instructions to review across all applicable dimensions
-- The severity level definitions (blocker / critical / warning / suggestion)
-- Instruction: **"For each issue, specify severity, file path, line number/range, what's wrong, and how to fix it. Use the Review Comment Formula: Problem → Why it matters → Suggested fix. When the issue was discovered via the call graph (e.g., a missing validation call, a skipped state mutation, an unguarded external input), reference the relevant METHOD_CHAINS entry in the description."**
+- **MANDATORY post-analysis instruction:** *"After applying dimensions and BEFORE writing any finding into the output YAML, route every candidate finding through §Finding Suppression Gate (Gate 1 Reachability, Gate 2 Trust Boundary, Gate 3 Severity Calibration, Gate 4 Quota Avoidance) in the parent SKILL.md. Drop speculative findings whose trigger starts with 'could theoretically' / 'if X ever happens' / 'in case someone'. Drop security / defensive-gap findings whose input source is internal/trusted for this project's threat model. Downgrade design-preference 'critical' findings to `warning`. Accept empty dimensions as a valid result — do NOT fabricate marginal findings to fill a dimension. Every `critical` and `blocker` finding MUST include a non-empty `evidence` field explaining the concrete reachable trigger."*
+- Instructions to review across all applicable dimensions (empty dimensions are valid — see Gate 4)
+- The severity level definitions (blocker / critical / warning / suggestion — strict, per the SKILL.md severity table)
+- Instruction: **"For each issue, specify severity, file path, line number/range, what's wrong, and how to fix it. Use the Review Comment Formula: Problem → Why it matters → Suggested fix. When the issue was discovered via the call graph (e.g., a missing validation call, a skipped state mutation, an unguarded external input), reference the relevant METHOD_CHAINS entry in the description. For critical/blocker findings, the `evidence` field MUST show: (a) the concrete input that triggers the failure, (b) the observable wrong behavior, and (c) for D2/defensive-gap findings, the trust-boundary argument per Gate 2."**
 
-**Review dimensions to apply:** Follow [Dimension Application Rules](#dimension-application-rules). **Apply dimensions AGAINST the call graph, not against the surface method body.**
+**Review dimensions to apply:** Follow [Dimension Application Rules](#dimension-application-rules). **Apply dimensions AGAINST the call graph, not against the surface method body. Route every finding through §Finding Suppression Gate before emission.**
 
 Additionally, always check **Plan Consistency** (feature mode specific):
 - All acceptance criteria from `plan.md` are met
@@ -405,11 +504,12 @@ For each module group, spawn `Agent` with:
   - **Tier 1 (same-module private helpers — file in `primary_files`):** full recursive inlining
   - **Tier 2 (cross-module callees — file in `in_diff_files` but NOT in `primary_files`):** depth-1 expansion with `X:Module.method →` prefix
   - **Tier 3 (everything else — stdlib, third-party, or files in neither list):** `ext_call` leaf, no expansion
-- **Intra-module dimensions to apply:** D1 (Functional Correctness), D2 (Security), D3 (Resource Management), D4 (Code Quality), D6 (Performance), D8 (Error Handling), D9 (Observability) — applied against the chain INCLUDING tier-2 inlined steps (a D1 defensive gap inside a tier-2 callee IS reported by this agent)
+- **MANDATORY post-analysis:** route every candidate finding through §Finding Suppression Gate (Gates 1-4) before writing it into the YAML output. Specifically: drop speculative ("could theoretically", "if X ever happens") findings (Gate 1); drop D1/D2 findings whose input source is internal/trusted under this project's threat model (Gate 2); max-severity-`warning` for design-preference or cross-module-inconsistency findings (Gate 3); empty dimensions are a valid result — do NOT fabricate marginal findings (Gate 4). Every `critical`/`blocker` finding MUST include a non-empty `evidence` field.
+- **Intra-module dimensions to apply:** D1 (Functional Correctness), D2 (Security), D3 (Resource Management), D4 (Code Quality), D6 (Performance), D8 (Error Handling), D9 (Observability) — applied against the chain INCLUDING tier-2 inlined steps (a D1 defensive gap inside a tier-2 callee IS reported by this agent, subject to Gate 2)
 - **Do NOT apply:** D5, D7, D10-D15 — these are handled in the cross-module pass
-- The severity level definitions (blocker / critical / warning / suggestion)
+- The severity level definitions (blocker / critical / warning / suggestion — per SKILL.md severity table, strictly enforced by Gate 3)
 - Return format: **Per-Module sub-agent format** (see `references/sub-agent-format.md` §Per-Module format). The output must include `primary_files` (same as input), `tier2_files` (the subset of `in_diff_files` actually opened for tier-2 expansion), and `METHOD_CHAINS` with top-level entries only for public symbols in `primary_files`.
-- Instruction: *"Return ALL issues found in chains rooted at YOUR module's public symbols — including issues discovered via tier-2 inlined steps from cross-module callees. When a finding lives in a tier-2 inlined step, set the issue's `file` to the tier-2 callee's file (not your module's file). Do not self-filter or defer cross-module concerns — the cross-module agent handles CONSISTENCY across modules, but defensive gaps visible in your chain are yours to flag even if they live in someone else's file."*
+- Instruction: *"Return ALL issues found in chains rooted at YOUR module's public symbols — including issues discovered via tier-2 inlined steps from cross-module callees — that SURVIVE the §Finding Suppression Gate. When a finding lives in a tier-2 inlined step, set the issue's `file` to the tier-2 callee's file (not your module's file). Do not self-filter or defer cross-module concerns — the cross-module agent handles CONSISTENCY across modules, but defensive gaps visible in your chain are yours to flag even if they live in someone else's file. For every critical/blocker finding, the `evidence` field must show the concrete reachable trigger and observable wrong behavior."*
 
 **Deduplication note:** When agent A (owning module X) tier-2-expands into `ModuleY.foo` and flags a defensive gap, agent B (owning module Y) will independently tier-1-inline `foo` as part of its full review and likely flag the same gap. The orchestrator MUST deduplicate in Step 4F (merge step) by `(file, line, title)`.
 
@@ -432,7 +532,8 @@ After all per-module agents complete, spawn **one cross-module aggregation sub-a
 - plan.md content and acceptance criteria
 - List of all affected files grouped by module (structural map of the feature)
 - Detected project type
-- The severity level definitions (blocker / critical / warning / suggestion)
+- The severity level definitions (blocker / critical / warning / suggestion — per SKILL.md severity table, strictly enforced by Gate 3)
+- **MANDATORY post-analysis:** route every candidate finding through §Finding Suppression Gate (Gates 1-4). Cross-module consistency and second-order findings are subject to Gate 2 (a "missing guard" in module B is only a bug if the underlying input is genuinely external per the project's threat model) and Gate 3 (pure convention divergence without observable wrong behavior is `warning` at most, not `critical`). Empty sections are valid — do not fabricate findings to fill the cross-module template. Every `critical`/`blocker` finding MUST include a non-empty `evidence` field.
 
 **Dimensions to apply (cross-module scope):**
 - **D5** (Architecture & Design) — layer boundary violations, circular deps, coupling across the full module set
@@ -440,13 +541,13 @@ After all per-module agents complete, spawn **one cross-module aggregation sub-a
 - **D10–D13** (Standards, Backward Compat, Maintainability, Dependencies)
 - **D15** (Simplification & Anti-Bloat) — cross-module duplicate detection requires the full picture; per-module agents cannot catch parallel implementations across file boundaries
 
-**CROSS_MODULE_CONSISTENCY — apply all five checks:**
+**CROSS_MODULE_CONSISTENCY — apply all five checks (findings subject to §Finding Suppression Gate):**
 
-1. **Coerce/guard pattern:** If module A guards `entry.get("key", default)` on dict external inputs, do all sibling modules with structurally equivalent dict-subscript external inputs follow the same pattern? Flag inconsistency as `critical`.
+1. **Coerce/guard pattern:** If module A guards `entry.get("key", default)` on dict external inputs, do all sibling modules with structurally equivalent dict-subscript external inputs follow the same pattern? Flag inconsistency as `critical` **only if the underlying input is genuinely external per Gate 2**; otherwise `warning` (pure convention divergence) or drop.
 2. **Traceback preservation:** If module A uses `raise X from e` or passes `exc_info=True` in exception logging, are all modules in the diff consistent? Flag inconsistency as `warning`.
 3. **Re-export completeness:** For every new public symbol introduced in a submodule, verify it appears in the package `__init__.py` / `index.ts` / `__all__` if the project re-exports its API surface. Flag missing re-exports as `warning`.
 4. **Error handling convention:** Same error base class hierarchy and chaining approach used across all modules? Flag deviation as `warning`.
-5. **Defensive coding depth:** If module A added input validation guards for a specific data path, are all modules with structurally equivalent data paths at the same validation depth? Flag depth mismatch as `critical`.
+5. **Defensive coding depth:** If module A added input validation guards for a specific data path, are all modules with structurally equivalent data paths at the same validation depth? Flag depth mismatch as `critical` **only when the input is genuinely external per Gate 2**; otherwise `warning` or drop.
 
 **SECOND_ORDER_REVIEW — active prevention of D-series ("whack-a-mole") bugs:**
 
@@ -454,7 +555,7 @@ For each fix pattern visible in the diff (identifiable from per-module METHOD_CH
 1. Extract the fix pattern (e.g., "coerce non-dict display surface values", "snapshot sys.path before exec_module", "preserve traceback on scan failure", "emit `suggested_alias` in serializer output")
 2. Identify all code paths in OTHER modules in the diff that handle structurally similar data flows
 3. Verify the same fix has been applied to each structurally similar path
-4. If the fix is missing in any sibling module, emit a `critical` finding: *"Fix pattern applied in {module_A} was not propagated to {module_B} — structural parity violation. Pattern: {description}. Expected location: {file:line estimate}."*
+4. If the fix is missing in any sibling module, emit a `critical` finding **(subject to Gate 2 — if the input is internal/trusted, downgrade to `warning` or drop)**: *"Fix pattern applied in {module_A} was not propagated to {module_B} — structural parity violation. Pattern: {description}. Expected location: {file:line estimate}. Evidence: {concrete reachable trigger showing the gap matters}."*
 
 **Plan Consistency** (always, feature mode):
 - All acceptance criteria from `plan.md` are met across the full combined module set
@@ -533,12 +634,13 @@ Spawn an `Agent` tool call with:
 - Detected project type
 - If planning-backed: aggregated acceptance criteria (as checklist for consistency dimension only)
 - If docs-backed: extracted requirements (as checklist for consistency dimension only)
-- The severity level definitions (blocker / critical / warning / suggestion)
+- The severity level definitions (blocker / critical / warning / suggestion — per SKILL.md severity table, strictly enforced by Gate 3)
 - Explicit instruction: **"Read every source file. Review the code itself — its logic, structure, correctness, and quality. Reference documents are only used as criteria for the consistency check, not as the subject of review."**
 - **MANDATORY pre-analysis instruction:** *"Before applying any review dimension, read every source file in full and build a call graph for every public method / exported function / entry point in those files. Enumerate — for each — the helpers it calls (to leaves within the reviewed scope), the validations it performs, the state mutations it executes, the errors it raises, and its external-input paths. Output this as the `METHOD_CHAINS` section per `references/sub-agent-format.md`. Only after producing METHOD_CHAINS may you apply dimensions. In bare mode, use the method's name, signature, and public-API promises as the internal consistency check target. See the §Call-Graph Discipline section of the parent SKILL.md for the full protocol."*
-- Instruction: **"For each issue, specify severity, file path, line number/range, what's wrong, and how to fix it. Use the Review Comment Formula: Problem → Why it matters → Suggested fix."**
+- **MANDATORY post-analysis instruction:** *"After applying dimensions and BEFORE writing any finding into the output YAML, route every candidate finding through §Finding Suppression Gate (Gate 1 Reachability, Gate 2 Trust Boundary, Gate 3 Severity Calibration, Gate 4 Quota Avoidance) in the parent SKILL.md. Determine the project's threat model first — for dev tools / code generators / linters reading the developer's own files, the trust boundary does not include those files. Drop speculative findings. Drop D1/D2 findings whose input is internal/trusted. Downgrade design-preference `critical` findings to `warning`. Accept empty dimensions. Every `critical`/`blocker` finding MUST include a non-empty `evidence` field showing a concrete reachable trigger and observable wrong behavior."*
+- Instruction: **"For each issue, specify severity, file path, line number/range, what's wrong, and how to fix it. Use the Review Comment Formula: Problem → Why it matters → Suggested fix. For critical/blocker findings, the `evidence` field MUST show: (a) the concrete input that triggers the failure, (b) the observable wrong behavior, and (c) for D2/defensive-gap findings, the trust-boundary argument per Gate 2."**
 
-**Review dimensions:** All applicable dimensions. Apply against the call graph, not surface method bodies.
+**Review dimensions:** All applicable dimensions. Apply against the call graph, not surface method bodies. **Route every finding through §Finding Suppression Gate before emission.**
 
 Apply the appropriate **Consistency** check based on reference level:
 - **planning-backed** → Plan Consistency (criteria met, no scope creep, architecture match)
@@ -558,7 +660,8 @@ Same protocol as 3F.4b — spawn one sub-agent per module group in parallel. Eac
 - **`primary_files`** — its module group's own files (reviewed in full, top-level METHOD_CHAINS entries for their public symbols)
 - **`in_diff_files`** — the complete affected-files list; any call target whose file is in `in_diff_files \ primary_files` must be tier-2-expanded per §Call-Graph Discipline
 - Three-tier expansion pre-analysis instruction (same as 3F.4b)
-- Applies D1, D2, D3, D4, D6, D8, D9 against chains INCLUDING tier-2 inlined steps
+- **§Finding Suppression Gate post-analysis instruction (same as 3F.4b)** — every finding routed through Gates 1-4 before emission; every `critical`/`blocker` requires `evidence`
+- Applies D1, D2, D3, D4, D6, D8, D9 against chains INCLUDING tier-2 inlined steps, with findings subject to Gate 2 (trust boundary for D1 defensive-gap and D2 findings)
 - Returns Per-Module sub-agent format (see `references/sub-agent-format.md` §Per-Module format)
 
 Wait for all per-module sub-agents to complete before proceeding.
@@ -571,9 +674,9 @@ Same protocol as 3F.5, with the following adjustments:
   - **planning-backed** → Plan Consistency across the full aggregated method chain set
   - **docs-backed** → Documentation Consistency
   - **bare** → Skip consistency; still apply all five CROSS_MODULE_CONSISTENCY checks and SECOND_ORDER_REVIEW
-- All five CROSS_MODULE_CONSISTENCY checks (coerce/guard, traceback, re-export, error convention, defensive depth)
-- SECOND_ORDER_REVIEW (same as 3F.5)
-- D5, D7, D10–D15
+- All five CROSS_MODULE_CONSISTENCY checks (coerce/guard, traceback, re-export, error convention, defensive depth) — **findings subject to §Finding Suppression Gate**, especially Gate 2 (a missing guard is only a bug when the input is genuinely external)
+- SECOND_ORDER_REVIEW (same as 3F.5) — **subject to §Finding Suppression Gate**
+- D5, D7, D10–D15 — **subject to §Finding Suppression Gate Gate 4 (empty dimensions are valid; do not fabricate marginal findings)**
 
 Return format: Cross-Module sub-agent format (see `references/sub-agent-format.md` §Cross-Module format)
 
@@ -596,6 +699,42 @@ Review results are **displayed in the terminal** by default — no file is writt
 4. Construct a single unified `REVIEW_SUMMARY` with aggregate counts across all agents.
 5. Append a **Cross-Module section** to the report (see `references/report-template.md` §Cross-Module section).
 
+**Suppression-Gate validation (after merge, before display, both paths):**
+1. **Evidence presence:** For every issue at `critical` or `blocker` severity, verify `evidence` is present and non-empty (more than 10 characters of meaningful content — not "see description" or "TBD"). If any critical/blocker is missing evidence, **reject and re-invoke the originating sub-agent** with the message: *"The following critical/blocker findings are missing required `evidence` per §Finding Suppression Gate: [list]. Either supply concrete reachability evidence (the input that triggers the failure + the observable wrong behavior + the trust-boundary argument for D2) or downgrade / drop the finding."* Retry once per agent; after second failure, the orchestrator MUST automatically downgrade those findings to `warning` and append a `[Auto-downgraded: missing evidence]` marker to their description.
+2. **Speculative-phrase scan:** Scan all critical/blocker descriptions for the speculative tells (`could theoretically`, `if .* ever`, `in case someone`, `potentially might`, `non-deterministic`). Auto-downgrade any matching critical/blocker by one level and append `[Auto-downgraded: speculative phrasing]` to the description. (Surface a single line in the summary noting how many findings were auto-downgraded so users can spot quota-filling behavior.)
+3. **Trust-boundary check on D2/defensive-gap:** For every critical or blocker in the SECURITY (D2) section or any "missing guard / defensive gap" finding in FUNCTIONAL_CORRECTNESS (D1), verify `evidence` references a genuinely external input source (network / untrusted user / cross-tenant / third-party API / uploaded file). If `evidence` describes only an internal/trusted source (project's own files, hard-coded config, type-checked function arguments) and the project type is `library` / `cli` / `unknown`, auto-downgrade to `warning` with marker `[Auto-downgraded: internal trust boundary]`. (For `frontend` / `backend` / `fullstack` projects, do NOT auto-downgrade — these often face genuinely untrusted user input and the sub-agent's classification of "internal" deserves more scrutiny than the orchestrator can provide; surface as-is and let the human reviewer decide.)
+
+**Report Health computation (after Suppression-Gate validation, before display):**
+
+Compute three health metrics from the merged findings, then derive a single verdict.
+
+**Definitions:**
+- `top_pre_downgrade` = number of findings that were `critical` or `blocker` BEFORE the Suppression-Gate auto-downgrade pass ran (i.e., includes findings that were subsequently downgraded). Track this count separately during the auto-downgrade pass.
+- `top_post` = `blocker_count + critical_count` after auto-downgrade.
+- `n_auto_downgrades` = `n_missing_evidence + n_speculative + n_trust_boundary`.
+- Note: by construction, `top_pre_downgrade = top_post + n_auto_downgrades`.
+
+**Metrics:**
+1. **Finding density** = `total_issues / max(LOC_reviewed / 100, 1)` — issues per 100 LOC reviewed. `LOC_reviewed` = sum of lines across `primary_files` (deduplicate when a file appears in multiple module groups; count each file once).
+2. **Critical share** = `top_post / max(total_issues, 1)` — fraction of findings still at top severity after the gate.
+3. **Auto-downgrade share** = `n_auto_downgrades / max(top_pre_downgrade, 1)` — fraction of would-be top-severity findings that the gate had to lower.
+
+**Per-metric flag rules (each metric independently raises a flag):**
+
+| Metric | Flag raised when | Flag name |
+|---|---|---|
+| Finding density | `> 3.0` | **noisy** |
+| Critical share | `> 0.10` (10%) AND `total_issues ≥ 10` (small-report exemption: under 10 total findings, the share is too sensitive to be meaningful) | **inflated** |
+| Auto-downgrade share | `> 0.30` (30%) AND `top_pre_downgrade ≥ 3` (small-report exemption: under 3 top-severity candidates, the share is too sensitive) | **gated** |
+
+The in-between bands (density 2.0–3.0, critical share 5–10%, auto-downgrade share 15–30%) are advisory only — they do NOT raise a flag, but the report header SHOULD show them with a yellow indicator (⚠) so the user can see borderline conditions.
+
+**Verdict assembly:**
+- **`healthy`** — no flags raised
+- Otherwise — comma-joined list of raised flags in this order: `noisy`, `inflated`, `gated` (e.g., `"noisy,gated"`)
+
+Record the verdict and the three numeric metrics in the report header (see `references/report-template.md` §Report Health) and in `state.json` `review.health` (feature mode only — see Step 5F). Persist `top_pre_downgrade` as well so trend analysis across runs can distinguish "gate caught fewer because there were fewer attempts" from "gate caught fewer because the prompt is now better".
+
 Follow the report template in `references/report-template.md` (Feature mode variant).
 
 #### 4F.1 Optional: Save to File (`--save`)
@@ -613,6 +752,15 @@ If the user passed `--save` in the arguments, **also** write the report to `{out
 *Fast path (3P.3a):* Verify `METHOD_CHAINS` covers every public method / exported function in the collected source files. Reject + re-invoke if missing or thin. In project mode the file set can be large; the sub-agent MAY split METHOD_CHAINS into groups-by-file, but total coverage must hit every public symbol. If the sub-agent legitimately cannot cover every symbol within a single response (e.g., 500+ public functions), it MUST explicitly list the un-analyzed symbols in a `METHOD_CHAINS_DEFERRED` block with reason `"scope-too-large"` — this surfaces to the user as: `⚠ {N} public symbols not analyzed due to scope — consider narrowing via --project scope=changes or per-feature review`. Never silently skip.
 
 *Layered path (3P.3b + 3P.4):* Apply the same merge and validation logic as Step 4F layered path — verify per-module METHOD_CHAINS coverage, verify cross-module agent produced CROSS_MODULE_CONSISTENCY and SECOND_ORDER_REVIEW sections, merge all findings, deduplicate by `(file, line, title)`, construct unified REVIEW_SUMMARY. Append a **Cross-Module section** to the report.
+
+**Suppression-Gate validation (after merge, before display, both paths):** Apply the same three checks as Step 4F:
+1. **Evidence presence** — every critical/blocker requires non-empty `evidence`; reject and re-invoke originating agent, auto-downgrade after second failure with `[Auto-downgraded: missing evidence]` marker.
+2. **Speculative-phrase scan** — auto-downgrade any critical/blocker whose description matches `could theoretically` / `if .* ever` / `in case someone` / `potentially might` / `non-deterministic` with `[Auto-downgraded: speculative phrasing]` marker.
+3. **Trust-boundary check** — auto-downgrade D2/defensive-gap critical/blocker findings whose `evidence` describes an internal/trusted source for `library` / `cli` / `unknown` project types, with `[Auto-downgraded: internal trust boundary]` marker. (Skip auto-downgrade for `frontend` / `backend` / `fullstack` — let humans review those.)
+
+Surface a single line in the report summary noting the number of auto-downgrades, so users can spot quota-filling or trust-boundary mistakes without reading the full report.
+
+**Report Health computation (after Suppression-Gate validation, before display):** Same three-metric computation as Step 4F (finding density, critical share, auto-downgrade share) and same verdict thresholds (`healthy` / `noisy` / `inflated` / `gated`). Record the verdict and metrics in the report header per `references/report-template.md` §Report Health. (Project mode does not write to `state.json`, so the health record only appears in the displayed report.)
 
 Follow the report template in `references/report-template.md` (Project mode variant).
 
@@ -638,11 +786,27 @@ If the user passed `--save` in the arguments, **also** write the report to `{out
        "blockers": 0,
        "criticals": 2,
        "warnings": 6,
-       "suggestions": 4
+       "suggestions": 4,
+       "health": {
+         "verdict": "healthy",
+         "finding_density": 1.4,
+         "critical_share": 0.16,
+         "auto_downgrade_share": 0.0,
+         "loc_reviewed": 850,
+         "top_pre_downgrade": 2,
+         "top_post": 2,
+         "auto_downgrades": {
+           "missing_evidence": 0,
+           "speculative_phrasing": 0,
+           "internal_trust_boundary": 0
+         }
+       }
      }
    }
    ```
+   - `health.verdict` is one of `healthy` / `noisy` / `inflated` / `gated` (or comma-joined when multiple flags apply, e.g. `"noisy,gated"`)
    - If `--save` was used, also include `"report": "review.md"` in the review object
+   - Persisting `health` enables trend analysis across runs — a project whose `auto_downgrade_share` rises across runs is a signal that the review prompts need reinforcement
 3. Update `state.json` `updated` timestamp
 
 → Go to Step 6
@@ -671,6 +835,9 @@ Code Review Complete: {feature_name}
 Rating: {overall_rating}
 Merge Readiness: {merge_readiness}
 Issues: {total_issues} ({blocker_count} blockers, {critical_count} critical, {warning_count} warnings, {suggestion_count} suggestions)
+Report Health: {verdict_emoji_concatenated} {verdict} · density {finding_density}/100 LOC · critical share {critical_share_pct}% · auto-downgrades {n_auto_downgrades}
+{If verdict != healthy, append one block-quote line PER raised flag (in order noisy, inflated, gated):}
+  ⚠ {flag_name}: {hint per §6.3 Verdict Emoji & Hints}
 {If --save was used:}
 Report saved: {output_dir}/{feature_name}/review.md
 
@@ -707,6 +874,9 @@ Rating: {overall_rating}
 Merge Readiness: {merge_readiness}
 Reference: {planning-backed (N plans) | docs-backed (N documents) | bare}
 Issues: {total_issues} ({blocker_count} blockers, {critical_count} critical, {warning_count} warnings, {suggestion_count} suggestions)
+Report Health: {verdict_emoji_concatenated} {verdict} · density {finding_density}/100 LOC · critical share {critical_share_pct}% · auto-downgrades {n_auto_downgrades}
+{If verdict != healthy, append one block-quote line PER raised flag (in order noisy, inflated, gated):}
+  ⚠ {flag_name}: {hint per §6.3 Verdict Emoji & Hints}
 {If --save was used:}
 Report saved: {output_dir}/project-review.md
 
@@ -728,4 +898,23 @@ Report saved: {output_dir}/project-review.md
 ✅ Project quality looks good.
 
 Tip: use --save to persist the review report to disk
+```
+
+#### 6.3 Verdict Emoji & Hints
+
+Use this table for the `Report Health` line (both feature and project mode):
+
+| Flag | Emoji | One-line hint |
+|---|---|---|
+| (none — `healthy`) | ✅ | (no hint — line ends after the metrics) |
+| `noisy` | 🔊 | Density > 3 issues per 100 LOC — likely quota-filling. Re-read findings critically; many may be marginal. |
+| `inflated` | 🎈 | Critical share > 10% post-downgrade — severity inflation surviving the gate. Re-check Gate 3 calibration on top findings. |
+| `gated` | 🚧 | Auto-downgrade share > 30% — gate caught widespread bypass attempts. Sub-agent prompt may need reinforcement. |
+
+**Multi-flag rendering:** Concatenate emojis in the order `noisy,inflated,gated` (e.g., `🔊🎈` for `noisy,inflated`). Display each flag's hint on its own line below the metrics. Example:
+
+```
+Report Health: 🔊🚧 noisy,gated · density 4.1/100 LOC · critical share 6% · auto-downgrades 5
+  ⚠ noisy: Density > 3 issues per 100 LOC — likely quota-filling. Re-read findings critically; many may be marginal.
+  ⚠ gated: Auto-downgrade share > 30% — gate caught widespread bypass attempts. Sub-agent prompt may need reinforcement.
 ```

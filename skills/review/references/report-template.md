@@ -37,6 +37,25 @@ Display the following report directly in the terminal using markdown.
 **Call-Graph Coverage:** {N} public symbols analyzed · {n_partial} partial chains · {n_suspicious} suspicious chains
 {If METHOD_CHAINS_DEFERRED non-empty:} ⚠ {N} symbols deferred — not analyzed. Reasons: {comma-separated reasons}
 
+### Report Health
+
+| Metric | Value | Threshold (healthy / advisory / flagged) | Status |
+|---|---|---|---|
+| Verdict | {verdict_emoji_concatenated} **{verdict}** | — | — |
+| Finding density | {finding_density}/100 LOC | ≤ 2.0 / 2.0–3.0 / > 3.0 → noisy | {✅ / ⚠ / 🚨} |
+| Critical share | {critical_share_pct}% | ≤ 5% / 5–10% / > 10% → inflated (skipped if total < 10) | {✅ / ⚠ / 🚨 / —} |
+| Auto-downgrade share | {auto_downgrade_share_pct}% | ≤ 15% / 15–30% / > 30% → gated (skipped if pre-downgrade top < 3) | {✅ / ⚠ / 🚨 / —} |
+| LOC reviewed | {LOC_reviewed} | — | — |
+| Top severity (pre-downgrade → post) | {top_pre_downgrade} → {top_post} | — | — |
+
+Status legend: ✅ healthy band · ⚠ advisory band (no flag raised but worth noting) · 🚨 unhealthy band (flag raised) · — exempted (small report).
+
+{If any Suppression-Gate auto-downgrades occurred:}
+**Suppression-Gate downgrades ({n_total} total):** {n_missing_evidence} missing-evidence · {n_speculative} speculative-phrasing · {n_trust_boundary} internal-trust-boundary
+
+{If verdict != healthy, render one block-quote line per raised flag:}
+> ⚠ {flag_name}: {hint per SKILL.md §6.3 Verdict Emoji & Hints}
+
 ---
 
 ## Tier 1 — Must-Fix Before Merge
