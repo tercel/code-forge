@@ -8,15 +8,11 @@ description: >
 
 # Code Forge — Plan
 
-## ⚡ Execution Entry Point (READ THIS FIRST)
+## ⚡ Execution Entry Point
 
-**When this skill is loaded, you MUST immediately begin executing the Workflow below — do not wait, do not summarize, do not ask "what should I do now". Skills are operational manuals, not reference documents.** Read Step 0 (Configuration), then Step 0.5 (Project Analysis), then Steps 1, 2, 3, ... in order, until the workflow completes or you reach an `AskUserQuestion` checkpoint.
+@../shared/execution-entrypoint.md
 
-If the harness shows you `Successfully loaded skill · N tools allowed`, that message means **the SKILL.md content was injected into your context** — it does NOT mean the skill has run. Skills do not "run" autonomously; you run them by executing the Detailed Steps below.
-
-If you find yourself about to say "the skill didn't produce output", "skill 仍未输出", "falling back to manual planning", "回退到手动 plan", or anything similar, **STOP**. You have misunderstood how skills work. Go directly to the first executable step and start.
-
-The first user-visible action of this skill should be either (a) the output of the early steps of the workflow, or (b) an `AskUserQuestion` if a step needs disambiguation. Never an apology, never a fallback, never silence.
+**For this skill:** start at **Step 0 (Configuration), then Step 0.5 (Project Analysis), then Step 1**. If you catch yourself about to say "falling back to manual planning", STOP and go to the indicated step.
 
 ---
 

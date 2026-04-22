@@ -4,11 +4,11 @@ The review sub-agent must return results in the following structured YAML format
 
 **Note:** Feature mode and Project mode have slightly different fields in `REVIEW_SUMMARY` and the final consistency section. See the mode-specific notes below.
 
-**`METHOD_CHAINS` is MANDATORY and comes first — the orchestrator rejects any response without it.** See the §Call-Graph Discipline section of the parent SKILL.md for the protocol. The sub-agent must produce one `METHOD_CHAINS` entry per public method / exported function / entry-point in the reviewed scope, then apply dimensions against the graph, not against surface method bodies.
+**`METHOD_CHAINS` is MANDATORY and comes first — the orchestrator rejects any response without it.** See the `references/call-graph-discipline.md` (full protocol including anti-rationalization guard) for the protocol. The sub-agent must produce one `METHOD_CHAINS` entry per public method / exported function / entry-point in the reviewed scope, then apply dimensions against the graph, not against surface method bodies.
 
-**`evidence` field is MANDATORY for every `critical` and `blocker` finding.** See §Finding Suppression Gate in the parent SKILL.md. The orchestrator rejects critical/blocker findings missing `evidence` and (after one re-invoke) auto-downgrades them with a `[Auto-downgraded: missing evidence]` marker. `evidence` SHOULD be present for `warning` findings when non-obvious; OPTIONAL for `suggestion`. The field must show: (a) the concrete input/condition that triggers the failure, (b) the observable wrong behavior, and (c) for D2 / D1-defensive-gap findings, the trust-boundary argument per Gate 2.
+**`evidence` field is MANDATORY for every `critical` and `blocker` finding.** See `references/suppression-gates.md`. The orchestrator rejects critical/blocker findings missing `evidence` and (after one re-invoke) auto-downgrades them with a `[Auto-downgraded: missing evidence]` marker. `evidence` SHOULD be present for `warning` findings when non-obvious; OPTIONAL for `suggestion`. The field must show: (a) the concrete input/condition that triggers the failure, (b) the observable wrong behavior, and (c) for D2 / D1-defensive-gap findings, the trust-boundary argument per Gate 2.
 
-**`evidence` is ALSO MANDATORY at any severity (including `warning` and `suggestion`) when the finding makes a falsifiable factual claim about the codebase** — Gate 5 in the parent SKILL.md. Trigger phrases: `zero references`, `zero reads`, `never called`, `never read`, `dead code`, `unreachable`, `unused`, `only used in`, `only referenced in`, `sole consumer`, `duplicates X`, `copy of`, `redeclares`, `parallel implementation`, `reimplements`, `grep (returns|shows|finds)`, `N lines exceed`, `exceeds N lines`. When any of these appear in `title` / `description`, `evidence` MUST include:
+**`evidence` is ALSO MANDATORY at any severity (including `warning` and `suggestion`) when the finding makes a falsifiable factual claim about the codebase** — Gate 5 in `references/suppression-gates.md`. Trigger phrases: `zero references`, `zero reads`, `never called`, `never read`, `dead code`, `unreachable`, `unused`, `only used in`, `only referenced in`, `sole consumer`, `duplicates X`, `copy of`, `redeclares`, `parallel implementation`, `reimplements`, `grep (returns|shows|finds)`, `N lines exceed`, `exceeds N lines`. When any of these appear in `title` / `description`, `evidence` MUST include:
 
 - **Option A — command + output:** The full `grep` / `rg` / search command that was actually run, AND one or more lines of its matched output (in `path:line:content` format), OR the explicit string `0 matches` / `no matches` when claiming absence. A single-sentence summary (*"grep returns only the declaration"*) is NOT sufficient — the raw output itself must be visible.
 - **Option B — file:line citations:** Explicit `path/to/file.ext:LINE` references covering every site the claim depends on. A "duplicates Y" claim must cite both the original and the duplicate. An "only used in foo.ts" claim must cite foo.ts AND carry a grep proving no other uses. A "dead code" claim requires cross-directory coverage (src + tests at minimum).
@@ -68,7 +68,7 @@ METHOD_CHAINS:
     #   lock: <target>                — lock acquire (a specialization of `mutate` when a RLock/Mutex is the subject)
     #   yield: <value>                — generator yield (context manager __enter__/__exit__ boundaries)
     #
-    # THREE-TIER INLINING CONVENTION (per §Call-Graph Discipline):
+    # THREE-TIER INLINING CONVENTION (per `call-graph-discipline.md`):
     # Tier 1 — same-module private helper: follow `call` with full recursive inlining, "  helper →" prefix.
     #          Two-level nesting: "    HELPER_A → HELPER_B → step" (additional indent per depth).
     # Tier 2 — cross-module callee ALSO in the review scope: follow `call` with DEPTH-1 inlining (top-level
@@ -274,7 +274,7 @@ MODULE_REVIEW_SCOPE:
 METHOD_CHAINS:
 # Scope: public symbols in this module group's PRIMARY files only (tier-2 files' symbols
 # are NOT top-level entries — they appear only as inlined steps inside primary-module chains).
-# Three-tier inlining per §Call-Graph Discipline:
+# Three-tier inlining per `call-graph-discipline.md`:
 #   Tier 1 (same-module private helpers)     → full recursive inlining, "  helper →" prefix
 #   Tier 2 (cross-module callees in diff)    → depth-1 inlining,        "  X:Module.method →" prefix
 #   Tier 3 (stdlib, third-party, not in diff) → ext_call leaf, no expansion

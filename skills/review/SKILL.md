@@ -9,15 +9,11 @@ description: >
 
 # Code Forge — Review
 
-## ⚡ Execution Entry Point (READ THIS FIRST)
+## ⚡ Execution Entry Point
 
-**When this skill is loaded, you MUST immediately begin executing the Workflow below — do not wait, do not summarize, do not ask "what should I do now". Skills are operational manuals, not reference documents.** Read Step 1 (Determine Review Mode), perform it, then Step 2, etc., until the workflow completes or you reach an `AskUserQuestion` checkpoint.
+@../shared/execution-entrypoint.md
 
-If the harness shows you `Successfully loaded skill · N tools allowed`, that message means **the SKILL.md content was injected into your context** — it does NOT mean the skill has run. Skills do not "run" autonomously; you run them by executing the Detailed Steps below.
-
-If you find yourself about to say "the skill didn't produce output", "skill 仍未输出", "falling back to manual review", "回退到手动 review", or anything similar, **STOP**. You have misunderstood how skills work. Go directly to Step 1 of the Detailed Steps and start executing.
-
-The first user-visible action of this skill should be either (a) the output of Step 1 / Step 2 of the workflow, or (b) an `AskUserQuestion` if Step 1 needs disambiguation. Never an apology, never a fallback, never silence.
+**For this skill:** start at **Step 1 (Determine Review Mode)**. If you catch yourself about to say "falling back to manual review", STOP and go to the indicated step.
 
 ---
 
@@ -83,228 +79,54 @@ Execute PA.1 (Project Profile) and PA.2 (Architecture Analysis). This informs:
 
 ## Review Severity Levels
 
-All issues use a 4-tier severity system, ordered by merge-blocking priority. **Severity is assigned strictly per the definitions below and re-verified by §Finding Suppression Gate Gate 3 before the finding is emitted.**
+All issues use a 4-tier severity system, ordered by merge-blocking priority. **Severity is assigned strictly per the definitions in `references/suppression-gates.md` §Severity Levels and re-verified by Gate 3 before the finding is emitted.**
 
-| Severity     | Symbol | Meaning                                                                                                                                                                                                                              | Merge Policy              |
-|--------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
-| `blocker`    | :no_entry: | Production data loss, security breach with a real attacker model, or crash on normal-use inputs. Reproducible on day one. **Requires `evidence` field.**                                                                             | **Must fix before merge** |
-| `critical`   | :warning: | Demonstrable correctness bug with a concrete reachable trigger in the project's actual use case, producing observable wrong behavior. **NOT:** design preferences, pattern inconsistencies, speculative edge cases. **Requires `evidence` field.** | **Must fix before merge** |
-| `warning`    | :large_orange_diamond: | Fix recommended **with a concrete, named downside** — cross-module inconsistency that produces divergent caller behavior, missing guard on a GENUINELY external input (Gate 2), missing test on a path with an observable failure mode, silent divergence from a convention the project enforces for a behavioral reason. **NOT** pure pattern or stylistic divergence. If you cannot name the observable downside in one line, the finding is noise — drop. `evidence` SHOULD be provided; when omitted, the description itself must name the downside. **Additional rule — factual claims (Gate 5):** if the description asserts a falsifiable property of the codebase ("zero references", "never called", "dead code", "only used in X", "duplicates Y", "N lines exceed limit"), the finding MUST carry a verification artifact in `evidence` (the actual grep/search command AND a representative slice of its output, OR explicit file:line citations proving the claim). Unverified factual claims are dropped by Gate 5 — not downgraded. | Should fix                |
-| `suggestion` | :blue_book: | Concrete improvement with an observable benefit — dead code deletion, comment clarifying a non-obvious invariant, extraction of a duplicated block that has drifted. **NOT** "defensive improvements for unlikely scenarios", **NOT** speculative "might be clearer / nicer / simpler" preferences, **NOT** pure renames for clarity, **NOT** "consider using X instead of Y" style swaps, **NOT** extract-helper proposals against <3 lines of near-duplication, **NOT** formatting / casing consistency (linter territory). If the benefit cannot be named concretely AND the current code is functional, drop. Also subject to the **suggestion budget** and **same-theme consolidation** rules enforced at orchestrator validation time — see Step 4F validation #6. `evidence` optional; when the suggestion makes a factual claim (see Gate 5), verification is still required. | Nice-to-have              |
+| Severity     | Symbol | Short meaning | Merge Policy |
+|--------------|--------|---------------|--------------|
+| `blocker`    | :no_entry: | Production data loss, security breach with a real attacker, or crash on normal inputs. **Requires `evidence`.** | **Must fix before merge** |
+| `critical`   | :warning: | Demonstrable correctness bug with a concrete reachable trigger and observable wrong behavior. **Requires `evidence`.** | **Must fix before merge** |
+| `warning`    | :large_orange_diamond: | Fix recommended with a **concrete named downside** (cross-module divergence, missing guard on genuinely external input, etc.). Pure pattern divergence is NOT a warning — drop. Factual claims ("zero references", "dead code", "duplicates X") require a Gate-5 verification artifact. | Should fix |
+| `suggestion` | :blue_book: | Concrete improvement with an **observable benefit** (dead-code removal, clarifying non-obvious invariant, extract drifted duplicate). Preference phrasing ("might be clearer", pure rename, style swap, <3-line extract, formatting) is NOT a suggestion — drop. | Nice-to-have |
 
-**Speculative-phrasing drop rule.** If a finding's description relies on speculative phrasing ("could theoretically", "if X ever happens", "in case someone", "potentially might", "might be nicer", "smells wrong", "feels off"), **DROP the finding at ANY severity**. Previously this was "downgrade one level", but downgrading merely relocated noise into `warning`/`suggestion` where no further gate ran; the only action that actually cleans the report is to drop. The rescue path is to rewrite the description with a concrete, reachable trigger and re-submit. Full protocol in §Finding Suppression Gate Gate 3.
+Full severity definitions, gate-drop rules, and speculative-phrasing rule live in `references/suppression-gates.md` §Severity Levels. Sub-agents MUST read it before emitting findings.
 
 ## Call-Graph Discipline (Mandatory Pre-Analysis)
 
-**Before applying any dimension, the review sub-agent MUST build a call graph for every public method in the review scope.** This is a procedural requirement, not a new dimension. It exists because surface-level reading of a method body is structurally blind to a class of bugs: a method may look complete, have the right signature, match the declared plan/spec, yet silently skip a validation call, lack a null-guard on external input, or omit an expected state mutation. These bugs are visible in the call graph and invisible in the method body alone.
+**Before applying any dimension, the review sub-agent MUST build a call graph for every public method in the review scope.** This is procedural — dimensions are applied to the graph, not to the surface method body. Surface reading is blind to a class of bugs where a method looks correct yet silently skips a validation, a state mutation, or a raise.
 
-**Three-tier expansion rule — the graph must enumerate, for every public method:**
+**Three-tier expansion rule (summary):**
+- **Tier 1** — same-module private helpers → **FULL recursive inlining**, prefix steps with `  helper_name →`
+- **Tier 2** — cross-module callees whose file is ALSO in the diff → **depth-1 inlining**, prefix with `  X:Module.method →`
+- **Tier 3** — stdlib, third-party, or helpers outside the review scope → `ext_call` leaf, no expansion
 
-**Tier 1 — Same-module private helpers: FULL recursive inlining.**
-When a public method calls a private helper defined in the same reviewed scope (same file, or a nearby private module within the same module group), you MUST open that helper and **inline its steps** (validations, mutations, raises, iterates, subscripts, calls-to-further-helpers) into the public method's chain. Recurse to leaves. Do NOT leave a private same-scope helper as an opaque `call` step — that hides exactly the bugs this discipline exists to catch.
+The graph enumerates every validation, mutation, raise, iterate/subscript/deserialize (external-input path), including steps inside all inlined bodies.
 
-**Tier 2 — Cross-module callees that are ALSO in the review scope: DEPTH-1 expansion.**
-When a public method calls a function/method defined in a **different module group BUT still part of the current review scope** (i.e., the callee's file is also in the diff / affected-files list), you MUST open that callee's file, read the called method's body, and **inline its top-level steps at depth 1** (direct validations, mutations, raises, iterates, subscripts, and immediate sub-calls to its own private helpers — but do NOT recurse deeper into the callee's private helpers beyond one level). Mark these inlined steps with the `X:` prefix and the fully-qualified callee name to make the cross-module boundary visible:
+**Full protocol — mandatory reading for every review sub-agent:** `references/call-graph-discipline.md`. It defines the inlining convention, the complete what-to-enumerate list, and the under-flagging anti-rationalization table (countering "skip inlining, the method is short" / "stop at `_private_helper`" / "cross-module = ext_call leaf"). Skipping inlining produces a pre-analysis failure; the orchestrator rejects chains where a same-scope private helper appears as an opaque `call` step.
 
-```
-- { kind: call,      detail: "DisplayResolver.resolve(node)", line: 45 }
-- { kind: call,      detail: "  X:DisplayResolver.resolve → for surface in node.surfaces", line: 78 }
-- { kind: subscript, detail: "  X:DisplayResolver.resolve → surface['values']  (unguarded)", line: 82 }
-- { kind: raise,     detail: "  X:DisplayResolver.resolve → TypeError if surface not dict", line: 85 }
-```
-
-Rationale: a cross-module callee that is itself being modified in this diff is part of the same logical change unit as the caller. If `DisplayResolver.resolve` has an unguarded subscript, a caller that invokes it over external input is exposed to that bug. Treating the callee as an opaque `ext_call` re-creates the very blind spot the discipline exists to close.
-
-**Tier 3 — Leaves (NO expansion):**
-- Stdlib calls (`json.loads`, `os.path.join`)
-- Third-party library calls (`requests.get`, `pydantic.BaseModel.model_validate`)
-- Framework calls (`Flask.route`, `React.useState`)
-- Private helpers / methods defined in a file that is **NOT in the current review scope** (untouched code outside the diff)
-
-Represent all tier-3 steps as `ext_call` with no further expansion.
-
----
-
-**The graph must enumerate, for every public method:**
-1. **Every step in the execution path** — including tier-1 recursive inlining and tier-2 depth-1 cross-module inlining per the rule above.
-2. **Every validation performed anywhere in the chain** (early `if/raise`, `assert`, `match`, type guards, schema validation, Protocol checks, `isinstance`, `instanceof`) — including validations inside all inlined bodies.
-3. **Every state mutation anywhere in the chain** (writes to `self.x` / `this.x`, inserts into maps/sets/lists, event emissions, lock acquisitions, external I/O) — including mutations inside all inlined bodies.
-4. **Every error raised anywhere in the chain** (`raise`, `throw`, `return Err`, `return nil, err`) — including raises inside all inlined bodies.
-5. **Every external input path anywhere in the chain** (iteration over arguments, subscript/indexing into external data — especially data returned by plugin/discoverer/factory callbacks, deserialization of user/plugin/config input, network reads) — including paths inside all inlined bodies. This is where defensive-gap bugs live and they are almost always inside private helpers OR inside cross-module callees.
-
-**Inlining convention.** When inlining a helper's steps into a public method's chain, prefix the `detail` field to preserve the call hierarchy:
-
-- **Tier-1 (same-module):** `  helper_name →` (2-space indent + helper name)
-- **Tier-2 (cross-module in diff):** `  X:Module.method →` (2-space indent + `X:` marker + fully-qualified callee)
-
-Example combining both tiers:
-
-```
-# Tier-1 same-module helper inlining
-- { kind: call,      detail: "_discover_custom(rootPaths)", line: 257 }
-- { kind: call,      detail: "  _discover_custom → custom_discoverer.discover(roots)", line: 262 }
-- { kind: iterate,   detail: "  _discover_custom → for entry in custom_modules", line: 263 }
-- { kind: subscript, detail: "  _discover_custom → entry['module_id']  (unguarded, KeyError crashes loop)", line: 269 }
-
-# Tier-2 cross-module callee (in diff) — depth-1 inlining
-- { kind: call,      detail: "self._resolver.resolve(module)", line: 272 }
-- { kind: call,      detail: "  X:DisplayResolver.resolve → for surface in module.surfaces", line: 78 }
-- { kind: subscript, detail: "  X:DisplayResolver.resolve → surface['values']  (unguarded)", line: 82 }
-- { kind: ext_call,  detail: "  X:DisplayResolver.resolve → self._apply_coerce(surface)  [tier-3: private helper not recursed]", line: 85 }
-```
-
-The indentation + prefix preserves the call hierarchy without needing a separate nested-list structure. The `X:` marker tells the reviewer "this step lives in a different module than the chain's root method but is still within the review scope" — which is exactly the signal the cross-module association pass needs.
-
-**The graph is produced as structured output (see `references/sub-agent-format.md` `METHOD_CHAINS` section)** — the sub-agent shows its work. An empty or missing `METHOD_CHAINS` section means the sub-agent skipped the pre-analysis; the orchestrator MUST reject the report and re-run.
-
-**Why this is procedural, not a dimension.** The graph is an *input* to dimensions D1 (correctness), D3 (resource), D8 (error handling), D15 (anti-bloat), and others — not a finding category itself. Dimensions are applied to the graph, not to the raw method body. Findings that emerge from graph inspection still belong to their natural dimension (e.g., "method skips a validation its docstring promises" → D1; "method exits without releasing a lock it acquired" → D3).
-
-**Scope.** The discipline applies to **every public method of every class, every exported function, and every entry-point / CLI command** in the reviewed files. Private helpers do NOT get their own top-level `METHOD_CHAINS` entry — but their steps (validations, mutations, raises, iterates, subscripts) MUST be inlined into the chain of the public method that invokes them, using the inlining convention above. Stopping expansion at `call: _private_helper` without inlining its body is a **pre-analysis failure**; the orchestrator rejects such chains. Test files are exempt.
-
-**Anti-rationalization:**
-
-| Thought | Reality |
-|---------|---------|
-| "The method is only 10 lines, the graph is trivial, skip it" | The Rust `discover_internal` bug in apcore-rust was in a short method. Short methods that skip expected work are exactly what the graph catches — the absence of a call is invisible to surface reading. Always build the graph. |
-| "The plan / spec says the method does X, so it does X" | Do not trust the plan. Verify X is actually invoked by reading the chain to its leaves. A common skill-driven bug: the plan says "implement validate_module_id", the impl file adds a `validate_module_id` function, but no caller ever invokes it. |
-| "The method calls a well-named helper, the helper must be doing its job" | Never infer behavior from function names. Open the helper and verify. A helper called `validate_foo()` may be a stub, may early-return on a wrong branch, may not actually validate. |
-| "This is defensive code for impossible states, D15 says flag it as suggestion" | D15 targets defensive code for states that the type system or upstream invariant actually prevents. Defensive code for **possible** states — external-facing iteration, subscript into user/plugin-supplied dicts, deserialization paths — is D1 territory (functional correctness). Do not downgrade to suggestion when the input source is genuinely external. |
-| "No reference document, can't check purpose" | In bare mode you cannot check against a spec, but you can still check **internal consistency**: does the method name imply a contract (`discover`, `register`, `validate`) that the chain contradicts? Does the public API promise a return shape that the chain does not produce? Graph inspection still yields signal. |
-| "The public method just calls `_private_helper()` — that's one `call` step, chain done" | NO. The most common place for defensive-gap bugs and missing-validation bugs is **inside private helpers** — a public method with a clean three-line body whose private helper does an unguarded subscript into plugin output, or an iterate over possibly-null external data, is the exact case this discipline exists to catch. When a `call` targets a private helper defined in the same reviewed scope, you MUST open it and inline its steps per the inlining convention. "Stop at the first `call` boundary" produces the illusion of a clean chain while the bug hides one level deeper. If your METHOD_CHAINS for a public method is ≤3 steps because its body was "just delegation", you almost certainly skipped inlining — go back and expand. |
-| "The method calls into another module — that's cross-module, so it's an `ext_call` leaf" | Only true if the callee is NOT in the current review scope. If the callee's file is **also being modified in this diff**, it is part of the same logical change unit and must be expanded at tier-2 (depth-1) with the `X:` marker. Treating an in-diff cross-module callee as opaque produces exactly the failure mode the layered-review architecture exists to prevent: defensive gaps that straddle module boundaries become invisible to both the per-module agent (didn't open the callee) and the cross-module agent (received only chain summaries, can't re-derive the gap). If `CallerModule.foo()` calls `CalleeModule.bar()` and both files are in the diff, the per-module agent handling `CallerModule` MUST open `CalleeModule.bar` and inline its top-level body. |
+Output format: the `METHOD_CHAINS` section defined in `references/sub-agent-format.md`. An empty or missing `METHOD_CHAINS` → the orchestrator rejects the report and re-invokes.
 
 ## Finding Suppression Gate (Mandatory Pre-Emission Check)
 
-**Before the sub-agent writes ANY finding into the output YAML, it MUST pass that finding through the four gates below.** A finding that fails a gate is either DROPPED or DOWNGRADED per the gate's instructions. This discipline is required because the dimensional framework in `references/dimensions.md` pushes the agent toward exhaustive per-dimension checking — without counter-pressure, that bias produces speculative noise: "if metadata ever holds non-primitives", "could theoretically RecursionError on self-referential dicts", "attacker-controlled `module_id` in a dev tool reading the user's own local files". Such findings waste reviewer attention, inflate counts, and erode trust in the report.
+**Before the sub-agent writes ANY finding into the output YAML, it MUST route the finding through five gates.** Gates guard against the speculative / quota-filling / unverified-claim noise that the dimensional framework otherwise incentivizes.
 
-The gates are applied **after** call-graph analysis and dimension classification, **before** the issue is serialized into the YAML output. Every finding in the final report is an output of this gate.
+**Gate summary (full definitions in `references/suppression-gates.md`):**
 
-### Gate 1 — Reachability
+| # | Gate | What it checks | Fail action |
+|---|------|----------------|-------------|
+| 1 | **Reachability** | Is the failure mode reachable by a concrete input in the project's actual use case? | DROP on speculative phrasing (`could theoretically`, `if X ever`, `in case someone`) |
+| 2 | **Trust Boundary** (D1 defensive-gap & all D2) | Does the input source actually cross a trust boundary the project recognizes? | DROP when source is internal/trusted (project's own files scanned by its own dev tool, type-checked call sites, repo-authored configs) unless project declares stricter threat model |
+| 3 | **Severity Calibration** | Does the description match the strict meaning of the assigned severity? | DOWNGRADE design-preference `critical` to `warning`; DROP speculative at any severity |
+| 4 | **Quota Avoidance** | Is the finding being produced because the dimension felt under-utilized? | DROP — empty dimensions are a valid result |
+| 5 | **Factual Verifiability** | Does the finding assert a falsifiable codebase property? | DROP unless `evidence` carries the verification artifact (actual grep/rg command + matched-line output, OR file:line citations covering every claim site) |
 
-**Question:** Under the project's actual use case — the one the README / project type / threat model describes — is the failure mode reachable by a concrete input the user could hit?
+**Output requirement — `evidence` field:**
+- `blocker` / `critical`: `evidence` is **MANDATORY**, non-empty — concrete trigger input, observable wrong behavior, and (for D1/D2) the trust-boundary argument.
+- `warning`: `evidence` SHOULD be present when non-obvious; REQUIRED when the finding makes a Gate 5 trigger claim.
+- `suggestion`: `evidence` MAY be present; REQUIRED when the finding makes a Gate 5 trigger claim.
 
-**Drop the finding if any of these is true:**
-- The trigger requires inputs that the project's use case excludes (e.g., "self-referential dict causes RecursionError" in a YAML config written by humans — humans don't author self-referential YAML).
-- The trigger requires bugs in upstream code that the type system or upstream invariant already prevents.
-- The description starts with or leans on: **"if X ever happens"**, **"could theoretically"**, **"in case someone passes"**, **"potentially might"**, **"non-deterministic in unspecified scenario"**. These phrases are speculative tells — the finding has no concrete reproduction path.
-- The "failure" requires the developer to author malicious input against their own tool (e.g., "a malicious scanner could emit `\"\"\"` in the module_id" — the developer writing their own scanner is not a threat actor).
+**Gate 5 trigger phrases** (any of these in title/description requires a verification artifact): `zero references`, `never called`, `dead code`, `unused`, `only used in`, `only referenced in`, `duplicates X`, `copy of X`, `parallel implementation`, `reimplements`, `grep returns/shows/finds`, `N lines exceed`. Paraphrases of grep output are insufficient — paste the actual matched lines. Dead-code claims require cross-directory grep (src + tests).
 
-**Keep the finding** only when there is a concrete, demonstrable input reachable in the project's actual use case. Record the trigger in the issue's `evidence` field.
-
-### Gate 2 — Trust Boundary (applies to D1 defensive-gap and all D2 security findings)
-
-**Question:** Does the input source actually cross a trust boundary the project's threat model recognizes?
-
-**External sources (real trust boundary) — D1/D2 findings here are valid:**
-- Network requests / HTTP / WebSocket / RPC payloads from untrusted peers
-- Untrusted user input (form fields, query params, uploaded files)
-- Third-party API responses
-- Cross-tenant / cross-user data in a multi-tenant system
-- Public package / plugin registries consumed by published software
-- Files uploaded or fetched from outside the project's own repo
-
-**Internal sources (NO trust boundary) — D1/D2 findings here are noise; DROP unless the project declares a stricter threat model in its README / SECURITY.md:**
-- The project's own source files being scanned by the project's own tooling (dev tools, code generators, linters, build scripts)
-- Hard-coded constants committed to the repo
-- Config files committed to the repo that the developer themselves authored
-- Function arguments inside a single trusted process with type-checked signatures
-- Data produced by the project's own build pipeline upstream of the point in question
-
-**Canonical anti-pattern to drop:** *"`module_id` could contain `\"\"\"` and inject code into the generated docstring if a malicious scanner / malicious YAML / malicious developer produces it."* The developer running their own dev tool against their own code is not in the threat model. Drop.
-
-**Keep the finding** when the input genuinely crosses a recognized trust boundary, OR the project is itself security-sensitive (auth, crypto, payment processing, multi-tenant SaaS, anything handling secrets of parties other than the developer). **When in doubt for a clearly internal developer tool, drop.**
-
-### Gate 3 — Severity Calibration
-
-Re-check the severity you assigned after writing the description. Each level has a STRICT meaning:
-
-- **`blocker`** — Production data loss, security breach with a real attacker model, or crash on normal-use inputs. Reproducible failure mode the user hits on day one.
-- **`critical`** — Demonstrable correctness bug with a concrete, reachable trigger in the project's actual use case, affecting observable behavior. **NOT:** design preferences, "inconsistent with sibling code", speculative edge cases, or defensive-improvement suggestions.
-- **`warning`** — Fix recommended with a concrete, reproducible downside. Cross-module inconsistency that causes divergent caller behavior, missing guard on a GENUINELY external input (Gate 2), missing test on a path with an observable failure mode, silent divergence from a convention the project enforces with a behavioral reason. **NOT** pure pattern/style divergence — if you cannot name the observable downside, the finding is noise. Drop it.
-- **`suggestion`** — Concrete improvement with an observable benefit (dead code deletion, comment clarifying a non-obvious invariant, extraction of a duplicated drifted block). **NOT** "defensive improvements for unlikely scenarios", **NOT** speculative "might be nicer to" preferences. If the benefit cannot be named concretely and the code is functional as-is, drop.
-
-**Downgrade rules — apply these mechanically:**
-
-1. If the description contains any of the speculative phrases from Gate 1, **DROP the finding entirely — do not downgrade-and-keep**. Speculative phrasing is a Gate 1 failure at ANY severity (critical, warning, OR suggestion). Downgrading preserves the noise in the report; dropping is the correct action. The only rescue path: rewrite the description citing a concrete, reachable trigger. If you cannot, drop.
-2. If the finding describes a **design choice** (fail-fast vs collect-errors, sync vs async, strict vs permissive) without pointing to a concrete observable failure in the chosen design, **max severity is `warning`**. "Inconsistent with sibling writer" is a warning-level consistency note, not a critical.
-3. If the finding is "code doesn't validate an input", check Gate 2 first. If the input source is internal/trusted and type-checked, **drop**. If external, **critical** is warranted only when a malformed input produces a concrete wrong behavior (not just "raises an unexpected exception type").
-4. If the finding's fix is "add a guard / add a log / add a doc comment / rename for clarity" with no observable bug behind it, **max severity is `suggestion`**.
-
-### Gate 4 — Quota Avoidance
-
-**The dimension list does NOT impose a finding quota. Empty dimensions are a VALID and CORRECT result.**
-
-If you finish analyzing D8 / D11 / D13 / etc. and have zero real findings, write `issues: []` for that dimension and move on. **DO NOT produce a marginal finding to "show you reviewed the dimension"** — the orchestrator never penalizes empty dimensions; it rejects fabricated ones.
-
-Symptoms that you are quota-filling (stop and drop the finding):
-- You are writing a finding whose severity you had to argue yourself into.
-- The finding's `why it matters` requires a three-step hypothetical chain ("if A and then B and then C").
-- You reached for the finding because the dimension felt under-utilized, not because you found a problem.
-
-The one exception is **D15 (Simplification & Anti-Bloat)** where empty findings are still valid but the agent must *demonstrate* it grep'd for duplicates and read import graphs — see D15's execution requirements in `dimensions.md`.
-
-### Gate 5 — Factual Verifiability (applies to ANY finding that asserts a codebase property)
-
-**Question:** Does this finding's description or evidence make a falsifiable claim about the codebase — and if so, does `evidence` include the verification artifact that would prove the claim?
-
-This gate exists because the dimensional framework rewards specific-sounding assertions ("zero references", "duplicated in three places", "dead code") — but nothing in the Gate 1–4 pipeline *verifies* those assertions are true. A sub-agent writing *"grep returns only the declaration; zero reads"* can ship the finding green when the symbol is actually read three times elsewhere. This is the most common pattern of factually-wrong warnings and the prior gates cannot catch it.
-
-**Trigger phrases — the finding MUST carry a verification artifact when the description OR evidence contains any of these:**
-- `"zero references"`, `"zero reads"`, `"never called"`, `"never read"`, `"never invoked"`, `"no callers"`
-- `"dead code"`, `"unreachable"`, `"no-op in practice"`, `"unused"`
-- `"only used in"`, `"only referenced in"`, `"only read at"`, `"sole consumer"`
-- `"duplicates X"`, `"copy of X"`, `"redeclares"`, `"parallel implementation"`, `"reimplements"`
-- `"N lines"` where N is a specific count, `"exceeds (50|N) lines"`, `"LOC"` with a specific number
-- `"grep returns"`, `"grep shows"`, `"search finds"` — any claim about search results
-
-**Required verification artifact — `evidence` must include at least ONE of:**
-1. The **actual search command** executed (e.g., `grep -rn "ERROR_CODE_MAP" src/`) **AND** a representative slice of its output (matched lines with file:line, OR `"0 matches"` if claiming absence). Single-line summaries like *"grep returns only the declaration"* without the actual matched-line output are insufficient — the verification artifact must be the output itself, not a paraphrase.
-2. **Explicit file:line citations** listing every site the claim covers (e.g., for a "duplicates X" claim, cite both the original and the duplicate; for "only used in foo.ts", cite the original definition AND every use site).
-3. For `"N lines"` / LOC claims: the file:line range being measured and how the count was derived (e.g., `"main.ts:801-1154 = 354 lines"` — a range that can be checked).
-
-**Drop the finding if:**
-- The trigger phrase appears but `evidence` has no command+output and no file:line citations supporting the claim. The sub-agent is asserting without showing.
-- The trigger phrase is "only used in X" / "only referenced in X" but evidence cites only the definition site — the claim is about absence of OTHER uses; evidence must demonstrate the negative (the grep output showing no other matches).
-- The trigger phrase is "duplicates X" but evidence shows only one of the two locations.
-- The trigger phrase is "dead code" but the verification scope is a single file — dead-code claims require cross-project grep because a symbol can be re-exported, dynamically resolved (Python `getattr`, TS barrel imports), or called from tests.
-
-**Keep the finding** only when the evidence carries either (1) the command + its representative output, or (2) file:line citations that are themselves directly checkable by the human reviewer in a few seconds.
-
-**Canonical failure this gate catches.** A sub-agent claims `"ERROR_CODE_MAP has zero reads; delete it"` based on reading one file. The map is actually read at `main.ts:1129-1130` in the same file it was declared in — a miss the sub-agent would have caught had it been required to paste the grep output (which would have shown `"main.ts:111:const ERROR_CODE_MAP"` AND `"main.ts:1129: errorCode in ERROR_CODE_MAP"` together). The rule: paste the search output, don't summarize it.
-
-### Output requirement — `evidence` field
-
-Every finding at **`blocker` or `critical` severity MUST include a non-empty `evidence` field** (one to three lines) explaining how the failure is reachable in actual use — the concrete trigger input, the observable wrong behavior, and, where relevant, the trust-boundary argument that Gate 2 checked.
-
-- **`warning`** findings SHOULD include `evidence` when non-obvious.
-- **`suggestion`** findings MAY include `evidence` but it is not required.
-
-The orchestrator rejects any `critical` or `blocker` finding missing the `evidence` field and returns it to the sub-agent with the instruction: *"Either supply concrete reachability evidence or downgrade / drop the finding per §Finding Suppression Gate."*
-
-### Anti-rationalization (over-flagging direction)
-
-This table is the mirror of the Call-Graph Discipline anti-rationalization table. That one counters "I want to drop this finding"; this one counters "I want to flag this finding" — the bias introduced by the dimensional framework.
-
-| Thought | Reality |
-|---------|---------|
-| "The input *could* be malformed if an attacker controls it" | Check Gate 2. Internal / trusted / type-checked input sources do not have an attacker. The attack scenario is fictional. Drop. |
-| "I haven't found anything in D8 / D11 / D13 yet — I should produce something" | Empty dimensions are valid. Gate 4. Filling a dimension with marginal findings to show effort is the primary cause of over-flagging. Move on. |
-| "This is inconsistent with how the sibling module does it" | Inconsistency is a `warning`, not a `critical`, unless the inconsistency itself produces a wrong observable behavior. Pure pattern divergence is `warning` at most. Gate 3 rule 2. |
-| "The fix is one line — might as well flag it" | Fix effort does not determine severity. A one-line fix to a non-bug is still a non-bug. If you can't name the observable failure, drop. |
-| "If I phrase the description carefully, the finding sounds plausible" | If you need "could theoretically" or "in case someone" to make it sound plausible, it failed Gate 1. Drop or downgrade. |
-| "The code doesn't validate this input — that smells wrong" | Lack of validation is only a finding if (Gate 2) the input is genuinely external AND (Gate 1) a malformed input is reachable in actual use. Internal type-checked call sites do not need runtime validation. |
-| "Patterns A and B are mixed in this file — that's a code smell" | A code smell is not a bug. Without a concrete observable failure, `suggestion` at most — often drop. |
-| "`yaml.dump` instead of `yaml.safe_dump` is a known footgun" | Footgun-awareness is not the same as a bug. If `metadata` in this codebase is built from primitives under the project's invariants, `yaml.dump` produces the same output as `safe_dump`. Findings of the form "if the codebase ever does X, Y would break" are Gate 1 failures. Drop unless the codebase actually does X. |
-| "Non-atomic file write — what if the process crashes mid-write" | For a developer tool generating source files for local dev, a partial file on crash is a rerun-and-fix problem, not a correctness bug. Flag only when the artifact is load-bearing in production (data files, DB state, append-only logs). |
-| "The method ignores the `ctx` / `cancellation` / `deadline` parameter" | Only a finding if ignoring it produces observable wrong behavior (hung request, leaked resource). If the method completes in microseconds and cancellation is cosmetic, drop or `suggestion`. |
-| "Module A does X, module B does Y — that's inconsistency" | Not every difference is a bug. Different modules often serve different logical roles (different trust boundaries, different lifecycle positions, different caller contracts). Inconsistency only matters if it produces divergent **observable behavior** (different caller results, different error handling semantics, test gap). Pure pattern divergence with identical observable behavior is noise — drop. Contract-symmetry pre-flight required before flagging as a cross-module consistency issue. |
-| "This is a style / readability improvement — at worst a `suggestion`" | Only if the benefit is concrete and observable: removes dead code, clarifies a non-obvious invariant, eliminates duplication that has drifted. "Might be clearer", "could be simpler", "consider using X", "for readability" are preferences, not findings. If you cannot name the concrete benefit in one line, **drop** — the orchestrator's suggestion-level concrete-benefit check will drop it anyway; pre-empt by not emitting. |
-| "I'm going to downgrade this from critical to warning to be safe" | Downgrade-and-keep was the old policy and it failed: noise relocated from `critical` into `warning`/`suggestion` where no further gate ran. The new policy is: speculative phrasing → **DROP at any severity**; warning without named downside → **DROP**; warning with unverified factual claim → **DROP (Gate 5)**; suggestion without named benefit → **DROP**; suggestion that is pure nitpick → **DROP**. If the finding survives a drop check, keep its original severity; if it would only survive after downgrade, it would not have survived the lower-severity drop check either — so drop it now. |
-| "I'll write 'zero references' / 'dead code' / 'only used in foo.ts' based on what I remember seeing while reading" | Gate 5 failure. Memory is not evidence. If the claim is falsifiable ("zero", "never", "only", "duplicates"), `evidence` MUST paste the actual `grep -rn <symbol>` output (or equivalent) covering the full repo — not a single file, not a summary sentence. Without the pasted command+output, the finding is DROPPED. "Zero references in the file I read" is not a zero-reference claim; it's a reading bias. |
-| "The symbol is only defined here, so it must be dead" | Definition without caller-discovery is incomplete. A symbol may be: (a) re-exported through a barrel (`index.ts`, `__init__.py`, `mod.rs pub use`), (b) dynamically resolved (Python `getattr`, TS `import()`, Go reflection), (c) referenced only from tests (which some greps exclude by default), (d) used by an external consumer (SDK public API). Before claiming dead code, grep the full repo including tests, and sanity-check the exports surface. Without that, drop. |
-| "I found three similar issues in the same file — I'll write three separate suggestions" | No. At orchestrator validation #7 (same-theme consolidation), ≥3 suggestions with the same `(file, theme)` are merged into one themed bullet (extra ones dropped). Emit one consolidated suggestion up front with a list of sites — that is the on-target format. Themes include: renaming, format-consistency, error-message-casing, logging-prefix, null-check-style, iteration-style. |
-| "It's just a rename for clarity — that's a legitimate suggestion" | Pure rename-for-clarity is a preference, not a finding. Drop unless the current name creates a concrete bug-producing ambiguity (e.g., two symbols with near-identical names that have been confused by a past commit, or a name that actively mis-describes behavior such as `isEnabled` that returns `false` when enabled). If the best justification is "the new name reads better", drop. |
-| "`apcore-cli` binary collides with another tool on $PATH — warning-worthy" | Binary-name collisions between sibling projects are a packaging/distribution concern, not a code review finding. Max severity: `suggestion`, and only if the review scope includes packaging. Flag as warning only if the collision demonstrably breaks a documented user flow. |
+**Full gate definitions, drop rules, and the over-flagging anti-rationalization table (countering "the input could be malformed if an attacker controls it" / "I haven't found anything in D8 yet — I should produce something" / "It's just a rename for clarity — that's a legitimate suggestion" etc.) live in `references/suppression-gates.md`.** Sub-agents MUST read it before emitting findings.
 
 ## Review Dimensions Reference
 
@@ -504,8 +326,8 @@ Spawn an `Agent` tool call with:
 - List of all affected files (sub-agent reads them)
 - The acceptance criteria from `plan.md`
 - Detected project type
-- **MANDATORY pre-analysis instruction:** *"Before applying any review dimension, read every affected file in full and build a call graph for every public method / exported function / entry point in those files. Enumerate — for each — the helpers it calls (to leaves within the reviewed scope), the validations it performs, the state mutations it executes, the errors it raises, and its external-input paths (iteration over arguments, subscript into external data, deserialization). Output this as the `METHOD_CHAINS` section per `references/sub-agent-format.md`. Only after producing METHOD_CHAINS may you apply dimensions. Do not trust method names, plan claims, or helper-function purity — open and read every callee. See the §Call-Graph Discipline section of the parent SKILL.md for the full protocol and anti-rationalization guard."*
-- **MANDATORY post-analysis instruction:** *"After applying dimensions and BEFORE writing any finding into the output YAML, route every candidate finding through §Finding Suppression Gate (Gate 1 Reachability, Gate 2 Trust Boundary, Gate 3 Severity Calibration, Gate 4 Quota Avoidance, **Gate 5 Factual Verifiability**) in the parent SKILL.md. Drop speculative findings whose trigger starts with 'could theoretically' / 'if X ever happens' / 'in case someone'. Drop security / defensive-gap findings whose input source is internal/trusted for this project's threat model. Downgrade design-preference 'critical' findings to `warning`. Accept empty dimensions as a valid result — do NOT fabricate marginal findings to fill a dimension. **Any finding asserting a falsifiable claim about the codebase ('zero references', 'never called', 'dead code', 'only used in X', 'duplicates Y', 'N lines exceed Z') MUST paste the actual verification artifact into `evidence` — the full command used (grep/rg/equivalent) AND its matched-line output, OR explicit file:line citations. Paraphrases like 'grep returns only the declaration' are insufficient — the output itself must be visible. Dead-code claims require cross-directory grep (src + tests). Findings missing the artifact are dropped by Gate 5.** Every `critical` and `blocker` finding MUST include a non-empty `evidence` field explaining the concrete reachable trigger. Before emitting a suggestion, check the nitpick blocklist — pure rename-for-clarity, style swap without named downside, extract-helper for <3 lines, formatting/casing consistency, comment-for-self-documenting-name, binary/packaging name collisions are all dropped at orchestrator validation step 5; pre-empt by not emitting. Prefer consolidating ≥3 same-(file,theme) suggestions into one themed entry — individual emissions will be merged at validation step 7 anyway."*
+- **MANDATORY pre-analysis instruction:** *"Before applying any review dimension, read every affected file in full and build a call graph for every public method / exported function / entry point in those files. Enumerate — for each — the helpers it calls (to leaves within the reviewed scope), the validations it performs, the state mutations it executes, the errors it raises, and its external-input paths (iteration over arguments, subscript into external data, deserialization). Output this as the `METHOD_CHAINS` section per `references/sub-agent-format.md`. Only after producing METHOD_CHAINS may you apply dimensions. Do not trust method names, plan claims, or helper-function purity — open and read every callee. See the `references/call-graph-discipline.md` (full protocol including anti-rationalization guard) for the full protocol and anti-rationalization guard."*
+- **MANDATORY post-analysis instruction:** *"After applying dimensions and BEFORE writing any finding into the output YAML, route every candidate finding through the five gates in `references/suppression-gates.md` (Gate 1 Reachability, Gate 2 Trust Boundary, Gate 3 Severity Calibration, Gate 4 Quota Avoidance, **Gate 5 Factual Verifiability**). Drop speculative findings whose trigger starts with 'could theoretically' / 'if X ever happens' / 'in case someone'. Drop security / defensive-gap findings whose input source is internal/trusted for this project's threat model. Downgrade design-preference 'critical' findings to `warning`. Accept empty dimensions as a valid result — do NOT fabricate marginal findings to fill a dimension. **Any finding asserting a falsifiable claim about the codebase ('zero references', 'never called', 'dead code', 'only used in X', 'duplicates Y', 'N lines exceed Z') MUST paste the actual verification artifact into `evidence` — the full command used (grep/rg/equivalent) AND its matched-line output, OR explicit file:line citations. Paraphrases like 'grep returns only the declaration' are insufficient — the output itself must be visible. Dead-code claims require cross-directory grep (src + tests). Findings missing the artifact are dropped by Gate 5.** Every `critical` and `blocker` finding MUST include a non-empty `evidence` field explaining the concrete reachable trigger. Before emitting a suggestion, check the nitpick blocklist — pure rename-for-clarity, style swap without named downside, extract-helper for <3 lines, formatting/casing consistency, comment-for-self-documenting-name, binary/packaging name collisions are all dropped at orchestrator validation step 5; pre-empt by not emitting. Prefer consolidating ≥3 same-(file,theme) suggestions into one themed entry — individual emissions will be merged at validation step 7 anyway."*
 - Instructions to review across all applicable dimensions (empty dimensions are valid — see Gate 4)
 - The severity level definitions (blocker / critical / warning / suggestion — strict, per the SKILL.md severity table)
 - Instruction: **"For each issue, specify severity, file path, line number/range, what's wrong, and how to fix it. Use the Review Comment Formula: Problem → Why it matters → Suggested fix. When the issue was discovered via the call graph (e.g., a missing validation call, a skipped state mutation, an unguarded external input), reference the relevant METHOD_CHAINS entry in the description. For critical/blocker findings, the `evidence` field MUST show: (a) the concrete input that triggers the failure, (b) the observable wrong behavior, and (c) for D2/defensive-gap findings, the trust-boundary argument per Gate 2."**
@@ -537,7 +359,7 @@ For each module group, spawn `Agent` with:
 - **`in_diff_files`** — the complete list of every affected file across ALL module groups in this review. This is the tier-2 eligibility set — when a call's target definition lives in `in_diff_files \ primary_files`, the agent MUST open that file and inline its top-level body at depth-1 with the `X:` prefix.
 - Feature name and plan.md acceptance criteria (for context — not a consistency check)
 - Detected project type
-- **MANDATORY pre-analysis:** the three-tier expansion rule from §Call-Graph Discipline:
+- **MANDATORY pre-analysis:** the three-tier expansion rule from §Call-Graph Discipline (see `references/call-graph-discipline.md`):
   - **Tier 1 (same-module private helpers — file in `primary_files`):** full recursive inlining
   - **Tier 2 (cross-module callees — file in `in_diff_files` but NOT in `primary_files`):** depth-1 expansion with `X:Module.method →` prefix
   - **Tier 3 (everything else — stdlib, third-party, or files in neither list):** `ext_call` leaf, no expansion
@@ -675,8 +497,8 @@ Spawn an `Agent` tool call with:
 - If docs-backed: extracted requirements (as checklist for consistency dimension only)
 - The severity level definitions (blocker / critical / warning / suggestion — per SKILL.md severity table, strictly enforced by Gate 3)
 - Explicit instruction: **"Read every source file. Review the code itself — its logic, structure, correctness, and quality. Reference documents are only used as criteria for the consistency check, not as the subject of review."**
-- **MANDATORY pre-analysis instruction:** *"Before applying any review dimension, read every source file in full and build a call graph for every public method / exported function / entry point in those files. Enumerate — for each — the helpers it calls (to leaves within the reviewed scope), the validations it performs, the state mutations it executes, the errors it raises, and its external-input paths. Output this as the `METHOD_CHAINS` section per `references/sub-agent-format.md`. Only after producing METHOD_CHAINS may you apply dimensions. In bare mode, use the method's name, signature, and public-API promises as the internal consistency check target. See the §Call-Graph Discipline section of the parent SKILL.md for the full protocol."*
-- **MANDATORY post-analysis instruction:** *"After applying dimensions and BEFORE writing any finding into the output YAML, route every candidate finding through §Finding Suppression Gate (Gate 1 Reachability, Gate 2 Trust Boundary, Gate 3 Severity Calibration, Gate 4 Quota Avoidance) in the parent SKILL.md. Determine the project's threat model first — for dev tools / code generators / linters reading the developer's own files, the trust boundary does not include those files. Drop speculative findings. Drop D1/D2 findings whose input is internal/trusted. Downgrade design-preference `critical` findings to `warning`. Accept empty dimensions. Every `critical`/`blocker` finding MUST include a non-empty `evidence` field showing a concrete reachable trigger and observable wrong behavior."*
+- **MANDATORY pre-analysis instruction:** *"Before applying any review dimension, read every source file in full and build a call graph for every public method / exported function / entry point in those files. Enumerate — for each — the helpers it calls (to leaves within the reviewed scope), the validations it performs, the state mutations it executes, the errors it raises, and its external-input paths. Output this as the `METHOD_CHAINS` section per `references/sub-agent-format.md`. Only after producing METHOD_CHAINS may you apply dimensions. In bare mode, use the method's name, signature, and public-API promises as the internal consistency check target. See the `references/call-graph-discipline.md` (full protocol including anti-rationalization guard) for the full protocol."*
+- **MANDATORY post-analysis instruction:** *"After applying dimensions and BEFORE writing any finding into the output YAML, route every candidate finding through the gates in `references/suppression-gates.md` (Gate 1 Reachability, Gate 2 Trust Boundary, Gate 3 Severity Calibration, Gate 4 Quota Avoidance). Determine the project's threat model first — for dev tools / code generators / linters reading the developer's own files, the trust boundary does not include those files. Drop speculative findings. Drop D1/D2 findings whose input is internal/trusted. Downgrade design-preference `critical` findings to `warning`. Accept empty dimensions. Every `critical`/`blocker` finding MUST include a non-empty `evidence` field showing a concrete reachable trigger and observable wrong behavior."*
 - Instruction: **"For each issue, specify severity, file path, line number/range, what's wrong, and how to fix it. Use the Review Comment Formula: Problem → Why it matters → Suggested fix. For critical/blocker findings, the `evidence` field MUST show: (a) the concrete input that triggers the failure, (b) the observable wrong behavior, and (c) for D2/defensive-gap findings, the trust-boundary argument per Gate 2."**
 
 **Review dimensions:** All applicable dimensions. Apply against the call graph, not surface method bodies. **Route every finding through §Finding Suppression Gate before emission.**
@@ -697,7 +519,7 @@ Apply the appropriate **Consistency** check based on reference level:
 Same protocol as 3F.4b — spawn one sub-agent per module group in parallel. Each agent receives:
 
 - **`primary_files`** — its module group's own files (reviewed in full, top-level METHOD_CHAINS entries for their public symbols)
-- **`in_diff_files`** — the complete affected-files list; any call target whose file is in `in_diff_files \ primary_files` must be tier-2-expanded per §Call-Graph Discipline
+- **`in_diff_files`** — the complete affected-files list; any call target whose file is in `in_diff_files \ primary_files` must be tier-2-expanded per §Call-Graph Discipline (see `references/call-graph-discipline.md`)
 - Three-tier expansion pre-analysis instruction (same as 3F.4b)
 - **§Finding Suppression Gate post-analysis instruction (same as 3F.4b)** — every finding routed through Gates 1-4 before emission; every `critical`/`blocker` requires `evidence`
 - Applies D1, D2, D3, D4, D6, D8, D9 against chains INCLUDING tier-2 inlined steps, with findings subject to Gate 2 (trust boundary for D1 defensive-gap and D2 findings)
@@ -729,7 +551,7 @@ Review results are **displayed in the terminal** by default — no file is writt
 
 **Orchestrator validation (before display):**
 
-*Fast path (3F.4a):* Verify the single sub-agent's response contains a non-empty `METHOD_CHAINS` section with at least one entry per public method / exported function in the affected files. If `METHOD_CHAINS` is missing, empty, or lists fewer public symbols than the affected files contain, **reject and re-invoke** with an explicit reminder: *"Your previous response was missing METHOD_CHAINS or covered only a subset of public symbols. Re-read every affected file and produce the full call graph per §Call-Graph Discipline before applying dimensions."* Retry at most twice; after the second failure, surface: `⚠ Sub-agent failed to produce full call-graph — findings may miss chain-level bugs. Consider re-running review on a smaller scope.`
+*Fast path (3F.4a):* Verify the single sub-agent's response contains a non-empty `METHOD_CHAINS` section with at least one entry per public method / exported function in the affected files. If `METHOD_CHAINS` is missing, empty, or lists fewer public symbols than the affected files contain, **reject and re-invoke** with an explicit reminder: *"Your previous response was missing METHOD_CHAINS or covered only a subset of public symbols. Re-read every affected file and produce the full call graph per §Call-Graph Discipline (see `references/call-graph-discipline.md`) before applying dimensions."* Retry at most twice; after the second failure, surface: `⚠ Sub-agent failed to produce full call-graph — findings may miss chain-level bugs. Consider re-running review on a smaller scope.`
 
 *Layered path (3F.4b + 3F.5):*
 1. For each per-module agent result, verify `METHOD_CHAINS` covers all public symbols in that module group's files. Reject and re-invoke any module agent that returned empty or under-covered METHOD_CHAINS (same retry/warning logic as fast path, but scoped per module).

@@ -260,9 +260,9 @@ Check items:
 
 ## Dimension Application Rules
 
-**MANDATORY pre-analysis: `METHOD_CHAINS` must be produced BEFORE any dimension is applied.** See the parent SKILL.md §Call-Graph Discipline and `sub-agent-format.md` §METHOD_CHAINS. All dimensions below are applied against the call graph, not against raw method bodies. D1, D3, D8, and D15 have explicit "source signal from METHOD_CHAINS" paragraphs — consult them when deciding which dimension a finding belongs to.
+**MANDATORY pre-analysis: `METHOD_CHAINS` must be produced BEFORE any dimension is applied.** See `references/call-graph-discipline.md` and `sub-agent-format.md` §METHOD_CHAINS. All dimensions below are applied against the call graph, not against raw method bodies. D1, D3, D8, and D15 have explicit "source signal from METHOD_CHAINS" paragraphs — consult them when deciding which dimension a finding belongs to.
 
-**MANDATORY post-analysis: every candidate finding from any dimension MUST pass through §Finding Suppression Gate (parent SKILL.md) before being emitted.** The four gates (Reachability, Trust Boundary, Severity Calibration, Quota Avoidance) are not optional — they exist specifically to counter the over-flagging bias produced by exhaustive per-dimension checking.
+**MANDATORY post-analysis: every candidate finding from any dimension MUST pass through `references/suppression-gates.md` before being emitted.** The four gates (Reachability, Trust Boundary, Severity Calibration, Quota Avoidance) are not optional — they exist specifically to counter the over-flagging bias produced by exhaustive per-dimension checking.
 
 - **D1–D3 (Tier 1):** Apply to every reviewed scope. Potential merge blockers. **Empty findings are valid** when no real issues exist — do NOT fabricate marginal findings to fill the dimension (Gate 4).
 - **D4–D7, D15 (Tier 2):** Apply to every reviewed scope. Should-fix items. **Empty findings are valid.**

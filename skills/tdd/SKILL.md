@@ -11,15 +11,11 @@ description: >
 
 # Code Forge — TDD
 
-## ⚡ Execution Entry Point (READ THIS FIRST)
+## ⚡ Execution Entry Point
 
-**When this skill is loaded, you MUST immediately begin executing the Workflow below — do not wait, do not summarize, do not ask "what should I do now". Skills are operational manuals, not reference documents.** Read Step 0 (Determine Mode), perform it, then enter the appropriate mode (Driven / Auto-Analysis / Standalone) and follow its steps, until the workflow completes or you reach an `AskUserQuestion` checkpoint.
+@../shared/execution-entrypoint.md
 
-If the harness shows you `Successfully loaded skill · N tools allowed`, that message means **the SKILL.md content was injected into your context** — it does NOT mean the skill has run. Skills do not "run" autonomously; you run them by executing the Detailed Steps below.
-
-If you find yourself about to say "the skill didn't produce output", "skill 仍未输出", "falling back to manual TDD", "回退到手动 TDD", or anything similar, **STOP**. You have misunderstood how skills work. Go directly to Step 0 and start executing.
-
-The first user-visible action of this skill should be either (a) the output of Step 0 / the chosen mode's first step, or (b) an `AskUserQuestion` if mode detection needs disambiguation. Never an apology, never a fallback, never silence.
+**For this skill:** start at **Step 0 (Determine Mode)**. If you catch yourself about to say "falling back to manual TDD", STOP and go to the indicated step.
 
 ---
 

@@ -77,51 +77,17 @@ For each source file:
 
 #### PA.3 Language-Specific Deep Scan
 
-Based on the detected language, apply the appropriate deep scan strategy.
+Based on the primary language detected in PA.1, **read the single matching language-scan reference** for the dimensions to inspect. This keeps the main context lean — only the relevant language's check-list is loaded.
 
-##### Python
-| Aspect | What to Scan |
-|--------|-------------|
-| **Public API** | `__all__` in `__init__.py`, classes without `_` prefix, decorated functions (`@app.route`, `@click.command`) |
-| **Logic Complexity** | `if/elif/else` branches, `try/except` blocks, `match/case`, `raise` statements, nested comprehensions |
-| **Type System** | Type hints on function signatures, `Protocol` classes (structural typing), `ABC` subclasses (interface contracts), `TypeVar` (generics) |
-| **Patterns** | Decorators (analyze what they wrap), context managers (`__enter__/__exit__`), descriptors (`__get__/__set__`), metaclasses |
-| **Async** | `async def` functions, `await` chains, `asyncio.gather` concurrency points, `aiohttp` sessions |
+| Detected language | Read this file |
+|-------------------|----------------|
+| Python | `shared/language-scans/python.md` |
+| TypeScript / JavaScript | `shared/language-scans/typescript.md` |
+| Go | `shared/language-scans/go.md` |
+| Rust | `shared/language-scans/rust.md` |
+| Java | `shared/language-scans/java.md` |
 
-##### TypeScript / JavaScript
-| Aspect | What to Scan |
-|--------|-------------|
-| **Public API** | `export` statements in `index.ts`, re-export chains (`export * from`), `default export`, `.d.ts` declarations |
-| **Logic Complexity** | `if/else`, `switch/case`, ternary operators, optional chaining (`?.`), nullish coalescing (`??`), `try/catch` chains |
-| **Type System** | `interface` definitions, `type` aliases, generic type parameters (`<T extends X>`), discriminated unions, mapped types, utility types |
-| **Patterns** | Higher-order functions, closures, React hooks (`useEffect`, `useMemo`), middleware chains, dependency injection (InversifyJS, NestJS `@Injectable`) |
-| **Async** | `async/await`, `Promise.all/race/allSettled`, Observable streams (RxJS), event emitter patterns |
-
-##### Go
-| Aspect | What to Scan |
-|--------|-------------|
-| **Public API** | Capitalized identifiers (exported), interface definitions, struct methods (receiver functions) |
-| **Logic Complexity** | `if err != nil` chains (count them — Go has verbose error handling), `switch/case`, `select` on channels, goroutine spawn points |
-| **Type System** | Interface definitions (implicit satisfaction), struct embedding (composition), type assertions (`x.(Type)`), type switches |
-| **Patterns** | Options pattern (`functional options`), middleware chains (`http.Handler` wrapping), table-driven tests, `context.Context` propagation |
-| **Concurrency** | `go func()` spawns, `chan` definitions, `sync.Mutex/RWMutex`, `sync.WaitGroup`, `select` statements, `context.WithCancel/Timeout` |
-
-##### Rust
-| Aspect | What to Scan |
-|--------|-------------|
-| **Public API** | Follow mod tree from `lib.rs`. Extract all `pub` items. Track `pub use` re-exports. Distinguish `pub` vs `pub(crate)` vs private. Record `#[derive]` macros that generate behavior. Handle `#[cfg(feature)]` conditional compilation. |
-| **Logic Complexity** | `match` arms (exhaustive — each arm is a path). `if let` / `while let` pattern matching. `?` operator chains (early return on error). `unwrap()` / `expect()` calls (panic risk). `unsafe` blocks (high-risk areas). |
-| **Type System** | `trait` definitions with required methods and default impls. `impl Trait for Struct` blocks (may be in DIFFERENT files — collect all). Generic type parameters with trait bounds (`T: Handler + Send + 'static`). `where` clauses. Associated types (`type Output`). Lifetime parameters (`'a`, `'static`). |
-| **Patterns** | Builder pattern (`FooBuilder`). Newtype pattern (`struct Wrapper(Inner)`). Error enum with `thiserror`/`anyhow`. `From`/`Into` trait impls for type conversion. `Drop` impl for cleanup. `Deref`/`DerefMut` for smart pointer patterns. |
-| **Concurrency** | `async fn` + `tokio::spawn` / `async_std::task::spawn`. Channel patterns (`mpsc`, `oneshot`, `broadcast`). `Arc<Mutex<T>>` / `Arc<RwLock<T>>` shared state. `Send`/`Sync` trait bounds. Atomic operations (`AtomicBool`, `AtomicUsize`). |
-
-##### Java
-| Aspect | What to Scan |
-|--------|-------------|
-| **Public API** | `public` classes, interfaces, methods. `@RestController`/`@Service`/`@Repository` annotations. `module-info.java` exports. |
-| **Logic Complexity** | `if/else`, `switch` (including pattern matching in Java 17+), `try/catch/finally` chains, `Optional` method chains. |
-| **Type System** | `interface` definitions, `abstract class`, generics (`<T extends Comparable<T>>`), sealed classes (Java 17+). |
-| **Patterns** | Spring DI (`@Autowired`, `@Inject`), AOP (`@Aspect`), Repository pattern, Service layer, DTO/Entity mapping. |
+For a **Hybrid** project (multiple primary languages), read each applicable file. For a language not listed (Ruby, PHP, C#, Kotlin, Swift, etc.), apply the generic public-API / logic-complexity / type-system / patterns / concurrency framing using the above tables as templates and note the language in the Project Context Summary.
 
 #### PA.4 Relationship Mapping
 
