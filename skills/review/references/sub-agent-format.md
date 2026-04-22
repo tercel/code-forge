@@ -8,6 +8,29 @@ The review sub-agent must return results in the following structured YAML format
 
 **`evidence` field is MANDATORY for every `critical` and `blocker` finding.** See §Finding Suppression Gate in the parent SKILL.md. The orchestrator rejects critical/blocker findings missing `evidence` and (after one re-invoke) auto-downgrades them with a `[Auto-downgraded: missing evidence]` marker. `evidence` SHOULD be present for `warning` findings when non-obvious; OPTIONAL for `suggestion`. The field must show: (a) the concrete input/condition that triggers the failure, (b) the observable wrong behavior, and (c) for D2 / D1-defensive-gap findings, the trust-boundary argument per Gate 2.
 
+**`evidence` is ALSO MANDATORY at any severity (including `warning` and `suggestion`) when the finding makes a falsifiable factual claim about the codebase** — Gate 5 in the parent SKILL.md. Trigger phrases: `zero references`, `zero reads`, `never called`, `never read`, `dead code`, `unreachable`, `unused`, `only used in`, `only referenced in`, `sole consumer`, `duplicates X`, `copy of`, `redeclares`, `parallel implementation`, `reimplements`, `grep (returns|shows|finds)`, `N lines exceed`, `exceeds N lines`. When any of these appear in `title` / `description`, `evidence` MUST include:
+
+- **Option A — command + output:** The full `grep` / `rg` / search command that was actually run, AND one or more lines of its matched output (in `path:line:content` format), OR the explicit string `0 matches` / `no matches` when claiming absence. A single-sentence summary (*"grep returns only the declaration"*) is NOT sufficient — the raw output itself must be visible.
+- **Option B — file:line citations:** Explicit `path/to/file.ext:LINE` references covering every site the claim depends on. A "duplicates Y" claim must cite both the original and the duplicate. An "only used in foo.ts" claim must cite foo.ts AND carry a grep proving no other uses. A "dead code" claim requires cross-directory coverage (src + tests at minimum).
+
+Example (warning-level factual claim) — **acceptable**:
+```yaml
+evidence: |
+  grep -rn "ERROR_CODE_MAP" src/ tests/
+  src/main.ts:111:const ERROR_CODE_MAP: Record<string, number> = {
+  src/main.ts:1129:    const exitCode = errorCode && errorCode in ERROR_CODE_MAP
+  src/main.ts:1130:      ? ERROR_CODE_MAP[errorCode]
+  → 2 read sites in same file as declaration; overlaps with errors.ts:135 codeMap
+    (which has these entries too: MODULE_NOT_FOUND, SCHEMA_VALIDATION_ERROR, APPROVAL_DENIED).
+  Proposed: consolidate readers to codeMap, delete main.ts:111-134.
+```
+
+Example (warning-level factual claim) — **rejected by Gate 5**:
+```yaml
+evidence: "grep returns only the declaration; zero reads."
+```
+The second example is rejected because the grep *output* is not visible — only a paraphrase. The sub-agent may have mis-read the output or greppped too narrow a scope; without the actual matched lines in evidence, the orchestrator cannot distinguish a true zero-reference claim from a false one.
+
 ```
 METHOD_CHAINS:
 # One entry per public method / exported function / entry-point.
@@ -184,7 +207,19 @@ MAINTAINABILITY_AND_COMPATIBILITY:                    # D10 + D11 + D12 + D13
     title: <short title>
     description: <what's wrong and why it matters>
     suggestion: <how to fix>
-    evidence: <SHOULD be present for warning when non-obvious; OPTIONAL for suggestion>
+    evidence: <SHOULD be present for warning when non-obvious; OPTIONAL for suggestion — but REQUIRED at any severity for findings making factual claims (Gate 5)>
+    # Suggestion CONSOLIDATION (parent SKILL.md Step 4F validation #7):
+    # When ≥3 suggestions share the same (file, theme) — renaming, format_consistency,
+    # error_message_style, logging_style, null_check_style, iteration_style, import_style —
+    # emit ONE themed entry listing every site, NOT individual entries. The orchestrator
+    # merges non-consolidated entries automatically, but pre-consolidating avoids noise.
+    # Example themed entry:
+    #   severity: suggestion
+    #   file: src/output.ts
+    #   line: multiple
+    #   title: "Null-check style inconsistency across output.ts"
+    #   description: "8 call sites mix `?? 'default'` with `|| 'default'` for the same kind of null-or-empty-string check. Theme: null_check_style. Sites: src/output.ts:86, :105, :142, :188, :211, :244, :270, :318."
+    #   suggestion: "Standardize on `?? 'default'` (nullish-only) to avoid treating valid empty strings as missing."
 
 ACCESSIBILITY:                                       # D14 (frontend/fullstack only)
   rating: <good | acceptable | needs_work | skipped>
@@ -366,7 +401,7 @@ SIMPLIFICATION_ANTI_BLOAT:          # D15
     title: <short title>
     description: <problem → why it matters>
     suggestion: <how to fix>
-    evidence: <REQUIRED for critical: what duplicate / parallel implementation / scope creep is concretely demonstrated, with file references>
+    evidence: <MANDATORY AT ANY SEVERITY for D15 — every D15 finding asserts a Gate 5 factual claim (dead code, duplicate, parallel implementation, scope creep, unused, only-used-in-X). Evidence MUST paste the actual `grep -rn` / `rg` command AND its matched-line output covering at least `src/` + `tests/` for dead-code claims, OR cite both sides with file:line for duplicate / parallel claims. A narrative summary like "grep returns only the declaration" is insufficient — orchestrator Step 4F validation #4b drops D15 findings lacking the command+output or file:line citations.>
 
 MAINTAINABILITY_AND_COMPATIBILITY:   # D10 + D11 + D12 + D13
   rating: <good | acceptable | needs_work>

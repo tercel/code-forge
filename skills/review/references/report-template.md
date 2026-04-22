@@ -56,7 +56,7 @@ Status legend: ✅ healthy band · ⚠ advisory band (no flag raised but worth n
 **Suppression-Gate downgrades ({n_auto_downgrades} total):** {n_missing_evidence} missing-evidence · {n_trust_boundary} internal-trust-boundary
 
 {If any Suppression-Gate drops occurred:}
-**Suppression-Gate drops ({dropped_total} total):** {n_speculative} speculative-phrasing · {n_warning_no_downside} warning-no-observable-downside · {n_suggestion_no_benefit} suggestion-no-concrete-benefit
+**Suppression-Gate drops ({dropped_total} total):** {n_speculative} speculative-phrasing · {n_warning_no_downside} warning-no-observable-downside · {n_warning_unverified_claim} unverified-factual-claim · {n_suggestion_no_benefit} suggestion-no-concrete-benefit · {n_suggestion_nitpick} suggestion-nitpick · {n_suggestion_over_budget} suggestion-over-budget · {n_suggestion_consolidated} suggestion-consolidated
 
 {If verdict != healthy, render one block-quote line per raised flag:}
 > ⚠ {flag_name}: {hint per SKILL.md §6.3 Verdict Emoji & Hints}
