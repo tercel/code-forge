@@ -6,6 +6,8 @@ The review sub-agent must return results in the following structured YAML format
 
 **`METHOD_CHAINS` is MANDATORY and comes first — the orchestrator rejects any response without it.** See the `references/call-graph-discipline.md` (full protocol including anti-rationalization guard) for the protocol. The sub-agent must produce one `METHOD_CHAINS` entry per public method / exported function / entry-point in the reviewed scope, then apply dimensions against the graph, not against surface method bodies.
 
+**`CANDIDATE_INVENTORY` is MANDATORY and comes BETWEEN `METHOD_CHAINS` and the dimension blocks.** This is the pre-emission scratchpad: every candidate finding discovered during dimension application must appear here with an explicit `KEEP` or `DROP` decision and a fixed-enum `decision_reason` code. This enforces the Anthropic pre-emission-CoT pattern — the sub-agent makes the keep/drop judgment *before* writing the dimension blocks, not as a post-hoc filter. See `references/suppression-gates.md` §Drop Gallery for the concrete examples each DROP code corresponds to, and see §Pre-emission Scratchpad below for the full schema.
+
 **`evidence` field is MANDATORY for every `critical` and `blocker` finding.** See `references/suppression-gates.md`. The orchestrator rejects critical/blocker findings missing `evidence` and (after one re-invoke) auto-downgrades them with a `[Auto-downgraded: missing evidence]` marker. `evidence` SHOULD be present for `warning` findings when non-obvious; OPTIONAL for `suggestion`. The field must show: (a) the concrete input/condition that triggers the failure, (b) the observable wrong behavior, and (c) for D2 / D1-defensive-gap findings, the trust-boundary argument per Gate 2.
 
 **`evidence` is ALSO MANDATORY at any severity (including `warning` and `suggestion`) when the finding makes a falsifiable factual claim about the codebase** — Gate 5 in `references/suppression-gates.md`. Trigger phrases: `zero references`, `zero reads`, `never called`, `never read`, `dead code`, `unreachable`, `unused`, `only used in`, `only referenced in`, `sole consumer`, `duplicates X`, `copy of`, `redeclares`, `parallel implementation`, `reimplements`, `grep (returns|shows|finds)`, `N lines exceed`, `exceeds N lines`. When any of these appear in `title` / `description`, `evidence` MUST include:
@@ -30,6 +32,124 @@ Example (warning-level factual claim) — **rejected by Gate 5**:
 evidence: "grep returns only the declaration; zero reads."
 ```
 The second example is rejected because the grep *output* is not visible — only a paraphrase. The sub-agent may have mis-read the output or greppped too narrow a scope; without the actual matched lines in evidence, the orchestrator cannot distinguish a true zero-reference claim from a false one.
+
+---
+
+## Pre-emission Scratchpad (`CANDIDATE_INVENTORY`)
+
+Every candidate finding discovered while applying dimensions MUST appear in `CANDIDATE_INVENTORY` with an explicit `KEEP` or `DROP` decision BEFORE it appears (or doesn't) in a dimension block. This is the Anthropic pre-emission-CoT pattern: force the keep/drop decision with justification up front, rather than writing all findings into dimension blocks and hoping a post-hoc gate catches the noise.
+
+**Rules:**
+1. Every candidate — whether you intend to KEEP or DROP it — must have a row in `CANDIDATE_INVENTORY`.
+2. `decision_reason` MUST be one of the fixed enum values below. Free-text reasons are rejected by the orchestrator (see SKILL.md Step 4F/4P scratchpad audit).
+3. For every KEEP candidate, exactly one dimension block must contain a matching issue (same `file:line` + `title`). Orchestrator cross-checks.
+4. For every DROP candidate, NO dimension block may contain a matching issue. Orchestrator cross-checks — attempting to DROP in the scratchpad but KEEP in dimensions is flagged as a bypass attempt and the finding is rejected outright.
+5. If dimensions were truly empty, the inventory may be empty — but empty inventory + any finding in dimension blocks is rejected.
+
+**KEEP reason codes (enum):**
+
+| Code | When to use |
+|---|---|
+| `concrete_bug_reachable` | Concrete input triggers observable wrong behavior (D1/D3/D6/D8). |
+| `cross_module_drift_observable` | Sibling modules with symmetric contract diverge in observable behavior — e.g. module A has guard/audit/approval, module B does not; module A coerces input, module B does not. Requires contract-symmetry pre-flight (see §CROSS_MODULE_CONSISTENCY). |
+| `factual_claim_verified_with_grep` | "Zero references" / "dead code" / "duplicates" claim with actual `grep`/`rg` command + output in `evidence`. |
+| `consolidation_3plus_sites_verified` | ≥3 sites of real duplication verified with grep output; extraction target exists or benefit is named concretely. |
+| `critical_path_untested` | D7 — a path with observable failure mode has no test coverage (requires naming the failure mode). |
+| `plan_criterion_unmet` | An acceptance criterion from `plan.md` is not met in the code. |
+
+**DROP reason codes (enum):**
+
+| Code | Canonical trigger |
+|---|---|
+| `extract_helper_under_3_sites` | Duplicate appears in only 2 sites. |
+| `refactor_preference_no_bug` | Fix introduces a new abstraction replacing a working pattern; no observed bug. |
+| `documented_known_gap` | Description self-identifies as already-tracked (CLAUDE.md, TODO, next release). |
+| `self_admitted_low_value` | "impact is small", "only worth if X surfaces", "edge case", "theoretical concern". |
+| `pure_symmetry_no_bug` | "Inconsistent with sibling" with no named caller consequence. |
+| `rename_for_clarity_no_ambiguity` | Rename without concrete past-confusion incident or mis-describing name. |
+| `speculative_phrasing` | Description contains "could theoretically", "if X ever", "in case someone", "potentially might". |
+| `trust_boundary_internal` | D1/D2 finding on developer-authored / type-checked / internal input source. |
+| `unverified_factual_claim` | Gate 5 trigger phrase ("zero references", "dead code", "only used in") without grep output or file:line evidence. |
+| `defensive_hardening_speculative` | Runtime check against an input source that is developer-controlled. |
+| `typo_hypothetical` | "A typo WOULD no-op" — the typo doesn't exist in the code. |
+| `packaging_naming_out_of_scope` | Binary-name collision / npm-scope / bin-script rename when review scope doesn't include packaging. |
+| `style_swap_no_downside` | "Prefer X over Y" / "consider using X instead" without a named downside of Y. |
+| `formatting_casing_linter_territory` | Whitespace, camelCase vs snake_case, `WARNING:` vs `Warning:` — linter concern, not review. |
+
+**Scratchpad schema:**
+
+```
+CANDIDATE_INVENTORY:
+- id: C1
+  dimension: <D1 | D2 | D3 | ... | D15>
+  file: path/to/file.ext
+  line: <number or range>
+  title: <short title — must match the title in the dimension block if decision=KEEP>
+  decision: <KEEP | DROP>
+  decision_reason: <one of the enum codes above — NO free text>
+  decision_detail: <one line — why THIS code applies to THIS candidate, e.g.
+                   "2 sites (main.ts:937 and :982), below 3-site threshold">
+- id: C2
+  ...
+```
+
+**Example inventory (hypothetical review with 6 candidates):**
+
+```
+CANDIDATE_INVENTORY:
+- id: C1
+  dimension: D1
+  file: src/discovery.ts
+  line: 289
+  title: "apcli exec bypasses checkApproval and audit-log writes"
+  decision: KEEP
+  decision_reason: cross_module_drift_observable
+  decision_detail: "discovery.ts:289 invokes executor.execute directly; main.ts:1038 wires approval+audit for buildModuleCommand with symmetric contract"
+- id: C2
+  dimension: D4
+  file: src/main.ts
+  line: 937
+  title: "reserved-set redeclared at two sites"
+  decision: DROP
+  decision_reason: extract_helper_under_3_sites
+  decision_detail: "appears at main.ts:937 and main.ts:982 — 2 sites, below 3-site threshold"
+- id: C3
+  dimension: D4
+  file: src/cli.ts
+  line: 17
+  title: "Local Registry placeholders diverge from upstream apcore-js"
+  decision: DROP
+  decision_reason: documented_known_gap
+  decision_detail: "description itself references CLAUDE.md tracking and next apcore-js compatibility bump"
+- id: C4
+  dimension: D4
+  file: src/output.ts
+  line: 39
+  title: "truncate slices on UTF-16 code units"
+  decision: DROP
+  decision_reason: self_admitted_low_value
+  decision_detail: "suggestion text includes 'behavioral impact is small; only worth doing if broken-glyph reports surface'"
+- id: C5
+  dimension: D4
+  file: src/main.ts
+  line: 403
+  title: "_exposureFilter attached via as unknown as Record cast"
+  decision: DROP
+  decision_reason: refactor_preference_no_bug
+  decision_detail: "fix introduces ProgramMeta interface; no observed typo or runtime bug — 'a typo WOULD no-op' is hypothetical"
+- id: C6
+  dimension: D15
+  file: src/system-cmd.ts
+  line: 207
+  title: "emitResult helper re-implemented in 5 registrars"
+  decision: KEEP
+  decision_reason: consolidation_3plus_sites_verified
+  decision_detail: "grep -n 'fmt === \"json\"' yields 5 inline sites + 1 helper; concrete maintenance cost named"
+```
+
+In the above, only C1 and C6 appear in dimension blocks. C2–C5 never leave the scratchpad. The orchestrator audits both directions: KEEP candidates must appear in dimensions, DROP candidates must not.
+
+---
 
 ```
 METHOD_CHAINS:
@@ -127,6 +247,19 @@ METHOD_CHAINS_DEFERRED:
 - symbol: <ClassName.method_name>
   file: <path>
   reason: <scope-too-large | unreadable-source | generated-code | test-file-miscategorized>
+
+CANDIDATE_INVENTORY:
+# MANDATORY — every candidate finding with KEEP/DROP decision and fixed-enum reason.
+# See §Pre-emission Scratchpad above for the full enum taxonomy.
+# Orchestrator cross-checks: KEEP → must appear in dimension blocks; DROP → must NOT appear.
+- id: <C1 | C2 | ...>
+  dimension: <D1 | D2 | ... | D15>
+  file: path/to/file.ext
+  line: <number or range>
+  title: <short title>
+  decision: <KEEP | DROP>
+  decision_reason: <enum code from §Pre-emission Scratchpad — NO free text>
+  decision_detail: <one line — why this code applies to this candidate>
 
 REVIEW_SUMMARY:
   overall_rating: <pass | pass_with_notes | needs_changes>
@@ -304,6 +437,20 @@ METHOD_CHAINS_DEFERRED:
   file: <path>
   reason: <scope-too-large | unreadable-source | generated-code>
 
+CANDIDATE_INVENTORY:
+# MANDATORY — every intra-module candidate finding with KEEP/DROP decision and fixed-enum reason.
+# Scope: D1, D2, D3, D4, D6, D8, D9 findings rooted in THIS module's METHOD_CHAINS,
+# including findings discovered via tier-2 inlined cross-module steps.
+# See §Pre-emission Scratchpad for the full enum taxonomy.
+- id: <C1 | C2 | ...>
+  dimension: <D1 | D2 | D3 | D4 | D6 | D8 | D9>
+  file: path/to/file.ext
+  line: <number or range>
+  title: <short title>
+  decision: <KEEP | DROP>
+  decision_reason: <enum code — NO free text>
+  decision_detail: <one line — why this code applies>
+
 INTRA_MODULE_SUMMARY:
   total_issues: <number>
   blocker_count: <number>
@@ -365,6 +512,19 @@ ERROR_HANDLING_AND_OBSERVABILITY:    # D8 + D9
 Used by the single cross-module aggregation agent in the layered review path (3F.5 / 3P.4). Receives all per-module METHOD_CHAINS. Applies cross-cutting dimensions and consistency checks.
 
 ```
+CANDIDATE_INVENTORY:
+# MANDATORY — every cross-module candidate finding with KEEP/DROP decision and fixed-enum reason.
+# Scope: D5, D7, D10-D15, CROSS_MODULE_CONSISTENCY, SECOND_ORDER_REVIEW.
+# See §Pre-emission Scratchpad for the full enum taxonomy.
+- id: <C1 | C2 | ...>
+  dimension: <D5 | D7 | D10 | D11 | D12 | D13 | D15 | cross_module_consistency | second_order_review>
+  file: path/to/file.ext
+  line: <number or range>
+  title: <short title>
+  decision: <KEEP | DROP>
+  decision_reason: <enum code — NO free text>
+  decision_detail: <one line — why this code applies>
+
 CROSS_MODULE_SUMMARY:
   modules_analyzed: <number>
   total_cross_issues: <number>

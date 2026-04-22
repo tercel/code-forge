@@ -121,6 +121,171 @@ The orchestrator rejects any `critical` or `blocker` finding missing the `eviden
 
 ---
 
+## Drop Gallery — Concrete Negative Examples (MANDATORY comparison before emission)
+
+**Before emitting ANY finding, compare its shape against the examples below. If your candidate "looks like" one of these — regardless of how you word it — DROP it.**
+
+This gallery codifies the Anthropic multi-shot-with-negative-examples pattern. Abstract prohibitions ("don't emit speculative findings", "avoid preferences") show diminishing returns as more are added; concrete labeled negatives outperform any count of bullet rules. The gates above define the principles; this gallery shows the actual failure patterns that sub-agents produce in practice when they try to fill dimensional quotas.
+
+Each DROP example carries a **`drop_reason` code** — use the code verbatim in `CANDIDATE_INVENTORY[].decision_reason` (see `sub-agent-format.md` §Pre-emission Scratchpad). Free-text drop reasons are rejected by the orchestrator; only these codes are accepted.
+
+---
+
+### ❌ DROP — `extract_helper_under_3_sites`
+
+```
+title: "reserved-set redeclared at two sites"
+description: "The literal set {'input','yes','largeInput',...} appears at
+  main.ts:937 and main.ts:982. Adding a new built-in option requires updating both."
+suggestion: "Extract BUILTIN_OPTION_KEYS as a module-scope constant."
+```
+
+**Why drop.** 2 sites. Single-duplicate extraction almost always adds indirection without a maintenance benefit — the threshold is **≥3 sites** before the cost of the new symbol pays for itself. Do not try to word around this with "redeclared" / "drift risk" / "consolidate" / "DRY" — the orchestrator's nitpick blocklist strips these, and the scratchpad audit will flag the bypass.
+
+---
+
+### ❌ DROP — `documented_known_gap`
+
+```
+title: "Local Registry / ModuleDescriptor placeholders diverge from upstream apcore-js"
+description: "Method names (listModules / getModule) diverge from upstream
+  (list / getDefinition) — documented known-gap in CLAUDE.md."
+suggestion: "Track for the next apcore-js compatibility bump."
+```
+
+**Why drop.** The description *itself* says the divergence is already tracked. A review report is the action list for the current change, not a redundant copy of CLAUDE.md's known-issues section. Trigger phrases that force this drop: `documented known-gap`, `tracked for`, `next release`, `known issue`, `see CLAUDE.md`, `already noted`.
+
+---
+
+### ❌ DROP — `self_admitted_low_value`
+
+```
+title: "truncate slices on UTF-16 code units; emoji splits at boundary"
+description: "Default limits (80 / 1000) make this reachable when descriptions
+  contain emoji near the cutoff."
+suggestion: "Use [...text].slice() for code-point-safe slicing
+  (behavioral impact is small; only worth doing if broken-glyph reports surface)."
+```
+
+**Why drop.** The finding self-downgrades: *"impact is small"*, *"only worth if X surfaces"*, *"edge case"*, *"theoretical concern"*. If you have to caveat the fix's value inside the suggestion itself, the finding has no reader value. Gate 1 should have caught this by the speculative-phrase scan; the gallery is the belt-and-suspenders.
+
+---
+
+### ❌ DROP — `refactor_preference_no_bug`
+
+```
+title: "_isShim / _exposureFilter attached via `as unknown as` casts"
+description: "Five sites assign dynamic program metadata with cast-bypass.
+  A typo (_exposurefilter vs _exposureFilter) would silently no-op at runtime."
+suggestion: "Introduce ProgramMeta interface + typed attachMeta() helper; replace all 5 sites."
+```
+
+**Why drop.** Fix is to introduce a NEW abstraction replacing a working pattern. The asserted bug ("a typo WOULD no-op") is hypothetical — no typo exists in the code, and the tests would catch it if one were introduced. Architecture preferences do not become findings just because the number of sites is ≥3. Keep only when the pattern has actually produced an observed bug — cite the commit / the failing test.
+
+---
+
+### ❌ DROP — `pure_symmetry_no_bug`
+
+```
+title: "logger.setLogLevel silently ignores unknown level strings"
+description: "setLogLevel('VERBOSE') is a no-op — inconsistent with resolveIntOption
+  and ApcliGroup._parseEnv which warn on unknown values."
+suggestion: "Emit a warning on unknown level."
+```
+
+**Why drop.** The only argument is "module A does X, module B does Y". No concrete caller is broken, no test fails, no user workflow is hurt. Pure pattern divergence is not a finding. Contract-symmetry pre-flight (§CROSS_MODULE_CONSISTENCY) drops this at the cross-module level; the same logic applies to intra-module symmetry claims. Keep only when the divergence produces divergent *observable* behavior with a named downstream consumer.
+
+---
+
+### ❌ DROP — `rename_for_clarity_no_ambiguity`
+
+```
+title: "rename handleResult to processApprovalResult"
+description: "The current name doesn't make clear which kind of result is being handled."
+suggestion: "Rename for clarity."
+```
+
+**Why drop.** Pure preference. Unless you can cite a past commit that confused the names OR demonstrate that the name actively mis-describes behavior (`isEnabled` returning `false` when enabled), "the new name reads better" is never a finding.
+
+---
+
+### ❌ DROP — `defensive_hardening_speculative`
+
+```
+title: "BOOLEAN_FLAG default cast accepts non-boolean JSON Schema defaults"
+description: "`(propSchema.default as boolean) ?? false` silently accepts
+  {'type':'boolean','default':'yes'} — the string lands in Commander at runtime."
+suggestion: "Validate the default is a real boolean; raise a schema error."
+```
+
+**Why drop.** Schema authoring is developer-controlled (Gate 2: internal/trusted source). A developer writing `default: 'yes'` in their own schema is not a threat actor — they'd fix it the first time their own tool misbehaves. Runtime type-checking against developer self-inflicted typos is infinite work for zero external value. Flag only when the schema comes from an untrusted source per the project's threat model.
+
+---
+
+### ❌ DROP — `typo_hypothetical`
+
+```
+title: "dynamic metadata attach is typo-fragile"
+description: "A typo like `_exposurefilter` vs `_exposureFilter` would silently
+  no-op at runtime with no TS error."
+```
+
+**Why drop.** No such typo exists. The finding hypothesizes a future bug that hasn't occurred. If a typo is introduced later, the test suite will catch it. Flagging hypothetical future typos is infinite: every string literal, every property access, every enum name is a potential typo. Drop all of these unless a real typo-induced bug has been reported in the commit history.
+
+---
+
+### ✅ KEEP — `cross_module_drift_observable`
+
+```
+title: "apcli exec bypasses checkApproval() and audit-log writes"
+description: "registerExecCommand's action (discovery.ts:289) invokes executor.execute
+  directly — no checkApproval, no auditLogger.logExecution, no sandbox gating.
+  buildModuleCommand (main.ts:1038) wires all three. A module with
+  annotations.requires_approval: true executes WITHOUT the approval gate when invoked
+  via `apcli exec`; no audit trail entry is written either."
+evidence: |
+  discovery.ts:289:  const result = await executor.execute(moduleId, merged);
+  main.ts:1038:      const approvalDecision = await checkApproval(moduleDef, ...);
+  main.ts:1166:      await auditLogger.logExecution('success', exitCode, durationMs);
+  main.ts:1184:      await auditLogger.logExecution('error', exitCode, durationMs, err);
+  → Concrete trigger: module with requires_approval: true invoked via
+    `apcli exec foo` completes with exit 0 and zero audit entries.
+```
+
+**Why keep.** Concrete reachable trigger + observable wrong behavior (approval gate skipped, audit trail missing) + cross-module asymmetry verified with file:line on both sides + contract-symmetry pre-flight holds (both paths dispatch the same module with the same options). Gate 5 verified.
+
+---
+
+### ✅ KEEP — `consolidation_3plus_sites_verified`
+
+```
+title: "emitResult helper re-implemented inline in 5 command registrars"
+description: "emitResult (system-cmd.ts:37) is used only by registerHealthCommand.
+  Five other registrars re-inline the same format-then-write pattern. Adding a new
+  output format requires 5 edits today."
+evidence: |
+  grep -n 'fmt === "json" || !isTTY' src/system-cmd.ts
+  src/system-cmd.ts:42:   if (fmt === "json" || !isTTY) {
+  src/system-cmd.ts:209:  if (fmt === "json" || !isTTY) {
+  src/system-cmd.ts:241:  if (fmt === "json" || !isTTY) {
+  src/system-cmd.ts:271:  if (fmt === "json" || !isTTY) {
+  src/system-cmd.ts:303:  if (fmt === "json" || !isTTY) {
+  src/system-cmd.ts:339:  if (fmt === "json" || !isTTY) {
+  → 5 re-implementations + 1 helper already exists to consolidate into.
+```
+
+**Why keep.** ≥3 sites (threshold met: 5 sites), grep output pasted (Gate 5 verified), extraction target already exists (no new abstraction to justify), concrete maintenance cost named.
+
+---
+
+### How to use this gallery
+
+1. **Before writing a finding into `CANDIDATE_INVENTORY`**, pattern-match it against the ❌ blocks. If the shape matches — regardless of wording — `decision: DROP` with the corresponding `decision_reason` code.
+2. **Before marking a finding as `decision: KEEP`**, pattern-match it against the ✅ blocks. Your finding should look structurally like them: concrete trigger, observable behavior, evidence with file:line and verification artifact.
+3. **If you cannot decide**, the default is DROP. Under-flagging a marginal finding has ~zero cost; over-flagging degrades the whole report.
+
+---
+
 ## Anti-rationalization (over-flagging direction)
 
 This table counters the bias introduced by the dimensional framework — "I want to flag this finding". (The mirror table countering "I want to drop this finding" lives in `call-graph-discipline.md`.)
