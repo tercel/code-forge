@@ -532,6 +532,7 @@ Spawn an `Agent` tool call with:
 **Sub-agent must write `plan.md`** with these required sections:
 - **Goal** — one sentence describing what to implement
 - **Architecture Design** — component structure, data flow, technical choices with rationale
+- **Design Decisions** — **MANDATORY if the feature touches any high-impact surface** (database schema, public API contract, state machine, file format / wire protocol, cross-service dependency). For each such surface, add a `### High-Impact Decision Record: <surface name>` subsection containing one short paragraph per question from the High-Impact Change Checklist in `@../shared/design-first.md` (Necessity / Data characteristics / Volatility / Migration cost / External contract impact / Cheaper alternative). If the feature touches no high-impact surface, write a single line: `_No high-impact surfaces touched._`
 - **Task Breakdown** — dependency graph (mermaid `graph TD`) + task list with estimated time and dependencies
 - **Risks and Considerations** — identified technical challenges
 - **Acceptance Criteria** — checklist (tests pass, code review, docs, performance)
@@ -586,6 +587,7 @@ Spawn an `Agent` tool call with:
 - **Acceptance Criteria** — checklist
 - **Dependencies** — depends on / required by
 - **Estimated Time**
+- **Design Decisions Reference** — if this task implements a high-impact surface change (schema, public API, state machine, file format, cross-service surface) covered by `plan.md` § Design Decisions, include a one-line pointer: `See plan.md § Design Decisions: <surface name> for the High-Impact Decision Record.` This lets the impl sub-agent locate the recorded decisions without re-asking. Omit this section for tasks with no high-impact surface.
 
 **Naming (critical):** Use descriptive filenames: `setup.md`, `models.md`, `api.md` — **NO numeric prefixes** (`01-setup.md`, `02-models.md` are WRONG). Execution order is defined in `overview.md` Task Execution Order table and `state.json` `execution_order` array, never in filenames.
 

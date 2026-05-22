@@ -31,6 +31,35 @@ Before writing or modifying production code, answer all four questions in order:
 
 If you cannot answer all four, you have not read enough — go back to rule 1.
 
+#### High-Impact Change Checklist
+
+The Pre-Code Checklist above is the default. For **high-impact changes**, run this stricter checklist *in addition*. A change is high-impact if it modifies any of:
+
+- **Database schema** — columns, tables, indexes, constraints
+- **Public API contract** — endpoints, request/response shape, error codes, status semantics
+- **State machine** — states, transitions, terminal conditions
+- **File format / wire protocol** — on-disk or serialized format
+- **Cross-service dependency** — any surface another team or service consumes
+
+Answer all six before writing code:
+
+1. **Necessity (per element).** For *each* new field/column/endpoint/state — what concrete use case requires it *now*? Reject elements justified only by "we might need it later" — re-add when the need is real.
+2. **Data characteristics.** Expected read/write frequency, current row count, 6-12 month growth rate. Does the design hold at that volume (index strategy, query plan, partition fit)?
+3. **Volatility.** Probability this shape changes again in 6-12 months. High volatility argues for a flexible representation (JSON blob, versioned schema) — but only if the volatility is real, not hypothetical.
+4. **Migration cost.** Online DDL or downtime? Backfill required? Dual-write window? Rollback path? Quantify the *operational* cost, not just the code change.
+5. **External contract impact.** Who consumes this? Which clients/services break? Backward-compatible, versioned, or breaking? If breaking, who is notified and when?
+6. **Cheaper alternative.** Is there a smaller change that gets 80% of the value? A denormalized cache instead of a migration, an opaque metadata column instead of typed columns, a feature flag instead of a state-machine change.
+
+If you cannot answer all six confidently, **stop and surface the gaps to the user before writing code**. High-impact changes are the highest-cost mistakes in a codebase — the cost of this checklist is trivial compared to a bad migration.
+
+**Single-Answer Rule (avoid plan→impl redundancy).** The six questions are *decisions*, not *re-checks*. They answer **once** at the earliest design stage and are then consumed downstream:
+
+- If invoked from `code-forge:plan`: answer all six and **record them in `plan.md` under a `## Design Decisions` section**, with one `### High-Impact Decision Record: <surface name>` subsection per affected surface (schema / API / state machine / etc.) containing one short paragraph per question. Each affected task file under `tasks/` then carries a one-line pointer (`See plan.md § Design Decisions: <surface name>`) so the impl sub-agent can locate the record without reading the full plan.
+- If invoked from `code-forge:impl` / `code-forge:tdd` / `code-forge:fix` and a Decision Record already exists for this change: **do NOT re-litigate**. Read the record, verify it still matches reality (≤5 min sanity check: do the named files/symbols still exist? has the schema drifted from what was recorded? have new consumers appeared?), and proceed. Only re-run a specific question if (a) its recorded answer is missing, (b) the codebase has drifted in a way that invalidates the answer, (c) the user explicitly asks to revisit, or (d) while reading the actual code you discover a materially cheaper alternative that plan-time analysis could not have seen — in this case, surface the alternative to the user before proceeding rather than silently switching paths.
+- If no Decision Record exists (standalone fix, ad-hoc edit, no upstream plan): answer fresh.
+
+The Four Rules and Anti-Patterns *are* applied at every stage — they govern code shape, not high-level design decisions. Only the High-Impact Six Questions are single-answer.
+
 #### Anti-Patterns to Avoid
 
 These are signals that you are patching instead of designing:
