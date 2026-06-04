@@ -2,9 +2,11 @@
 name: review
 description: >
   Use when reviewing code, handling review feedback, or posting a review to a GitHub PR —
-  15-dimension quality analysis for features or entire projects (generate mode), structured
-  evaluation and response to incoming review comments (feedback mode via --feedback flag),
-  or automated PR review posted as a GitHub comment (--github-pr flag).
+  15-dimension quality analysis PLUS an Acceptance Gate (runs the test suite fresh and
+  reconciles every P0/P1 acceptance criterion against a named passing test, hard-blocking
+  merge on any uncovered P0 or failing test) for features or entire projects (generate mode),
+  structured evaluation and response to incoming review comments (feedback mode via
+  --feedback flag), or automated PR review posted as a GitHub comment (--github-pr flag).
 ---
 
 # Code Forge — Review
@@ -18,6 +20,8 @@ description: >
 ---
 
 Comprehensive code review against reference documents and engineering best practices. Covers functional correctness, security, resource management, code quality, architecture, performance, testing, error handling, observability, maintainability, backward compatibility, and dependency safety.
+
+The 15 dimensions answer one question: *is the code that exists correct?* They do **not** answer the orthogonal question: *does every required behavior exist, and is each backed by a passing test?* — the gap where "works in the demo" hides. The **Acceptance Gate** (see §Acceptance Gate) closes it: it runs the test suite for real and reconciles every P0/P1 acceptance criterion against a named passing test, hard-blocking merge on any uncovered P0 or any failing test. Pass `--quick` to skip the gate for a mid-work, analysis-only review.
 
 Supports four modes:
 - **Feature mode:** Review a single feature against its `plan.md`
@@ -43,6 +47,7 @@ Supports four modes:
 /code-forge:review --feedback            # Evaluate incoming review comments
 /code-forge:review --github-pr 123       # Post review to GitHub PR #123
 /code-forge:review user-auth --save      # Review and save report to disk
+/code-forge:review user-auth --quick     # Static 15-dim review only — skip the Acceptance Gate (no test run)
 ```
 
 ## Workflow
@@ -58,7 +63,9 @@ Config → Determine Mode → Locate Reference → Collect Scope → Module Grou
        • Cross-module agent
            · D5, D7, D10–D15 + CROSS_MODULE_CONSISTENCY + SECOND_ORDER_REVIEW
            · Consumes aggregated METHOD_CHAINS (with X:-prefixed tier-2 inlined steps visible)
-→ Merge + Deduplicate + Validate → Display Report → Update State → Summary
+→ Merge + Deduplicate + Validate
+→ Acceptance Gate (run tests fresh + reconcile every P0/P1 criterion → a named passing test; P0 gap or red test ⇒ BLOCKED)
+→ Display Report → Update State → Summary
 ```
 
 ## Context Management
@@ -128,6 +135,29 @@ Output format: the `METHOD_CHAINS` section defined in `references/sub-agent-form
 
 **Full gate definitions, drop rules, and the over-flagging anti-rationalization table (countering "the input could be malformed if an attacker controls it" / "I haven't found anything in D8 yet — I should produce something" / "It's just a rename for clarity — that's a legitimate suggestion" etc.) live in `references/suppression-gates.md`.** Sub-agents MUST read it before emitting findings.
 
+## Acceptance Gate (Mandatory — Dynamic Verification + Coverage Reconciliation)
+
+**This gate runs on every review unless `--quick` is passed.** It is executed in Step 3G, after the dimensional review and before the report is displayed.
+
+**Why it exists.** The 15 dimensions and the call-graph discipline verify that the code that *exists* is correct. Nothing in them verifies that every *required* behavior exists and is backed by a test that actually ran and passed. That is the precise gap between "works in a demo" and "passes product acceptance" — happy-path code that the reviewer confirms is correct, while the boundary / error / negative / NFR behaviors the spec required were never implemented or never tested. The Acceptance Gate is the only check that asks the second question.
+
+**Polarity warning — this gate is the OPPOSITE of the Finding Suppression Gate.** The five suppression gates and the `CANDIDATE_INVENTORY` scratchpad exist to DROP unproven findings on the *correctness* review (where over-flagging is the failure mode). The Acceptance Gate's job is to REPORT ABSENCE (where under-flagging is the failure mode). **The suppression gates, the scratchpad, and the Gate-5 evidence-artifact requirement DO NOT apply to acceptance findings.** A required behavior with no passing test is itself the finding — never drop it for lack of a reachable-trigger argument, a grep artifact, or a "concrete observable wrong behavior." The absence IS the evidence.
+
+**Two parts.**
+
+1. **Dynamic verification (absorbs the `code-forge:verify` discipline).** Actually run the project's test suite, fresh, and read the complete output. No completion claim from memory, from a previous run, or from "the impl agent said it passed." A skipped / todo / pending test never counts as passing.
+2. **Coverage reconciliation.** Enumerate the REQUIRED behaviors from the authoritative source and map each to a named test that exists, executed, passed, and demonstrably exercises that behavior. Unmapped P0 ⇒ **blocker**; unmapped P1 ⇒ **critical**.
+
+**Authoritative source resolution (first found wins).** Record which one was used.
+1. `docs/{feature}/srs.md` — every P0/P1 functional requirement's acceptance criteria, plus measurable NFRs.
+2. `docs/{feature}/test-cases.md` — every P0/P1 test case (TC-ID + title + expected result).
+3. Feature mode: `plan.md` `## Acceptance Criteria`. Project mode: the docs-backed criteria located in Step 2P, or `docs/features/*.md` `## Acceptance Criteria`.
+4. None found → **bare acceptance**: skip reconciliation, still run dynamic verification, and note that no authoritative source was found (point the user at `/spec-forge:srs` or `/spec-forge:test-cases`).
+
+**Coverage rule.** A required behavior is `covered` ONLY when a test (a) exists, (b) executed in this run, (c) passed, and (d) demonstrably exercises the behavior — matched by TC-ID embedded in the test name, or by behavior/assertion when no TC-ID convention exists. A passing test that only asserts the happy path (or "no error thrown") while the behavior requires boundary / error / negative assertions is `weak` — treat as uncovered for that sub-aspect. `to-be-automated` never counts.
+
+**Verdict.** `ACCEPTANCE_GATE = BLOCKED` when any test failed, OR any P0 behavior is uncovered/weak, OR no runnable suite exists while P0 behaviors are defined. Otherwise `PASS` (bare acceptance with a green suite is `PASS (unreconciled)`). **When BLOCKED, the orchestrator sets overall `merge_readiness = rework_required` regardless of the dimensional findings, and the gate failures are listed at the TOP of the report — above every dimensional finding.** The gate result renders as the first section of the report (see `references/report-template.md` §Acceptance Gate).
+
 ## Review Dimensions Reference
 
 For the full list of 15 review dimensions with check items, read `references/dimensions.md`.
@@ -171,6 +201,10 @@ If the user passed `--github-pr` (e.g., `/code-forge:review --github-pr` or `/co
 If the user passed `--feedback` (e.g., `/code-forge:review --feedback` or `/code-forge:review --feedback #123`):
 
 → **Feedback Mode** — Read and follow `skills/review/feedback-workflow.md`. Do NOT continue with the steps below.
+
+#### 1.0c `--quick` Flag Provided
+
+If the user passed `--quick`, record `quick_mode = true`. This is orthogonal to the mode (it composes with feature/project mode) and instructs Step 3G to skip the Acceptance Gate entirely — the review runs the static 15-dimension analysis only, with no test execution and no coverage reconciliation. Continue with the normal mode detection below.
 
 #### 1.1 Feature Name Provided
 
@@ -343,7 +377,7 @@ Additionally, always check **Plan Consistency** (feature mode specific):
 
 **Sub-agent must return the structured format defined in `references/sub-agent-format.md`** (use the Feature Mode `PLAN_CONSISTENCY` consistency section).
 
-→ Go to Step 4F
+→ Go to Step 3G (Acceptance Gate), then Step 4F
 
 ---
 
@@ -429,7 +463,7 @@ For each fix pattern visible in the diff (identifiable from per-module METHOD_CH
 
 **Return format:** Cross-Module sub-agent format (see `references/sub-agent-format.md` §Cross-Module format)
 
-→ Proceed to Step 4F with merged results from 3F.4b + 3F.5
+→ Proceed to Step 3G (Acceptance Gate), then Step 4F with merged results from 3F.4b + 3F.5
 
 ---
 
@@ -514,7 +548,7 @@ Apply the appropriate **Consistency** check based on reference level:
 
 **Sub-agent must return the structured format defined in `references/sub-agent-format.md`** (Project Mode `CONSISTENCY` section). All issues MUST reference specific source files and line numbers/ranges.
 
-→ Go to Step 4P
+→ Go to Step 3G (Acceptance Gate), then Step 4P
 
 ---
 
@@ -546,7 +580,61 @@ Same protocol as 3F.5, with the following adjustments:
 
 Return format: Cross-Module sub-agent format (see `references/sub-agent-format.md` §Cross-Module format)
 
-→ Go to Step 4P with merged results from 3P.3b + 3P.4
+→ Proceed to Step 3G (Acceptance Gate), then Step 4P with merged results from 3P.3b + 3P.4
+
+---
+
+### Step 3G: Acceptance Gate (both modes — after the dimensional review, before Display)
+
+The dimensional review above checks whether the code that exists is correct. This gate checks the orthogonal question: **does every required behavior exist, and is each backed by a test that actually ran and passed?** It has the OPPOSITE polarity from the Finding Suppression Gate — see §Acceptance Gate. The five suppression gates and the `CANDIDATE_INVENTORY` scratchpad DO NOT apply here; an uncovered required behavior is itself the finding and is never dropped for lack of a reachable-trigger or grep artifact.
+
+#### 3G.0 Quick-mode bypass
+
+If `quick_mode == true` (from Step 1.0c): skip this entire step. Set `acceptance_gate = {status: "skipped", reason: "--quick"}` and proceed to Step 4F (feature mode) or Step 4P (project mode). The Step 6 summary MUST state the gate was skipped so the user knows the review was static-only.
+
+#### 3G.1 Resolve the authoritative acceptance source
+
+Resolve in order; first found wins. Record `acceptance_source`.
+
+1. `docs/{feature}/srs.md` (feature mode) — extract every P0/P1 functional requirement's acceptance criteria + measurable NFRs.
+2. `docs/{feature}/test-cases.md` — extract every P0/P1 test case (TC-ID + title + expected result).
+3. Feature mode: `plan.md` `## Acceptance Criteria`. Project mode: the docs-backed criteria already located in Step 2P, or `docs/features/*.md` `## Acceptance Criteria`.
+4. None found → **bare acceptance**: skip reconciliation (3G.3); still run dynamic verification (3G.2). Record `acceptance_source = "none"` and the note: *"No authoritative acceptance source (SRS / test-cases / acceptance criteria) found — coverage reconciliation skipped. Run /spec-forge:srs or /spec-forge:test-cases to enable it."*
+
+Build `REQUIRED_BEHAVIORS` = the P0/P1 items from the first source found, each `{id, priority (P0|P1), description, expected_result}`.
+
+#### 3G.2 Dynamic verification — run the suite fresh (MANDATORY, never from memory)
+
+Follow the `code-forge:verify` discipline: IDENTIFY → RUN → READ.
+
+1. Detect the test command (project test framework from the Step "Project Analysis" PA.1; else `package.json` scripts / `pytest` / `go test ./...` / `cargo test` / `mvn test` / `gradle test` / `dotnet test` / etc.).
+2. Run it FRESH via `Bash`. READ the COMPLETE output — not just the last line.
+3. Capture: `tests_total`, `tests_passed`, `tests_failed`, `tests_skipped`, and the executed test names with pass/fail status (for large suites, capture at least every failing test name plus the passing-test names needed for 3G.3 matching).
+4. If no runnable test command exists: record `verification = {status: "no_suite"}`. No required behavior can be confirmed → every P0 behavior is UNCOVERED → gate BLOCKED (3G.4). Surface: *"No runnable test suite found — acceptance cannot be verified."*
+5. A skipped / todo / pending test does NOT count as passing for any behavior.
+
+#### 3G.3 Coverage reconciliation (skip in bare acceptance)
+
+Dispatch a dedicated acceptance sub-agent — `Agent(subagent_type="general-purpose", description="Acceptance reconciliation: {feature}")`. The prompt MUST include `REQUIRED_BEHAVIORS`, the list of test files, and the executed-test names + statuses from 3G.2.
+
+The sub-agent maps EACH required behavior to exactly one of:
+
+- `covered` — a test that (a) exists, (b) executed in 3G.2, (c) passed, and (d) demonstrably exercises this behavior (matched by TC-ID in the test name, OR by behavior/assertion when no TC-ID convention exists). Cite the test name + `file:line`.
+- `uncovered` — no such test. Absence IS the evidence — do NOT require any further artifact.
+- `weak` — a test exists and passed but only asserts the happy path / "no error thrown" while the behavior requires boundary, error, or negative assertions it lacks. Treat as uncovered for that sub-aspect.
+
+The sub-agent returns `ACCEPTANCE_RECONCILIATION` per `references/sub-agent-format.md`. It produces **no** `METHOD_CHAINS` and **no** `CANDIDATE_INVENTORY`, and its findings do **not** pass through the suppression gates.
+
+#### 3G.4 Compute the gate verdict
+
+1. Convert reconciliation results into findings (these bypass the suppression gates entirely): every `uncovered`/`weak` **P0** behavior → a **blocker** titled *"Required behavior {id} has no passing test"*; every `uncovered`/`weak` **P1** → a **critical**; every failed test from 3G.2 → a **blocker** titled *"{test name} is failing"*.
+2. Merge these into the report's `blocker_count` / `critical_count` so the existing Step 6 "🚫 Merge blocked" branch fires automatically.
+3. `ACCEPTANCE_GATE = BLOCKED` if (any test failed) OR (any P0 uncovered/weak) OR (`verification.status == "no_suite"` with a non-empty P0 set). Otherwise `PASS`. Bare acceptance with a green suite → `PASS (unreconciled)` with the 3G.1 note.
+4. When BLOCKED, set overall `merge_readiness = rework_required` and list the gate failures at the TOP of Recommendations, above dimensional findings.
+
+Record `acceptance_gate = {status, source, required_total, covered, uncovered_p0, uncovered_p1, tests_passed, tests_failed}` for the report (Step 4F/4P), state (Step 5F), and summary (Step 6).
+
+→ Proceed to Step 4F (feature mode) or Step 4P (project mode) to display the report.
 
 ---
 
@@ -728,6 +816,16 @@ If the user passed `--save` in the arguments, **also** write the report to `{out
        "criticals": 2,
        "warnings": 6,
        "suggestions": 4,
+       "acceptance_gate": {
+         "status": "BLOCKED",
+         "source": "test-cases",
+         "required_total": 18,
+         "covered": 15,
+         "uncovered_p0": 2,
+         "uncovered_p1": 1,
+         "tests_passed": 41,
+         "tests_failed": 0
+       },
        "health": {
          "verdict": "healthy",
          "finding_density": 1.4,
@@ -787,6 +885,7 @@ Code Review Complete: {feature_name}
 
 Rating: {overall_rating}
 Merge Readiness: {merge_readiness}
+Acceptance Gate: {PASS | BLOCKED | PASS (unreconciled) | skipped (--quick)} — {covered}/{required_total} P0/P1 behaviors covered · tests {tests_passed} passed / {tests_failed} failed{, source: srs | test-cases | plan | none}
 Issues: {total_issues} ({blocker_count} blockers, {critical_count} critical, {warning_count} warnings, {suggestion_count} suggestions)
 Report Health: {verdict_emoji_concatenated} {verdict} · density {finding_density}/100 LOC · critical share {critical_share_pct}% · auto-downgrades {n_auto_downgrades} · drops {dropped_total}
 {If verdict != healthy, append one block-quote line PER raised flag (in order noisy, inflated, gated, fabricating):}
@@ -826,6 +925,7 @@ Project Review Complete: {project_name}
 Rating: {overall_rating}
 Merge Readiness: {merge_readiness}
 Reference: {planning-backed (N plans) | docs-backed (N documents) | bare}
+Acceptance Gate: {PASS | BLOCKED | PASS (unreconciled) | skipped (--quick)} — {covered}/{required_total} P0/P1 behaviors covered · tests {tests_passed} passed / {tests_failed} failed{, source: srs | test-cases | docs | none}
 Issues: {total_issues} ({blocker_count} blockers, {critical_count} critical, {warning_count} warnings, {suggestion_count} suggestions)
 Report Health: {verdict_emoji_concatenated} {verdict} · density {finding_density}/100 LOC · critical share {critical_share_pct}% · auto-downgrades {n_auto_downgrades} · drops {dropped_total}
 {If verdict != healthy, append one block-quote line PER raised flag (in order noisy, inflated, gated, fabricating):}

@@ -149,6 +149,8 @@ D15 is **always applied** regardless of project type, language, or reference lev
 
 Are critical paths tested? Are tests meaningful?
 
+**Relationship to the Acceptance Gate (SKILL.md §Acceptance Gate).** D7 is the *qualitative* judgment — are the tests that exist meaningful, independent, deterministic, asserting behavior not implementation? It is subject to the suppression gates like every other dimension. D7 does NOT verify that every required behavior from the spec has a passing test — that *mechanical reconciliation* (required P0/P1 behavior → named passing test, absence = blocker) is the Acceptance Gate's job, which runs separately in Step 3G, actually executes the suite, and is NOT subject to the suppression gates. The two are complementary: the Acceptance Gate proves the required behaviors are tested at all; D7 judges whether those (and other) tests are any good. Keep applying D7 normally.
+
 Check items:
 - **Coverage of critical paths:** Core business logic, state transitions, and data transformations have tests
 - **Happy path:** Normal/expected flow is tested

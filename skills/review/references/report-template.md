@@ -27,7 +27,35 @@ Display the following report directly in the terminal using markdown.
 
 ## Body
 
+The Acceptance Gate section is rendered FIRST — above Summary — whenever the gate ran (i.e. not `--quick`). It is the merge-blocking verdict; dimensional findings come after it.
+
 ```markdown
+## Acceptance Gate
+
+**Verdict:** {✅ PASS | 🚫 BLOCKED | ⚠ PASS (unreconciled) | ⏭ skipped (--quick)}
+**Source:** {srs `docs/{feature}/srs.md` | test-cases `docs/{feature}/test-cases.md` | plan `plan.md` | docs | none}
+**Dynamic verification:** {tests_passed} passed · {tests_failed} failed · {tests_skipped} skipped {| no runnable suite found}
+**Coverage:** {covered}/{required_total} P0/P1 required behaviors backed by a passing test
+
+{If BLOCKED — list the gate failures, P0 first. These are merge blockers and appear ABOVE all dimensional findings:}
+
+| Behavior | Priority | Status | Missing test / failing test |
+|----------|----------|--------|-----------------------------|
+| {id — description} | P0 | uncovered | No test exercises this behavior |
+| {id — description} | P0 | weak | {test name} passes but asserts only the happy path; no boundary/error assertion |
+| {test name} | — | failing | {one-line failure reason from the run} |
+
+{If P1 gaps exist (non-blocking criticals):}
+**P1 gaps (non-blocking, fix recommended):** {id — description}, ...
+
+{If PASS (unreconciled):}
+> No authoritative acceptance source (SRS / test-cases / acceptance criteria) found — coverage reconciliation skipped; only dynamic verification ran. Run `/spec-forge:srs` or `/spec-forge:test-cases` to enable reconciliation.
+
+{If skipped:}
+> Acceptance Gate skipped (`--quick`) — this was a static-only review. Tests were NOT run and acceptance coverage was NOT verified. Re-run without `--quick` before treating this as merge-ready.
+
+---
+
 ## Summary
 
 {1-2 paragraph summary of the review findings}
