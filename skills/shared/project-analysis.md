@@ -11,9 +11,9 @@
 Before the manual scans, run the facts collector once — it gathers the
 enumeration signals (language mix, build files, dependency names, detected
 frameworks, test files + framework + command, source-tree top level,
-entrypoints) in a single pass instead of many Grep/Glob round-trips. Locate
-`<cf_scripts>` once (Glob `**/skills/shared/scripts/cf_common.py`, take its
-parent), then:
+entrypoints) in a single pass instead of many Grep/Glob round-trips. Resolve
+`<cf_scripts>` once (see *Locating the script layer* in the configuration step —
+it lives in the install, not the project), then:
 
 ```bash
 python3 "<cf_scripts>/cf-scan.py"

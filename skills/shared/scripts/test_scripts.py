@@ -270,5 +270,26 @@ class ScanTests(unittest.TestCase):
             self.assertEqual(out["frameworks"], [])
 
 
+class HygieneTests(unittest.TestCase):
+    CLIS = ["cf-config.py", "cf-state.py", "cf-status.py", "cf-verify-plan.py", "cf-scan.py"]
+
+    def test_clis_disable_bytecode_writes(self):
+        # Guards read-only installs and keeps the shared install dir clean.
+        for name in self.CLIS:
+            with open(os.path.join(HERE, name), encoding="utf-8") as fh:
+                self.assertIn("sys.dont_write_bytecode = True", fh.read(),
+                              f"{name} must disable bytecode writes")
+
+    def test_cli_run_writes_no_pycache(self):
+        # Copy the layer to a temp dir and confirm a CLI run leaves no __pycache__.
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            dst = os.path.join(tmp, "scripts")
+            shutil.copytree(HERE, dst, ignore=shutil.ignore_patterns("__pycache__"))
+            subprocess.run([PY, os.path.join(dst, "cf-config.py"), "--root", tmp],
+                           capture_output=True, text=True)
+            self.assertFalse(os.path.isdir(os.path.join(dst, "__pycache__")))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -2,29 +2,58 @@
 
 **Important:** Detect and load configuration before any operation.
 
+#### Locating the script layer (`<cf_scripts>`)
+
+The scripts live in the **same code-forge installation as the skill you are
+running**, at `skills/shared/scripts/`. Skills run from the *user's* project
+directory, never from the install, so resolve the script path from the
+**install**, not the project. Resolve it once per session, call it
+`<cf_scripts>`, and reuse it everywhere:
+
+1. **Preferred — derive from this skill's own location.** `<cf_scripts>` is
+   `../shared/scripts/` relative to the directory of the SKILL.md you are
+   executing (a sibling of this skill's folder and of the `shared/*.md` files it
+   `@`-includes). Using the same install guarantees the script version matches
+   the skill version — **do not pull scripts from a different install**, since
+   cached copies of other versions may exist.
+2. **If that absolute path is not known**, discover it (this follows symlinks
+   and avoids shell-glob pitfalls; works in bash and zsh):
+
+   ```bash
+   find -L ~/.agents/skills ~/.claude/skills ~/.claude/plugins/cache \
+     -maxdepth 7 -type f -name cf_common.py -path '*code-forge*/skills/shared/scripts/*' \
+     2>/dev/null | head -1
+   ```
+
+   Use the parent directory of the result.
+3. **Verify** `cf_common.py` exists at `<cf_scripts>` before invoking any script.
+   If it cannot be found, or `python3` is unavailable, use each step's manual
+   fallback — never guess a path, never stop, never ask the user.
+
+Always quote the path when invoking (`python3 "<cf_scripts>/cf-config.py"`) and
+quote project file arguments too — project paths may contain spaces.
+
 #### Fast path (preferred): run the resolver script
 
 code-forge ships a deterministic resolver so root detection, the three-layer
 config merge, validation, and path resolution never have to be done by hand
-(it is also more reliable than hand-merging JSON).
-
-1. **Locate the scripts directory once** and reuse it for the whole session:
-   Glob `**/skills/shared/scripts/cf_common.py` and take its parent directory.
-   Call it `<cf_scripts>`.
-2. Run, from the project root:
+(it is also more reliable than hand-merging JSON). Using `<cf_scripts>` resolved
+above, run from the project root:
 
    ```bash
    python3 "<cf_scripts>/cf-config.py" [--tmp]
    ```
 
-3. Parse the JSON it prints and use these fields directly: `project_root`,
+Then:
+
+1. Parse the JSON it prints and use these fields directly: `project_root`,
    `config`, `base_dir`, `input_dir`, `output_dir`, `tmp_mode`, `sources`,
    `errors`.
-4. If `errors` is non-empty, display each error; the resolver has already
+2. If `errors` is non-empty, display each error; the resolver has already
    fallen back to system defaults, so continue with the values it returned.
-5. Show a one-line config summary (base/input/output + `sources`) and
+3. Show a one-line config summary (base/input/output + `sources`) and
    **proceed directly** — no confirmation needed.
-6. For `--tmp`: after the resolver reports `tmp_mode: true`, ensure
+4. For `--tmp`: after the resolver reports `tmp_mode: true`, ensure
    `.code-forge/` is gitignored (`git check-ignore -q .code-forge/` || append
    `**/.code-forge/` to `.gitignore`) and show the temporary-mode notice. The
    resolver is read-only and never edits `.gitignore`.

@@ -1,6 +1,6 @@
 #### Scan and Analyze
 
-1. Get the aggregated per-feature data deterministically: `python3 "<cf_scripts>/cf-status.py" --json` returns every feature's `feature`, `completed`, `total`, `status`, `updated`, and `source_doc` — use it to fill the progress/status/link columns instead of re-globbing and re-parsing `state.json` by hand. (`<cf_scripts>` = parent of `**/skills/shared/scripts/cf_common.py`. Fall back to scanning `{output_dir}/*/state.json` if `python3` is unavailable.)
+1. Get the aggregated per-feature data deterministically: `python3 "<cf_scripts>/cf-status.py" --json` returns every feature's `feature`, `completed`, `total`, `status`, `updated`, and `source_doc` — use it to fill the progress/status/link columns instead of re-globbing and re-parsing `state.json` by hand. (`<cf_scripts>` is resolved via *Locating the script layer* in the configuration step. Fall back to scanning `{output_dir}/*/state.json` if `python3` is unavailable.)
 2. Read each feature's `overview.md` and `plan.md` only for the parts the data above does not cover: descriptions and inter-feature dependencies
 3. Determine implementation order based on actual dependencies (not alphabetical)
 

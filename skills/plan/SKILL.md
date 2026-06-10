@@ -617,8 +617,8 @@ Generate feature overview with these required sections:
 
 **Fast path:** scaffold `state.json` with the state helper — it computes
 `execution_order` by topological sort of the task dependencies, fills the
-`progress` block, and stamps `created`/`updated`. Locate `<cf_scripts>` once
-(Glob `**/skills/shared/scripts/cf_common.py`, take its parent), then pipe the
+`progress` block, and stamps `created`/`updated`. Resolve `<cf_scripts>` once
+(see *Locating the script layer* in the configuration step), then pipe the
 task list (a JSON array of `{id, title, dependencies, estimated_hours}`; `file`
 defaults to `tasks/{id}.md`) on stdin:
 

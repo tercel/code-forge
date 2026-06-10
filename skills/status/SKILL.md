@@ -57,11 +57,11 @@ Based on arguments:
 
 Run the status renderer — it scans both plan locations, recomputes progress from
 each `state.json`, and prints the ready-to-display table so the raw state files
-never enter context. Locate `<cf_scripts>` once (Glob
-`**/skills/shared/scripts/cf_common.py`, take its parent), then:
+never enter context. Resolve `<cf_scripts>` once (see *Locating the script
+layer* in the configuration step), then:
 
 ```bash
-python3 "<cf_scripts>/cf-status.py" [--output-dir <output_dir>]
+python3 "<cf_scripts>/cf-status.py" [--output-dir "<output_dir>"]
 ```
 
 Print its output as the dashboard, then continue to 2.3 (update overview) and

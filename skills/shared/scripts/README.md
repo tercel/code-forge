@@ -21,14 +21,27 @@ these scripts keep the *record-keeping*.
 
 ## Locating the scripts at runtime
 
-A skill runs from the *user's* project, not from the code-forge install. Resolve
-the scripts directory once per session and reuse it:
+A skill runs from the *user's* project directory, not from the code-forge
+install — so a project-cwd glob will not find these scripts. Resolve the path
+from the **install** instead, once per session, and reuse it (full procedure in
+`configuration.md` → *Locating the script layer*):
 
-```
-Glob  **/skills/shared/scripts/cf_common.py   →   take its parent directory
-```
+1. **Preferred:** `<cf_scripts>` is `../shared/scripts/` relative to the skill
+   you are running — the *same* installation, so the script version matches the
+   skill version. Do not borrow scripts from a different (possibly stale) cached
+   install.
+2. **Fallback discovery** (follows symlinks, bash- and zsh-safe):
 
-Call that `<cf_scripts>` and invoke `python3 "<cf_scripts>/<script>.py" ...`.
+   ```bash
+   find -L ~/.agents/skills ~/.claude/skills ~/.claude/plugins/cache \
+     -maxdepth 7 -type f -name cf_common.py -path '*code-forge*/skills/shared/scripts/*' \
+     2>/dev/null | head -1     # use the parent dir
+   ```
+3. Verify `cf_common.py` exists before use; otherwise fall back to the manual
+   path in the skill.
+
+Invoke as `python3 "<cf_scripts>/<script>.py" ...`, quoting both the script path
+and any project file arguments (project paths may contain spaces).
 
 ## Scripts
 

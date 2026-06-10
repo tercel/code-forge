@@ -25,6 +25,7 @@ import os
 import re
 import sys
 
+sys.dont_write_bytecode = True  # never write .pyc into a possibly read-only install dir
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cf_common as cf
 

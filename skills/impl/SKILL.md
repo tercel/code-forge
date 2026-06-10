@@ -131,13 +131,13 @@ Use `AskUserQuestion`:
 **Deterministic state operations:** use the state helper for every `state.json`
 read and mutation in this loop — it recomputes progress, fixes timestamps, and
 derives the next runnable task without pulling the whole file into context.
-Locate `<cf_scripts>` once (Glob `**/skills/shared/scripts/cf_common.py`, take
-its parent), then:
-- Next task: `python3 "<cf_scripts>/cf-state.py" next <state.json>` → prints
+Resolve `<cf_scripts>` once (see *Locating the script layer* in the configuration
+step) and quote paths, then:
+- Next task: `python3 "<cf_scripts>/cf-state.py" next "<state.json>"` → prints
   `id\ttitle`, or `ALL_DONE`.
-- Set status: `python3 "<cf_scripts>/cf-state.py" set-status <state.json> <id> <status>`
+- Set status: `python3 "<cf_scripts>/cf-state.py" set-status "<state.json>" <id> <status>`
   (`status` ∈ `in_progress|completed|skipped|blocked|pending`).
-- Quick view: `python3 "<cf_scripts>/cf-state.py" show <state.json>`.
+- Quick view: `python3 "<cf_scripts>/cf-state.py" show "<state.json>"`.
 If `python3` is unavailable, fall back to editing `state.json` by hand (set the
 task status, fix `started_at`/`completed_at`, recompute the `progress` block and
 the feature-level `status`).
@@ -242,7 +242,7 @@ Then re-verify.
 
 After all tasks are completed:
 
-1. Finalize `state.json`: `python3 "<cf_scripts>/cf-state.py" recompute <state.json>` (recomputes the `progress` block and sets the feature-level `status`). Fall back to editing by hand if `python3` is unavailable.
+1. Finalize `state.json`: `python3 "<cf_scripts>/cf-state.py" recompute "<state.json>"` (recomputes the `progress` block and sets the feature-level `status`). Fall back to editing by hand if `python3` is unavailable.
 2. Regenerate the project-level overview (`{output_dir}/overview.md`)
 
 ```

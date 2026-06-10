@@ -20,6 +20,8 @@ import os
 import re
 import sys
 
+sys.dont_write_bytecode = True  # never write .pyc into a possibly read-only install dir
+
 try:
     import tomllib  # Python 3.11+
 except ModuleNotFoundError:  # pragma: no cover
@@ -79,7 +81,7 @@ SOURCE_DIR_NAMES = ["src", "app", "lib", "cmd", "internal", "pkg"]
 def _strip_pkg(name):
     """Reduce a dependency spec to its bare package name."""
     name = name.strip().strip('"').strip("'")
-    name = re.split(r"[<>=!~;\[\(\s]", name, 1)[0]
+    name = re.split(r"[<>=!~;\[\(\s]", name, maxsplit=1)[0]
     return name.strip()
 
 
