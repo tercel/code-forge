@@ -615,7 +615,24 @@ Generate feature overview with these required sections:
 
 ### Step 10: Initialize state.json
 
-Create `state.json` with these required fields:
+**Fast path:** scaffold `state.json` with the state helper — it computes
+`execution_order` by topological sort of the task dependencies, fills the
+`progress` block, and stamps `created`/`updated`. Locate `<cf_scripts>` once
+(Glob `**/skills/shared/scripts/cf_common.py`, take its parent), then pipe the
+task list (a JSON array of `{id, title, dependencies, estimated_hours}`; `file`
+defaults to `tasks/{id}.md`) on stdin:
+
+```bash
+echo '[{"id":"setup","title":"Project setup","dependencies":[]}, ...]' \
+  | python3 "<cf_scripts>/cf-state.py" init \
+      --feature <name> --source-doc <doc> \
+      --output "<output_dir>/<name>/state.json"
+```
+
+It errors (non-zero) on a dependency cycle — fix the cycle and re-run. If
+`python3` is unavailable, build `state.json` by hand with the fields below.
+
+Required fields (the helper produces exactly these):
 
 | Field | Description |
 |-------|-------------|
@@ -657,6 +674,16 @@ Display: `Project overview updated: {output_dir}/overview.md`
 ### Step 12: Verify Output Structure
 
 **Mandatory — do NOT proceed to Step 13 until all checks pass. Fix failures before continuing.**
+
+**Fast path:** run the validator in strict mode (every warning is an error here):
+
+```bash
+python3 "<cf_scripts>/cf-verify-plan.py" "<output_dir>/<feature>" \
+  --output-dir "<output_dir>" --root "<project_root>" --strict
+```
+
+A zero exit means all checks below pass; otherwise fix the reported failures and
+re-run before continuing. If `python3` is unavailable, run the checks by hand.
 
 1. `{output_dir}/{feature_name}/` exists
 2. `plan.md` exists and non-empty

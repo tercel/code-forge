@@ -2,6 +2,39 @@
 
 **Important:** Detect and load configuration before any operation.
 
+#### Fast path (preferred): run the resolver script
+
+code-forge ships a deterministic resolver so root detection, the three-layer
+config merge, validation, and path resolution never have to be done by hand
+(it is also more reliable than hand-merging JSON).
+
+1. **Locate the scripts directory once** and reuse it for the whole session:
+   Glob `**/skills/shared/scripts/cf_common.py` and take its parent directory.
+   Call it `<cf_scripts>`.
+2. Run, from the project root:
+
+   ```bash
+   python3 "<cf_scripts>/cf-config.py" [--tmp]
+   ```
+
+3. Parse the JSON it prints and use these fields directly: `project_root`,
+   `config`, `base_dir`, `input_dir`, `output_dir`, `tmp_mode`, `sources`,
+   `errors`.
+4. If `errors` is non-empty, display each error; the resolver has already
+   fallen back to system defaults, so continue with the values it returned.
+5. Show a one-line config summary (base/input/output + `sources`) and
+   **proceed directly** — no confirmation needed.
+6. For `--tmp`: after the resolver reports `tmp_mode: true`, ensure
+   `.code-forge/` is gitignored (`git check-ignore -q .code-forge/` || append
+   `**/.code-forge/` to `.gitignore`) and show the temporary-mode notice. The
+   resolver is read-only and never edits `.gitignore`.
+
+If `python3` is unavailable or the script cannot be found, use the manual
+fallback below to produce the same resolved values by hand. Do not stop or ask
+the user — switch to the fallback silently.
+
+#### Manual fallback: configuration detection and loading
+
 #### 0.1 Detect Project Root
 
 Search upward for project root markers:

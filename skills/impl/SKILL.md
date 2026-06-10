@@ -128,18 +128,31 @@ Use `AskUserQuestion`:
 
 #### 3.1 Coordination Loop (Main Context)
 
-1. Read `state.json`
-2. Find the next task in `execution_order` that is `"pending"` with no unmet dependencies
-3. If no such task exists: display "All tasks completed!" and exit loop
-4. Display: "Starting task: {id} - {title}"
-5. Update task status to `"in_progress"` in `state.json`
-6. **Dispatch sub-agent** for this task (see 3.2)
-7. Review the sub-agent's execution summary
-8. Ask user via `AskUserQuestion`: "Is the task completed?"
-   - **"Completed, continue to next"** → update status to `"completed"`, continue loop
-   - **"Encountered issue, pause"** → keep `"in_progress"`, exit loop
-   - **"Skip this task"** → update status to `"skipped"`, continue loop
-9. Repeat from step 1
+**Deterministic state operations:** use the state helper for every `state.json`
+read and mutation in this loop — it recomputes progress, fixes timestamps, and
+derives the next runnable task without pulling the whole file into context.
+Locate `<cf_scripts>` once (Glob `**/skills/shared/scripts/cf_common.py`, take
+its parent), then:
+- Next task: `python3 "<cf_scripts>/cf-state.py" next <state.json>` → prints
+  `id\ttitle`, or `ALL_DONE`.
+- Set status: `python3 "<cf_scripts>/cf-state.py" set-status <state.json> <id> <status>`
+  (`status` ∈ `in_progress|completed|skipped|blocked|pending`).
+- Quick view: `python3 "<cf_scripts>/cf-state.py" show <state.json>`.
+If `python3` is unavailable, fall back to editing `state.json` by hand (set the
+task status, fix `started_at`/`completed_at`, recompute the `progress` block and
+the feature-level `status`).
+
+1. Get the next runnable task: `cf-state.py next <state.json>`
+2. If it prints `ALL_DONE`: display "All tasks completed!" and exit loop
+3. Display: "Starting task: {id} - {title}"
+4. `cf-state.py set-status <state.json> {id} in_progress`
+5. **Dispatch sub-agent** for this task (see 3.2)
+6. Review the sub-agent's execution summary
+7. Ask user via `AskUserQuestion`: "Is the task completed?"
+   - **"Completed, continue to next"** → `set-status {id} completed`, continue loop
+   - **"Encountered issue, pause"** → `set-status {id} blocked` (or leave `in_progress`), exit loop
+   - **"Skip this task"** → `set-status {id} skipped`, continue loop
+8. Repeat from step 1
 
 #### 3.2 Task Execution Sub-agent
 
@@ -194,7 +207,19 @@ After all parallel sub-agents complete, review each summary and update `state.js
 
 Before completion summary, verify all generated files:
 
-**Checks:**
+**Fast path:** run the structural validator and act on its result:
+
+```bash
+python3 "<cf_scripts>/cf-verify-plan.py" "<output_dir>/<feature>" --output-dir "<output_dir>"
+```
+
+It prints a PASS/FAIL/WARN checklist and exits non-zero on any structural error
+(missing/empty required files, invalid or inconsistent `state.json`, a referenced
+task file that is missing). Treat content-section gaps as warnings. On a non-zero
+exit, apply the auto-fixes below and re-run. If `python3` is unavailable, run the
+checks by hand.
+
+**Checks (the validator covers all of these):**
 1. Required files exist and are non-empty: `overview.md`, `plan.md`, `state.json`
 2. `tasks/` directory exists and contains `.md` files with descriptive names
 3. `state.json` is valid JSON with required fields (`feature`, `status`, `tasks`, `execution_order`); task count matches task files; all IDs in `execution_order` match `tasks` entries
@@ -217,7 +242,7 @@ Then re-verify.
 
 After all tasks are completed:
 
-1. Update `state.json` with final status
+1. Finalize `state.json`: `python3 "<cf_scripts>/cf-state.py" recompute <state.json>` (recomputes the `progress` block and sets the feature-level `status`). Fall back to editing by hand if `python3` is unavailable.
 2. Regenerate the project-level overview (`{output_dir}/overview.md`)
 
 ```

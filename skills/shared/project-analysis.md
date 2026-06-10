@@ -6,6 +6,27 @@
 
 ---
 
+#### PA.0 Fast-path: collect raw facts first
+
+Before the manual scans, run the facts collector once — it gathers the
+enumeration signals (language mix, build files, dependency names, detected
+frameworks, test files + framework + command, source-tree top level,
+entrypoints) in a single pass instead of many Grep/Glob round-trips. Locate
+`<cf_scripts>` once (Glob `**/skills/shared/scripts/cf_common.py`, take its
+parent), then:
+
+```bash
+python3 "<cf_scripts>/cf-scan.py"
+```
+
+Use its JSON as the starting inventory for PA.1, PA.2.1, and PA.5. It is a
+**facts collector, not an analyst** — architecture pattern (PA.2.2), dependency
+direction (PA.2.3), call graph and data flow (PA.4), and risk assessment (PA.7)
+are still your job; verify the collector's guesses before relying on them. If
+`python3` is unavailable, perform the scans below entirely by hand.
+
+---
+
 #### PA.1 Project Profile Detection
 
 Determine what kind of project this is. Scan for framework signatures in build/config files:

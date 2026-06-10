@@ -90,6 +90,13 @@ Keep context small.
 6. Read `skills/shared/design-first.md` before code-writing workflows that must avoid patch-first implementation.
 7. Read `skills/shared/multi-repo.md` only when `--repos` or multi-repo work is requested.
 
+The `skills/shared/scripts/` layer (Python 3, stdlib only) absorbs deterministic
+bookkeeping so it does not cost tokens or risk hand-merge errors: `cf-config.py`
+(config resolution), `cf-state.py` (state.json read/mutate), `cf-status.py`
+(dashboard rendering), `cf-verify-plan.py` (plan structure validation), and
+`cf-scan.py` (project facts collection). The skills that use them invoke them on
+a fast path and keep a manual fallback. See `skills/shared/scripts/README.md`.
+
 Do not bulk-load every child skill. Do not read all shared references just because
 the suite is complex.
 
@@ -117,6 +124,7 @@ Use these references only when relevant:
 - `skills/shared/coding-standards.md`: implementation standards.
 - `skills/shared/overview-generation.md`: generated overview structure.
 - `skills/shared/multi-repo.md`: multi-repo orchestration.
+- `skills/shared/scripts/`: deterministic Python helpers (config, state, status) with a README and per-skill fast-path/fallback wiring.
 
 ## Main Workflows
 

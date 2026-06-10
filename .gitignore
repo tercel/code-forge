@@ -10,3 +10,7 @@ worktrees/
 
 # diagnostics output
 skills/*/evals/
+
+# python script layer
+__pycache__/
+*.py[cod]

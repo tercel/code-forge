@@ -53,6 +53,21 @@ Based on arguments:
 
 ### Step 2: Global Dashboard
 
+#### 2.0 Render the dashboard (fast path)
+
+Run the status renderer — it scans both plan locations, recomputes progress from
+each `state.json`, and prints the ready-to-display table so the raw state files
+never enter context. Locate `<cf_scripts>` once (Glob
+`**/skills/shared/scripts/cf_common.py`, take its parent), then:
+
+```bash
+python3 "<cf_scripts>/cf-status.py" [--output-dir <output_dir>]
+```
+
+Print its output as the dashboard, then continue to 2.3 (update overview) and
+2.4 (handle selection). If `python3` is unavailable or the script is missing,
+build the table by hand using 2.1–2.2 below.
+
 #### 2.1 Scan for Features
 
 1. Resolve the output directory: `<base_dir>/<output_dir>/`
@@ -107,6 +122,12 @@ After scanning, regenerate `{output_dir}/overview.md` using Step 4 logic.
 ### Step 3: Feature Detail
 
 #### 3.1 Locate Feature
+
+**Fast path:** `python3 "<cf_scripts>/cf-status.py" <feature_name>` locates the
+feature (output dir, then `.code-forge/tmp/`), recomputes progress, and prints
+the detail table directly — use it and skip to Step 4. On a missing feature it
+exits non-zero with an error listing where it looked. Fall back to the manual
+steps below if `python3` is unavailable.
 
 1. Look for `{output_dir}/{feature_name}/state.json`
 2. If not found, also check `.code-forge/tmp/{feature_name}/state.json`
