@@ -53,11 +53,11 @@ If `$ARGUMENTS` does **not** contain `--repos`, skip this step and continue belo
 
 **Note:** `--review` and `--repos` cannot be combined. If both are present, show error: "Cannot combine --review with --repos. Review reports are per-repo — run `/code-forge:fix --review` in each repo separately."
 
-If `--repos` is present (without `--review`): first, locate the skill installation directory by finding this SKILL.md file's parent (use `Glob` for `**/skills/fix/SKILL.md` if needed). Then dispatch `Agent(subagent_type="general-purpose", description="Fix --repos coordinator")` with prompt containing the **resolved absolute paths**:
+If `--repos` is present (without `--review`): first, resolve `<cf_scripts>` per *Locating the script layer* (the configuration step). The **code-forge install directory** `<cf_install>` is its grandparent (`<cf_scripts>/../..` — the folder that contains `skills/`); this is the install, **not** the user's project. Then dispatch `Agent(subagent_type="general-purpose", description="Fix --repos coordinator")` with prompt containing the **resolved absolute paths**:
 
 > Read these two files and follow them exactly:
-> 1. `{resolved_absolute_path}/skills/shared/multi-repo.md` — the protocol steps MR-1~MR-5
-> 2. `{resolved_absolute_path}/skills/fix/multi-repo-defs.md` — the fix-specific definitions
+> 1. `<cf_install>/skills/shared/multi-repo.md` — the protocol steps MR-1~MR-5
+> 2. `<cf_install>/skills/fix/multi-repo-defs.md` — the fix-specific definitions
 >
 > User arguments: $ARGUMENTS
 

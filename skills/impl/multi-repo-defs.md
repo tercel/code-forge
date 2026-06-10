@@ -15,19 +15,26 @@
 
 **Sub-agent prompt (MR-4):**
 
-(Coordinator: use the actual `output_dir` where you found `state.json` in MR-2 — either `planning/` or `.code-forge/tmp/`.)
+(Coordinator: use the actual `output_dir` where you found `state.json` in MR-2 — either `planning/` or `.code-forge/tmp/`. Substitute `{cf_scripts}` with the absolute scripts path passed in the dispatch prompt — `<cf_install>/skills/shared/scripts` — so the sub-agent reuses the same deterministic state helper as single-repo impl.)
 
 ```
 Implement the feature '{feature_name}' in this repository.
 
-1. Read {output_dir}/{feature_name}/state.json to find pending tasks
-2. For each pending task in execution_order:
-   a. Read the task file from tasks/ directory
-   b. Follow TDD: write tests -> run tests (expect fail) -> implement -> run tests (expect pass)
-   c. Commit changes with a descriptive message after tests pass
-   d. Update the task status to "completed" in state.json
-3. If a task is blocked (dependencies unmet, missing files), mark it as "blocked" in state.json and continue to the next task
-4. After all tasks: update the feature status in state.json
+State updates use the code-forge state helper at "{cf_scripts}/cf-state.py"
+(absolute path). If python3 is unavailable, edit state.json by hand instead:
+set the task status, fix started_at/completed_at, and recompute the progress
+block and feature-level status. Let STATE = {output_dir}/{feature_name}/state.json.
+
+1. Get the next task: python3 "{cf_scripts}/cf-state.py" next "STATE"
+   (prints `id<TAB>title`, or `ALL_DONE`).
+2. While not ALL_DONE, for that task id:
+   a. python3 "{cf_scripts}/cf-state.py" set-status "STATE" <id> in_progress
+   b. Read the task file from the tasks/ directory
+   c. Follow TDD: write tests -> run (expect fail) -> implement -> run (expect pass)
+   d. Commit changes with a descriptive message after tests pass
+   e. set-status <id> completed  (or `blocked` if dependencies unmet / files missing)
+   f. Go back to step 1
+3. After the loop: python3 "{cf_scripts}/cf-state.py" recompute "STATE"
 ```
 
 **Result format (MR-4 output):**

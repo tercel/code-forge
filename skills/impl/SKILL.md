@@ -54,11 +54,13 @@ Step 3 dispatches a dedicated sub-agent for each task, so code changes from one 
 
 If `$ARGUMENTS` does **not** contain `--repos`, skip this step and continue below.
 
-If `--repos` is present: first, locate the skill installation directory by finding this SKILL.md file's parent (use `Glob` for `**/skills/impl/SKILL.md` if needed). Then dispatch `Agent(subagent_type="general-purpose", description="Impl --repos coordinator")` with prompt containing the **resolved absolute paths**:
+If `--repos` is present: first, resolve `<cf_scripts>` per *Locating the script layer* (the configuration step). The **code-forge install directory** `<cf_install>` is its grandparent (`<cf_scripts>/../..` — the folder that contains `skills/`); this is the install, **not** the user's project. Then dispatch `Agent(subagent_type="general-purpose", description="Impl --repos coordinator")` with prompt containing the **resolved absolute paths**:
 
 > Read these two files and follow them exactly:
-> 1. `{resolved_absolute_path}/skills/shared/multi-repo.md` — the protocol steps MR-1~MR-5
-> 2. `{resolved_absolute_path}/skills/impl/multi-repo-defs.md` — the impl-specific definitions
+> 1. `<cf_install>/skills/shared/multi-repo.md` — the protocol steps MR-1~MR-5
+> 2. `<cf_install>/skills/impl/multi-repo-defs.md` — the impl-specific definitions
+>
+> The code-forge scripts are at `<cf_install>/skills/shared/scripts/` — pass this absolute path to each repo sub-agent.
 >
 > User arguments: $ARGUMENTS
 
