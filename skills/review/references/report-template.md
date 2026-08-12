@@ -232,7 +232,9 @@ Only include this section when the layered review path was used (≥ 3 affected 
 All {N} deferred cross-module callees were expanded in the cross-module pass. No coverage gap.
 
 {When `n_tier2_unreconciled ≥ 1` — this line is mandatory and goes ABOVE the consistency table:}
-> :warning: **Coverage gap.** {N} cross-module callee(s) exceeded the per-module tier-2 expansion budget and were not expanded by any agent: {callee list with file paths}. Defensive gaps on those call boundaries are outside this review's coverage. Re-run with a narrower scope to cover them.
+> ⚠ **Coverage gap.** {N} cross-module callee(s) exceeded the per-module tier-2 expansion budget and were not expanded by any agent: {callee list with file paths}. Defensive gaps on those call boundaries are outside this review's coverage. Re-run with a narrower scope to cover them.
+
+{This is an orchestrator advisory, NOT a finding — it carries no severity and must not appear in the issue counts. Downstream consumers (e.g. `/code-forge:fix --review`) extract issues by severity marker; using `:warning:` here would make them parse a coverage note as a `critical` issue with no file or line.}
 
 ### Cross-Module Consistency
 
