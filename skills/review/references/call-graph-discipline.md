@@ -25,6 +25,28 @@ When a public method calls a function/method defined in a **different module gro
 
 Rationale: a cross-module callee that is itself being modified in this diff is part of the same logical change unit as the caller. If `DisplayResolver.resolve` has an unguarded subscript, a caller that invokes it over external input is exposed to that bug. Treating the callee as an opaque `ext_call` re-creates the very blind spot the discipline exists to close.
 
+#### Tier-2 expansion budget (MANDATORY — prevents unbounded fan-out)
+
+The tier-2 eligibility set is `in_diff_files \ primary_files`, which on a large diff can be dozens of files. Expanding all of them would put the whole diff into every per-module agent's context — re-introducing the context dilution the layered architecture exists to prevent, and making review cost grow quadratically with diff size.
+
+**Budget: at most 8 distinct tier-2 files per agent.** (Module groups hold at most 4 primary files, so this allows a 2:1 cross-module-to-own-module expansion ratio.)
+
+**Spend it in this order** — when the number of distinct eligible callee files exceeds the budget, rank by **number of distinct call sites in your primary files** (descending; break ties by "reached from a public entry point that takes external input" first, then by file path for determinism). Expand the top 8; defer the rest.
+
+**Deferral is NOT dropping.** For every deferred callee:
+
+1. Represent the call in the chain as a tier-3-style leaf, but mark it explicitly — never let it look like an ordinary `ext_call`:
+   ```
+   - { kind: ext_call, detail: "self._resolver.resolve(module)  [tier-2 DEFERRED: over expansion budget]", line: 272 }
+   ```
+2. Record it in the `TIER2_DEFERRED` section of your response (see your role's format file). One entry per deferred callee, with the call sites that reference it.
+
+The orchestrator forwards every agent's `TIER2_DEFERRED` to the cross-module agent, which owns exactly this territory — an unexpanded cross-module boundary is a cross-module concern by definition. Nothing is lost; the analysis moves to the agent with the global view.
+
+**Budget exhaustion is itself a signal.** A module group of ≤4 files that calls into more than 8 other in-diff files has a coupling profile worth noting — surface it in `MODULE_REVIEW_SCOPE.tier2_budget_exceeded: true`. The cross-module agent treats module groups that ran over budget as D5 (Architecture) input, not merely as a bookkeeping fact.
+
+**The budget never applies to tier 1.** Same-module private helpers are always fully inlined, no matter how many. Tier-1 inlining is what catches defensive-gap bugs inside your own module; it is not negotiable and has no cap.
+
 ### Tier 3 — Leaves (NO expansion)
 
 - Stdlib calls (`json.loads`, `os.path.join`)
@@ -71,7 +93,7 @@ Example combining both tiers:
 
 The indentation + prefix preserves the call hierarchy without needing a separate nested-list structure. The `X:` marker tells the reviewer "this step lives in a different module than the chain's root method but is still within the review scope" — which is exactly the signal the cross-module association pass needs.
 
-**The graph is produced as structured output (see `sub-agent-format.md` `METHOD_CHAINS` section)** — the sub-agent shows its work. An empty or missing `METHOD_CHAINS` section means the sub-agent skipped the pre-analysis; the orchestrator MUST reject the report and re-run.
+**The graph is produced as structured output (see the `METHOD_CHAINS` section of your role's format file — `format-single.md` / `format-per-module.md` / `format-cross-module.md`)** — the sub-agent shows its work. An empty or missing `METHOD_CHAINS` section means the sub-agent skipped the pre-analysis; the orchestrator MUST reject the report and re-run.
 
 **Why this is procedural, not a dimension.** The graph is an *input* to dimensions D1 (correctness), D3 (resource), D8 (error handling), D15 (anti-bloat), and others — not a finding category itself. Dimensions are applied to the graph, not to the raw method body. Findings that emerge from graph inspection still belong to their natural dimension (e.g., "method skips a validation its docstring promises" → D1; "method exits without releasing a lock it acquired" → D3).
 
@@ -91,4 +113,7 @@ This table counters the bias "I want to drop this chain expansion" — skipping 
 | "This is defensive code for impossible states, D15 says flag it as suggestion" | D15 targets defensive code for states that the type system or upstream invariant actually prevents. Defensive code for **possible** states — external-facing iteration, subscript into user/plugin-supplied dicts, deserialization paths — is D1 territory (functional correctness). Do not downgrade to suggestion when the input source is genuinely external. |
 | "No reference document, can't check purpose" | In bare mode you cannot check against a spec, but you can still check **internal consistency**: does the method name imply a contract (`discover`, `register`, `validate`) that the chain contradicts? Does the public API promise a return shape that the chain does not produce? Graph inspection still yields signal. |
 | "The public method just calls `_private_helper()` — that's one `call` step, chain done" | NO. The most common place for defensive-gap bugs and missing-validation bugs is **inside private helpers** — a public method with a clean three-line body whose private helper does an unguarded subscript into plugin output, or an iterate over possibly-null external data, is the exact case this discipline exists to catch. When a `call` targets a private helper defined in the same reviewed scope, you MUST open it and inline its steps per the inlining convention. "Stop at the first `call` boundary" produces the illusion of a clean chain while the bug hides one level deeper. If your METHOD_CHAINS for a public method is ≤3 steps because its body was "just delegation", you almost certainly skipped inlining — go back and expand. |
-| "The method calls into another module — that's cross-module, so it's an `ext_call` leaf" | Only true if the callee is NOT in the current review scope. If the callee's file is **also being modified in this diff**, it is part of the same logical change unit and must be expanded at tier-2 (depth-1) with the `X:` marker. Treating an in-diff cross-module callee as opaque produces exactly the failure mode the layered-review architecture exists to prevent: defensive gaps that straddle module boundaries become invisible to both the per-module agent (didn't open the callee) and the cross-module agent (received only chain summaries, can't re-derive the gap). If `CallerModule.foo()` calls `CalleeModule.bar()` and both files are in the diff, the per-module agent handling `CallerModule` MUST open `CalleeModule.bar` and inline its top-level body. |
+| "The method calls into another module — that's cross-module, so it's an `ext_call` leaf" | Only true if the callee is NOT in the current review scope. If the callee's file is **also being modified in this diff**, it is part of the same logical change unit and must be expanded at tier-2 (depth-1) with the `X:` marker. Treating an in-diff cross-module callee as opaque produces exactly the failure mode the layered-review architecture exists to prevent: defensive gaps that straddle module boundaries become invisible to both the per-module agent (didn't open the callee) and the cross-module agent (received only chain summaries, can't re-derive the gap). If `CallerModule.foo()` calls `CalleeModule.bar()` and both files are in the diff, the per-module agent handling `CallerModule` MUST open `CalleeModule.bar` and inline its top-level body. The ONLY lawful exception is the tier-2 expansion budget — and taking it requires a `TIER2_DEFERRED` entry plus the `[tier-2 DEFERRED]` marker in the chain, never silence. |
+| "I'm near the tier-2 budget, so I'll skip this one and expand something cheaper" | The budget is spent by **call-site count, descending** — not first-come, not cheapest-first, not whatever you happened to read already. Rank all eligible callees before expanding any of them. Picking the small files to stay under budget inverts the intent: the heavily-called callee is exactly the one whose defensive gaps reach the most call sites. |
+| "I deferred a few tier-2 callees, no need to list them all — the cross-module agent will look anyway" | It will not. The cross-module agent receives chain summaries plus your `TIER2_DEFERRED` list; a boundary missing from that list is invisible to it and to the orchestrator. An unlisted deferral is indistinguishable from a tier-3 leaf and silently becomes a permanent blind spot. List every one. |
+| "The budget is 8 files, so I should expand 8 even though only 3 callees are in-diff" | The budget is a ceiling, not a quota. Expand exactly the eligible callees that your primary files actually call. Opening unrelated in-diff files to "use up" the budget is the tier-2 analogue of the Gate-4 quota-filling failure. |

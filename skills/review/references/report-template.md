@@ -222,6 +222,18 @@ Only include this section when the layered review path was used (≥ 3 affected 
 
 **Modules Reviewed:** {N} module groups in parallel
 
+### Tier-2 Coverage
+
+{Include this subsection ONLY when at least one module group reported `tier2_budget_exceeded: true`. Omit entirely otherwise — do not print an empty "all within budget" line.}
+
+**Over-budget module groups:** {group_id (eligible: N callee files, expanded: 8), ...}
+
+{When every deferred callee was reconciled by the cross-module agent:}
+All {N} deferred cross-module callees were expanded in the cross-module pass. No coverage gap.
+
+{When `n_tier2_unreconciled ≥ 1` — this line is mandatory and goes ABOVE the consistency table:}
+> :warning: **Coverage gap.** {N} cross-module callee(s) exceeded the per-module tier-2 expansion budget and were not expanded by any agent: {callee list with file paths}. Defensive gaps on those call boundaries are outside this review's coverage. Re-run with a narrower scope to cover them.
+
 ### Cross-Module Consistency
 
 {For each of the five CROSS_MODULE_CONSISTENCY patterns — list status and any issues, or "No issues" if consistent}

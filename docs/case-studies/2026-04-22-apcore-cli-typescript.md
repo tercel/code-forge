@@ -5,6 +5,15 @@ optimization landed in the `code-forge:review` skill.
 
 **This file is human-reference. Not loaded at runtime. See `README.md`.**
 
+> **Superseded paths (noted 2026-08-12).** This case study records the skill as it
+> stood on 2026-04-22 and is left unedited as a regression baseline. Two things
+> below no longer match the current skill: `references/sub-agent-format.md` was
+> split into `format-common.md` + `format-{single,per-module,cross-module,acceptance}.md`,
+> and `CANDIDATE_INVENTORY` became a **drop-only ledger** — KEEP rows, the
+> `decision`/`decision_reason` fields, the 0c KEEP↔output-block audit, and the
+> `n_orphan_finding` metric no longer exist. Finding counts and drop behavior in
+> this study remain valid; only the mechanism names changed.
+
 ---
 
 ## Skill revision at test time

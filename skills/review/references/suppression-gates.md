@@ -1,6 +1,6 @@
 # Finding Suppression Gate (Sub-Agent Pre-Emission Check)
 
-**Before the sub-agent writes ANY finding into the output YAML, it MUST pass that finding through the five gates below.** A finding that fails a gate is either DROPPED or DOWNGRADED per the gate's instructions. This discipline is required because the dimensional framework in `dimensions.md` pushes the agent toward exhaustive per-dimension checking — without counter-pressure, that bias produces speculative noise: "if metadata ever holds non-primitives", "could theoretically RecursionError on self-referential dicts", "attacker-controlled `module_id` in a dev tool reading the user's own local files". Such findings waste reviewer attention, inflate counts, and erode trust in the report.
+**Before the sub-agent writes ANY finding into the output YAML, it MUST pass that finding through the five gates below.** A finding that fails a gate is either DROPPED or DOWNGRADED per the gate's instructions. This discipline is required because the dimensional framework (`dimensions-intra.md` / `dimensions-cross.md`) pushes the agent toward exhaustive per-dimension checking — without counter-pressure, that bias produces speculative noise: "if metadata ever holds non-primitives", "could theoretically RecursionError on self-referential dicts", "attacker-controlled `module_id` in a dev tool reading the user's own local files". Such findings waste reviewer attention, inflate counts, and erode trust in the report.
 
 The gates are applied **after** call-graph analysis and dimension classification, **before** the issue is serialized into the YAML output. Every finding in the final report is an output of this gate.
 
@@ -76,7 +76,7 @@ Symptoms that you are quota-filling (stop and drop the finding):
 - The finding's `why it matters` requires a three-step hypothetical chain ("if A and then B and then C").
 - You reached for the finding because the dimension felt under-utilized, not because you found a problem.
 
-The one exception is **D15 (Simplification & Anti-Bloat)** where empty findings are still valid but the agent must *demonstrate* it grep'd for duplicates and read import graphs — see D15's execution requirements in `dimensions.md`.
+The one exception is **D15 (Simplification & Anti-Bloat)** where empty findings are still valid but the agent must *demonstrate* it grep'd for duplicates and read import graphs — see D15's execution requirements in `dimensions-cross.md`.
 
 ## Gate 5 — Factual Verifiability (applies to ANY finding that asserts a codebase property)
 
@@ -127,7 +127,7 @@ The orchestrator rejects any `critical` or `blocker` finding missing the `eviden
 
 This gallery codifies the Anthropic multi-shot-with-negative-examples pattern. Abstract prohibitions ("don't emit speculative findings", "avoid preferences") show diminishing returns as more are added; concrete labeled negatives outperform any count of bullet rules. The gates above define the principles; this gallery shows the actual failure patterns that sub-agents produce in practice when they try to fill dimensional quotas.
 
-Each DROP example carries a **`drop_reason` code** — use the code verbatim in `CANDIDATE_INVENTORY[].decision_reason` (see `sub-agent-format.md` §Pre-emission Scratchpad). Free-text drop reasons are rejected by the orchestrator; only these codes are accepted.
+Each DROP example carries a **`drop_reason` code** — use the code verbatim in `CANDIDATE_INVENTORY[].drop_reason` (see `format-common.md` §Pre-emission Scratchpad). Free-text drop reasons are rejected by the orchestrator; only these codes are accepted. The ✅ KEEP examples below carry no code: kept findings are never ledgered, they go straight into their dimension blocks.
 
 ---
 
@@ -280,9 +280,9 @@ evidence: |
 
 ### How to use this gallery
 
-1. **Before writing a finding into `CANDIDATE_INVENTORY`**, pattern-match it against the ❌ blocks. If the shape matches — regardless of wording — `decision: DROP` with the corresponding `decision_reason` code.
-2. **Before marking a finding as `decision: KEEP`**, pattern-match it against the ✅ blocks. Your finding should look structurally like them: concrete trigger, observable behavior, evidence with file:line and verification artifact.
-3. **If you cannot decide**, the default is DROP. Under-flagging a marginal finding has ~zero cost; over-flagging degrades the whole report.
+1. **Before emitting any finding**, pattern-match it against the ❌ blocks. If the shape matches — regardless of wording — write it into `CANDIDATE_INVENTORY` with the corresponding `drop_reason` code and do NOT emit it.
+2. **Before emitting a finding into a dimension block**, pattern-match it against the ✅ blocks. Your finding should look structurally like them: concrete trigger, observable behavior, evidence with file:line and verification artifact. Kept findings get NO ledger row.
+3. **If you cannot decide**, the default is DROP (ledger it). Under-flagging a marginal finding has ~zero cost; over-flagging degrades the whole report.
 
 ---
 
