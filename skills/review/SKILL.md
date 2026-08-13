@@ -1,12 +1,18 @@
 ---
 name: review
 description: >
-  Use when reviewing code, handling review feedback, or posting a review to a GitHub PR —
-  15-dimension quality analysis PLUS an Acceptance Gate (runs the test suite fresh and
-  reconciles every P0/P1 acceptance criterion against a named passing test, hard-blocking
-  merge on any uncovered P0 or failing test) for features or entire projects (generate mode),
-  structured evaluation and response to incoming review comments (feedback mode via
-  --feedback flag), or automated PR review posted as a GitHub comment (--github-pr flag).
+  Use ONLY when reviewing SOURCE CODE — a code change, a feature implementation, a whole
+  repository, or a GitHub pull request. Runs 15-dimension code quality analysis PLUS an
+  Acceptance Gate (runs the test suite fresh and reconciles every P0/P1 acceptance criterion
+  against a named passing test, hard-blocking merge on any uncovered P0 or failing test) for
+  features or entire projects (generate mode), structured evaluation and response to incoming
+  code review comments (feedback mode via --feedback flag), or automated PR review posted as a
+  GitHub comment (--github-pr flag).
+  Do NOT use for reviewing documents or prose — PRD, SRS, tech design, feature spec, README,
+  plan, proposal, paper, or any "review this .md / this doc / these docs" request, in any
+  language (e.g. "review 文档", "审查文档", "看下这篇设计文档"). Document review belongs to
+  spec-forge:review (specs and project docs), theory-forge (theory/academic papers), or plain
+  reading — the word "review" alone is NOT a trigger for this skill.
 ---
 
 # Code Forge — Review
@@ -37,6 +43,22 @@ Supports four modes:
 - Want a holistic project-level quality check
 - Received code review feedback and need to evaluate/respond to it (`--feedback`)
 - Want to post a code review directly to a GitHub PR for team visibility (`--github-pr`)
+
+## When NOT to Use
+
+This skill reviews **source code only**. Do not use it — and do not let a bare "review"
+in the request pull it in — when the review target is text rather than code:
+
+| Request | Correct route |
+|---|---|
+| Review a PRD / SRS / tech design / feature spec | `spec-forge:review` |
+| Review project documentation, README, CHANGELOG, guides | `spec-forge:audit` or plain reading |
+| Review a theory / academic paper or its argument structure | `theory-forge:*` audits |
+| Review a plan, proposal, RFC prose, or meeting notes | plain reading — no skill needed |
+| Review a config/data file for correctness of values only | plain reading — no skill needed |
+
+Mixed request ("review this feature's code and its spec"): run this skill on the code
+part only, and say which part was routed elsewhere.
 
 ## Examples
 
@@ -197,6 +219,26 @@ When spawning review sub-agents, instruct each to read ONLY its role's dimension
 ### Step 1: Determine Review Mode
 
 Parse the user's arguments to determine which mode to use.
+
+#### 1.0 Scope Guard — Code Only (check this FIRST)
+
+Before any mode detection, confirm the review target is **source code**. If the request
+names a document as the thing to review — a `.md`/`.txt`/`.rst`/`.docx`/`.pdf` file, a PRD,
+SRS, tech design, feature spec, README, plan, proposal, or paper — **STOP immediately**.
+Do not run any dimension, sub-agent, or gate.
+
+Print one line and end the skill:
+
+> `code-forge:review` reviews source code. For document review use `spec-forge:review`
+> (specs/docs), `theory-forge` (theory papers), or just ask me to read it directly.
+
+Exceptions that are still in scope (do NOT stop):
+- A `.md` file passed as the **reference document** for a code review (`plan.md`, feature
+  spec used as the acceptance baseline) — the review target is still the code.
+- Docs-as-code changes inside a diff being reviewed (a PR that touches both code and docs).
+
+If the target is ambiguous (e.g. bare "review this" with no code context), ask one question
+instead of assuming code.
 
 #### 1.0a `--github-pr` Flag Provided
 

@@ -3,12 +3,16 @@ name: code-forge
 description: >
   Complete Codex development workflow for turning requirements, feature docs, or
   prompts into working code. Use when the user asks to plan implementation work,
-  execute tasks, enforce TDD, review code, fix bugs, debug failures, verify
+  execute tasks, enforce TDD, review source code, fix bugs, debug failures, verify
   completion, manage worktrees or branch finishing, dispatch parallel agents,
   port a project to another language, check progress, or run an end-to-end build
   flow. Supports complex orchestration across plan -> impl -> review -> fix ->
   verify, plus build, forge smart dispatch, worktree, finish, parallel, port,
   tdd, debug, and status workflows.
+  Every workflow here operates on CODE. Do NOT use this suite to review, audit, or
+  write documents and prose (PRD, SRS, tech design, feature spec, README, papers) —
+  a request like "review this doc" / "review 文档" belongs to spec-forge or
+  theory-forge, not to code-forge.
 version: 1.0
 subcommands:
   - build
@@ -43,11 +47,11 @@ Use this skill when the user asks for any of the following:
 - Generate an implementation plan from docs, a directory, or a prompt: use `skills/plan/SKILL.md`
 - Execute pending feature tasks or resume work: use `skills/impl/SKILL.md`
 - Check feature or project progress: use `skills/status/SKILL.md`
-- Review code quality, handle feedback, or post a GitHub PR review: use `skills/review/SKILL.md`
-- Debug and fix bugs with upstream trace-back: use `skills/fix/SKILL.md`
+- Review **source code** quality, handle code feedback, or post a GitHub PR review: use `skills/review/SKILL.md`
+- Debug and fix **code defects** with upstream trace-back: use `skills/fix/SKILL.md`
 - Investigate root cause for untracked bugs or failures: use `skills/debug/SKILL.md`
 - Enforce Red-Green-Refactor for ad-hoc implementation: use `skills/tdd/SKILL.md`
-- Verify work before claiming done: use `skills/verify/SKILL.md`
+- Verify work before claiming done, when a command can settle it: use `skills/verify/SKILL.md`
 - Create isolated git worktrees: use `skills/worktree/SKILL.md`
 - Merge, PR, keep, or discard completed branch work: use `skills/finish/SKILL.md`
 - Dispatch independent problems to parallel agents: use `skills/parallel/SKILL.md`
@@ -71,6 +75,30 @@ Also treat slash-like requests as aliases:
 | `/code-forge:finish` or `/finish` | Finish |
 | `/code-forge:parallel` or `/parallel` | Parallel |
 | `/code-forge:port ...` or `/port ...` | Port |
+
+## Do Not Trigger On
+
+Code Forge acts on code. A request whose target is a **document** is out of scope, even
+when it uses a code-forge verb such as "review", "fix", "plan", or "verify":
+
+| Request | Route |
+|---|---|
+| Review / audit a PRD, SRS, tech design, feature spec | `spec-forge:review`, `spec-forge:audit` |
+| Review project docs, README, guides, changelog | `spec-forge:audit` or plain reading |
+| Review a theory or academic paper | `theory-forge:*` |
+| Write or revise a spec/PRD/design doc | `spec-forge:*` |
+| Fix wording, typos, or content inside a document | `spec-forge:*` or a plain edit |
+| Verify a fact, a statement, or that a document is accurate | check the source directly |
+| Review a plan, proposal, or notes as prose | plain reading — no skill needed |
+
+The trigger is the **object** of the request, not the verb. "Review the auth module" is
+code-forge; "review 文档" / "review this design doc" is not. Same for "fix" (a code defect,
+not a typo in a spec) and "verify" (something a command can settle, not whether a sentence
+is true). When the object is ambiguous, ask one question instead of assuming code.
+
+Weight also matters: `fix` runs a full root-cause + TDD + doc-sync cycle, so a trivial
+mechanical edit (rename, format, constant bump) should be made directly rather than routed
+here.
 
 The `commands/*.md` files are compatibility command definitions from the
 Claude-oriented implementation. In Codex, prefer reading the child

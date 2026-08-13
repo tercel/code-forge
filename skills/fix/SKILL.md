@@ -1,9 +1,16 @@
 ---
 name: fix
 description: >
-  Debug and fix bugs with interactive upstream trace-back — diagnoses root cause level,
-  confirms upstream document updates, and applies TDD fixes.
+  Use when fixing a DEFECT IN SOURCE CODE — wrong runtime behavior, a crash, a failing test,
+  or the issues listed in a code review report (--review). Diagnoses the root cause level,
+  confirms upstream document updates, and applies a TDD fix.
   Supports --repos flag for parallel bug fixing across multiple repositories.
+  Do NOT use when the thing being corrected is text rather than code — wording, typos,
+  formatting, or content in a PRD, SRS, tech design, spec, README, or comment ("fix 这个文档",
+  "fix the typo in the README") belongs to spec-forge or a plain edit. Do NOT use for a
+  trivial mechanical change either (rename, format, bump a constant): this skill runs a full
+  root-cause + TDD + upstream-doc-sync cycle and is too heavy for those. A bug report file
+  (@issues/bug-123.md) or a review report is an INPUT describing a code defect — still in scope.
 ---
 
 # Code Forge — Fix
@@ -12,7 +19,7 @@ description: >
 
 @../shared/execution-entrypoint.md
 
-**For this skill:** start at **Step 0.1 (Multi-Repo Detection), then Step 0.5**. If you catch yourself about to say "falling back to manual fix", STOP and go to the indicated step.
+**For this skill:** start at **Step 0.0 (Scope Guard), then Step 0.1 (Multi-Repo Detection), then Step 0.5**. If you catch yourself about to say "falling back to manual fix", STOP and go to the indicated step.
 
 ---
 
@@ -24,6 +31,22 @@ Systematically debug and fix bugs with interactive trace-back to upstream docume
 - Need to diagnose whether the root cause is in code, task description, plan, or requirements
 - Want to fix the bug with TDD and keep upstream documents in sync
 - **Multi-repo:** Same bug manifests across multiple language repos (e.g., Python + TypeScript + Rust)
+
+## When NOT to Use
+
+This skill fixes **defects in code behavior**. The verb "fix" alone is not a trigger —
+what matters is whether the thing being corrected is code that behaves wrongly:
+
+| Request | Correct route |
+|---|---|
+| Fix wording/typos/structure in a PRD, SRS, spec, README, or any doc | `spec-forge:*` or a plain edit |
+| Fix a factual error or inconsistency in documentation | `spec-forge:audit` or a plain edit |
+| Fix formatting, lint style, a rename, or a one-line constant | just make the edit — no skill |
+| Fix a config/data value with no behavioral defect behind it | just make the edit — no skill |
+| Investigate a failure with no fix requested yet | `code-forge:debug` |
+
+A `.md` file that **describes** a code defect (bug report, review report) is a valid input.
+A `.md` file that **is** the thing to be corrected is out of scope.
 
 ## Examples
 
@@ -44,6 +67,28 @@ Bug Input → Context Scan → Feature Association → Root Cause → Trace-back
 ## Detailed Steps
 
 @../shared/configuration.md
+
+---
+
+### Step 0.0: Scope Guard — Code Defects Only (check this FIRST)
+
+Confirm the thing to be corrected is **code that behaves wrongly**. If the request is to
+correct the *content of a document* (rewrite a section, fix wording or a typo in a `.md`,
+correct a statement in a PRD/SRS/spec/README), **STOP immediately** — do not scan the
+project, do not run root-cause analysis, do not write a test.
+
+Print one line and end the skill:
+
+> `code-forge:fix` fixes code defects. For document content use `spec-forge`, or just tell
+> me the edit and I'll make it directly.
+
+Also stop if the change is **trivial and mechanical** (formatting, a rename, a constant
+bump) with no behavioral defect behind it — say so and make the edit directly instead of
+running the full trace-back + TDD + doc-sync cycle.
+
+Still in scope (do NOT stop): a bug report or review report in `.md` form used as **input**
+describing a code defect, and doc updates that this skill performs itself during Step 7
+(Upstream Document Sync).
 
 ---
 

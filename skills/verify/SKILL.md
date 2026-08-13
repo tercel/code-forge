@@ -1,9 +1,14 @@
 ---
 name: verify
 description: >
-  Use before claiming work is done, fixed, or passing — requires running verification
-  commands and confirming output before any success claim. Prevents false completion
-  claims, unverified assertions, and "should work" statements.
+  Use before claiming ENGINEERING WORK is done, fixed, or passing — work whose correctness a
+  command can demonstrate (tests, build, lint, type-check, a CLI run, a request against a
+  running service). Requires running that command fresh and reading its output before any
+  success claim. Prevents false completion claims, unverified assertions, and "should work".
+  Do NOT use for verification that has no command to run — fact-checking a statement,
+  confirming a document is accurate or complete, reconciling numbers in a spreadsheet,
+  double-checking a translation, or "验证一下这个说法对不对". There is nothing to execute there,
+  so this skill does not apply; check the source directly instead.
 ---
 
 # Code Forge — Verify
@@ -27,6 +32,22 @@ Evidence-based completion verification. Run before claiming any work is done.
 
 **Note:** code-forge:impl runs verification automatically. This skill is for general use.
 
+## When NOT to Use
+
+The gate below is built on **running a command and reading its output**. When no such
+command exists, this skill has nothing to enforce — do not load it:
+
+| Request | What to do instead |
+|---|---|
+| Verify a claim, statement, or fact is true | Check the source directly; cite it |
+| Verify a document is accurate, complete, or consistent | `spec-forge:audit` / `spec-forge:review` |
+| Verify data, numbers, or a spreadsheet reconciles | Do the calculation and show the working |
+| Verify a translation, wording, or naming choice | Answer directly — it is a judgment call |
+
+Note the distinction: verifying *that the code does X* is in scope; verifying *that a
+sentence is true* is not. When work is partly executable, verify the executable part with
+this skill and handle the rest directly — and say which is which.
+
 ## Iron Law
 
 **NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE.**
@@ -38,9 +59,13 @@ No exceptions. Not "it should work." Not "I just ran it." Not "the agent said it
 Every completion claim must pass through this gate — because false claims waste reviewer time and erode trust in automated workflows. A single unverified "tests pass" can mask a regression that reaches production.
 
 ```
-IDENTIFY → RUN → READ → VERIFY → CLAIM
+SCOPE → IDENTIFY → RUN → READ → VERIFY → CLAIM
 ```
 
+0. **SCOPE** — confirm a command can settle the question. If the claim is about prose,
+   facts, data, or a judgment call rather than executable behavior (see §When NOT to Use),
+   **STOP**: say so in one line, check the source directly, and do not run this gate. Never
+   invent a command just to have something to run.
 1. **IDENTIFY** the verification command (test, build, lint, type-check)
 2. **RUN** the command fresh (not from memory, not from a previous run)
 3. **READ** the complete output (not skimmed, not truncated)

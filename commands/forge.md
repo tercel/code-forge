@@ -69,15 +69,15 @@ Smart dispatch is scoped to **local, targeted problems**. Route only within the 
 
 | Signal in input | Target skill | Extracted args |
 |---|---|---|
-| Bug / error / crash / failure / not working | `fix` | the description |
+| Bug / error / crash / failure / not working **in code** | `fix` | the description |
 | Fix all review comments / batch fix issues | `fix --review` | feature name if mentioned |
 | Why / root cause / investigate / how does X work | `debug` | the question |
 | Implement / build / add / feature / requirement | `plan` | requirement description |
 | Start implementing / continue / execute tasks | `impl` | feature name |
-| Review a specific feature / check code quality | `review <feature>` | feature name — required |
+| Review a specific feature's **code** / check code quality | `review <feature>` | feature name — required |
 | Respond to / evaluate incoming review feedback | `review --feedback` | — |
 | TDD / test-driven / write tests first | `tdd` | — |
-| Verify / is it done / check completion | `verify` | — |
+| Verify / is it done / check completion — settled by running a command | `verify` | — |
 | Status / progress / dashboard | `status` | feature name if mentioned |
 
 **Out of scope — do not route, redirect instead:**
@@ -90,6 +90,10 @@ Smart dispatch is scoped to **local, targeted problems**. Route only within the 
 | Port project to another language | `Use /code-forge:port to migrate the project language.` |
 | Parallel agents / multi-repo execution | `Use /code-forge:parallel or add --repos to fix/impl.` |
 | Create a worktree / isolated branch | `Use /code-forge:worktree <feature> to create an isolated git worktree.` |
+| Review / audit a **document** (PRD, SRS, tech design, spec, README, paper, any .md) | `code-forge works on code. For document review use /spec-forge:review (specs/docs) or theory-forge (papers).` |
+| Fix wording, typos, or content **inside a document** | `code-forge:fix fixes code defects. For document content use /spec-forge, or tell me the edit and I'll make it directly.` |
+| Verify something no command can settle (a fact, a doc's accuracy, numbers) | `code-forge:verify runs verification commands. There is nothing to execute here — I'll check the source directly instead.` |
+| A trivial mechanical edit (rename, format, constant bump) | `That's a direct edit — routing it through code-forge:fix would run a full root-cause + TDD cycle for no benefit. I'll just make the change.` |
 
 **Ambiguous cases:**
 - Feature request with no existing `.code-forge/` plan on disk → `plan`
