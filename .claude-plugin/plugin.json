@@ -1,7 +1,7 @@
 {
   "name": "code-forge",
   "description": "Complete development workflow for source code — from TDD-driven implementation plans to execution, debugging, source-code review, git worktree management, branch lifecycle, and parallel agent dispatch. Operates on code only; reviewing or writing documents and specs belongs to spec-forge",
-  "version": "0.36.2",
+  "version": "0.36.3",
   "author": {
     "name": "tercel",
     "url": "https://github.com/tercel",

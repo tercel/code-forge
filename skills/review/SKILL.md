@@ -75,8 +75,13 @@ part only, and say which part was routed elsewhere.
 ## Workflow
 
 ```
-Config → Determine Mode → Locate Reference → Collect Scope → Module Grouping (trial)
-  → Fast path (< 3 files OR only 1 module group):  Single sub-agent (all 15 dims)
+Config → Determine Mode → Locate Reference → Collect Scope
+  → Module Grouping: build scope dep-graph → pick axis from PA.2.2 pattern + cut_ratio
+       · S1 by directory (plugins / components / independent packages)
+       · S2 by call chain (layered / MVC / hexagonal — chain stays inside one agent)
+       · S3 no split      (one dense blob — cutting it would split the evidence)
+       · > 48 files or > 8 groups after boundary-safe merging ⇒ guardrail, ask the user
+  → Fast path (< 3 files, OR 1 group, OR S3 ≤ 12 files):  Single sub-agent (all 15 dims)
   → Layered path (≥ 3 files AND ≥ 2 module groups):
        • Parallel per-module agents
            · Primary: full review (D1–D4, D6, D8–D9) on their own module files
@@ -105,6 +110,7 @@ Execute PA.1 (Project Profile) and PA.2 (Architecture Analysis). This informs:
 - Language-specific checks (Rust `unsafe` blocks, Go unchecked errors, Python type hints)
 - Architecture-specific checks (layer boundary violations, circular dependencies)
 - The Project Profile determines which patterns are expected vs. suspicious
+- **Module grouping strategy (Step 3F.3 / 3P.3).** PA.2.2's architecture pattern decides *how* the review scope is split across sub-agents — by directory, by call chain, or not at all. Carry `architecture_pattern` and PA.2.3's module-level dependency edges forward into grouping; do not re-derive them from path strings.
 
 ## Review Severity Levels
 
@@ -130,7 +136,7 @@ Full severity definitions, gate-drop rules, and speculative-phrasing rule live i
 
 The graph enumerates every validation, mutation, raise, iterate/subscript/deserialize (external-input path), including steps inside all inlined bodies.
 
-**Why tier 2 is capped and tier 1 is not.** Tier-1 inlining is bounded by the agent's own module (≤4 primary files) and is what catches defensive gaps inside that module — never cap it. Tier-2 eligibility is the whole diff, so on a large change it grows without bound and would put the entire diff into every per-module agent's context, re-creating the dilution the layered path exists to prevent. Deferred tier-2 callees are **forwarded to the cross-module agent**, which has the global view and owns cross-boundary analysis by definition — the work moves, it is not dropped. Full rules: `references/call-graph-discipline.md` §Tier-2 expansion budget.
+**Why tier 2 is capped and tier 1 is not.** Tier-1 inlining is bounded by the agent's own group (4 primary files, 6 in a 33+-file scope, occasionally more after a count-driven merge — see 3F.3.4) and is what catches defensive gaps inside that group — never cap it. Tier-2 eligibility is the whole diff, so on a large change it grows without bound and would put the entire diff into every per-module agent's context, re-creating the dilution the layered path exists to prevent. Deferred tier-2 callees are **forwarded to the cross-module agent**, which has the global view and owns cross-boundary analysis by definition — the work moves, it is not dropped. Full rules: `references/call-graph-discipline.md` §Tier-2 expansion budget.
 
 **Full protocol — mandatory reading for every agent that builds or consumes a call graph** (fast-path, per-module, and cross-module; NOT the acceptance agent): `references/call-graph-discipline.md`. It defines the inlining convention, the complete what-to-enumerate list, and the under-flagging anti-rationalization table (countering "skip inlining, the method is short" / "stop at `_private_helper`" / "cross-module = ext_call leaf"). Skipping inlining produces a pre-analysis failure; the orchestrator rejects chains where a same-scope private helper appears as an opaque `call` step.
 
@@ -379,25 +385,122 @@ Record: `project_type` = `"frontend"` | `"backend"` | `"fullstack"` | `"library"
 
 #### 3F.3 Module Grouping
 
-Determine which review path to use based on the scope shape:
+Grouping decides how the scope is split across sub-agents. **The split axis matters more than the group count** — a partition that cuts through call chains gives every agent a 1-hop view of a multi-hop chain, which raises false negatives (the evidence for a real bug is spread across three agents, so no agent can satisfy Gate 2/Gate 4) *and* false positives (an agent sees an unguarded parameter and cannot see the caller that already validated it). Group count is a symptom; the axis is the cause.
 
-1. **Trial grouping:** Apply the grouping rules below to the affected files set.
-2. **Decision:**
-   - **Fast path (3F.4a):** fewer than 3 affected files, OR grouping yields only 1 module group (all files in the same module — no cross-module axis to analyze)
-   - **Layered path (3F.4b → 3F.5):** grouping yields ≥ 2 module groups AND total affected files ≥ 3
+##### 3F.3.0 Run the partitioner
 
-Rationale: the layered path only pays off when there is actual cross-module territory to cover. A 5-file change all inside `src/binding/` has no cross-module axis and should stay in the fast path.
+The deterministic half of grouping — build the graph, measure the cut, pick the axis, apply the size cap, merge to the count cap, decide the guardrail — is implemented as a script. Run it rather than doing the arithmetic by hand; hand-executed partitioning is where group count silently drifts from what the rules intend. Resolve `<cf_scripts>` once (see *Locating the script layer* in the configuration step — it lives in the install, not the project), then:
 
-**Module grouping rules:**
-1. Group files by directory/package (files in the same directory = one group). For Python projects, group by top-level package; for TypeScript, group by `src/` subdirectory.
-2. Identify **cross-cutting files** (shared utilities, base classes, `__init__.py`, `index.ts`, `exports.ts`, `types.ts`) — mark them as `cross_cutting: true`. Include them in BOTH their module group AND the cross-module agent's file list.
-3. Cap each group at 4 files — if a group exceeds 4, split by file role (models / serializers / logic / tests).
-4. Record: `module_groups = [{group_id, files[], cross_cutting_files[]}]`
-5. Record the complete `in_diff_files` list (every affected file across all groups, including cross-cutting). Each per-module agent will receive this list alongside its own `primary_files`; the agent applies the three-tier rule at chain-building time — if a call target's file is in `in_diff_files` but not in its `primary_files`, that callee is tier-2. No static import pre-analysis is needed (and would be unreliable anyway given barrel re-exports, aliased imports, and dynamic imports).
+```bash
+python3 "<cf_scripts>/cf-group.py" <<'JSON'
+{
+  "files": ["apps/backend/src/api/post.controller.ts", "..."],
+  "edges": [["apps/backend/src/api/post.controller.ts", "libraries/.../post.service.ts"]],
+  "barrels": ["libraries/nestjs-libraries/src/index.ts"],
+  "manifests": ["package.json", "apps/backend/project.json"],
+  "architecture_pattern": "Layered API"
+}
+JSON
+```
+
+`edges` comes from the impact-zone expansion already run in 3P.1 (project mode) or one grep over the affected files (feature mode). `architecture_pattern` comes from PA.2.2. It returns `grouping_strategy`, `cut_ratio`, `groups`, `group_count`, `largest_group`, `groups_merged`, `path`, `coverage_ok`, and `guardrail {triggered, reasons}`.
+
+**It is a PARTITIONER, not an analyst.** It never reads source, resolves imports, or judges findings. These stay yours: identifying which files are `cross_cutting` (3F.3.3 rule 2) and which are barrels, deciding whether the returned axis matches what you know about the code, and everything downstream of dispatch.
+
+**Two results you must act on, not just read:**
+- `coverage_ok: false` (script exits 1) — the partition lost files. Do not dispatch; this is a bug, not a trade-off.
+- `guardrail.triggered: true` — stop and present 3F.3.4's options to the user before dispatching anything.
+
+If `python3` is unavailable, execute 3F.3.1–3F.3.5 by hand — they are the script's specification, and the thresholds are mirrored in its constants.
+
+##### 3F.3.1 Build the scope dependency graph
+
+Build `G` — a **file-level** graph over the affected files. Method-level resolution is not needed here and is not attempted.
+
+1. **Reuse the edges already computed.** Step 3P.1's impact-zone expansion (project mode) already grepped import/require statements for dependents and dependencies. Do not recompute — carry those edges in. In feature mode, run one grep for import/require statements across the affected files.
+2. **Treat barrel files as transparent.** When `A → index.ts → B` and `index.ts` is a pure re-export, record the edge as `A → B`. Barrel files never become graph nodes and never form their own group — they are `cross_cutting` (rule 2 below). This also prevents a single barrel from inflating the impact zone.
+3. **Precision expectations.** This graph is a *grouping heuristic*, not a tier-assignment oracle. Dynamic imports, DI-container wiring, and aliased paths will be missed — that is acceptable, because a mis-grouped callee is still caught by tier-2 expansion at chain-building time. The precision required to assign tier-1 vs tier-2 is much higher and remains the sub-agent's job at read time (see rule 6). Do not conflate the two.
+4. Record `edge_count` and, for any candidate partition `P`, `cut_ratio(P) = cross_group_edges / edge_count`. If `edge_count == 0` (no intra-scope imports found), treat `cut_ratio` as `0` and use strategy **S1**.
+
+##### 3F.3.2 Select the grouping strategy
+
+Take `architecture_pattern` from **PA.2.2** (already produced by the Project Analysis step — do not re-derive it from path strings):
+
+| PA.2.2 pattern | Default strategy | Confirm with |
+|---|---|---|
+| `Plugin/Extension`, `Component-based`, `Monorepo` with independent packages | **S1 — group by directory** | `cut_ratio(directory partition) < 0.3` |
+| `Layered API`, `MVC`, `Clean/Hexagonal` | **S2 — group by call chain** | directory partition has `cut_ratio ≥ 0.3` |
+| any pattern, but `G` is one dense blob | **S3 — do not split** | largest weakly-connected component > 70% of files |
+
+Compute the directory partition's `cut_ratio` first and let it override the table when it disagrees: a `Layered API` project whose diff happens to sit entirely inside one layer has a low cut ratio and should use S1. Record `grouping_strategy` and `cut_ratio` — both go into the report's methodology note.
+
+**S1 — by directory.** Files in the same directory form one group. Python: group by top-level package. TypeScript: by `src/` subdirectory. This is the historical behavior and stays optimal when modules are genuinely independent.
+
+**S2 — by call chain.** Compute weakly-connected components of `G`. Each component becomes one group, **even when it spans several directories** — a `controller → service → repository` chain lands in a single agent that can see the whole chain. Attach every size-1 component to the component it has the most edges to; ties break by longest shared path prefix. A file with **no** edges at all (nothing in scope imports it and it imports nothing in scope — common for config, fixtures, and generated files) has no "most edges to" target: attach it by longest shared path prefix alone. If S2 yields a single component covering >70% of files, fall through to S3.
+
+**S3 — do not split.** The scope is one semantically indivisible unit; splitting it destroys the evidence chains. Route it to the fast path (3F.4a) with the whole scope when it holds **≤ 12 files** — one agent must read every file in full and build call graphs for all of them, and beyond ~12 that context stops being reliable. Above 12 files, S3 has no safe execution: do not split it anyway, trigger the 3F.3.4 guardrail and let the user narrow the scope.
+
+##### 3F.3.3 Common grouping rules (all strategies)
+
+1. **Coverage is invariant.** Grouping redistributes files across agents; it never drops them. Assert before dispatch: `union(all groups' primary_files) == in_diff_files`. A violation is a bug in grouping, not an acceptable trade-off.
+2. Identify **cross-cutting files** (shared utilities, base classes, `__init__.py`, `index.ts`, `exports.ts`, `types.ts`) — mark them `cross_cutting: true`. Include them in BOTH their group AND the cross-module agent's file list.
+3. **Group size:** soft cap 4 files per group; see 3F.3.4 for when it relaxes to 6. If an S1 group exceeds the cap, split by file role (models / serializers / logic / tests). If an S2 component exceeds the cap, split at the weakest edge (fewest call sites) so the cut lands where the chain is thinnest.
+4. **Merging never crosses a package boundary.** When groups must be merged (3F.3.4), merge greedily upward by shared parent directory, but treat any directory containing `package.json` / `project.json` / `Cargo.toml` / `pyproject.toml` / `go.mod` as an impassable wall. Merging `libraries/nestjs-libraries/**` with `libraries/react-shared-libraries/**` because both sit under `libraries/` would destroy the D5 architecture signal.
+5. Record: `module_groups = [{group_id, files[], cross_cutting_files[]}]`, plus `grouping_strategy`, `cut_ratio`, `groups_merged`.
+6. Record the complete `in_diff_files` list (every affected file across all groups, including cross-cutting). Each per-module agent receives it alongside its own `primary_files` and applies the three-tier rule **at chain-building time, from the code it actually reads** — if a call target's file is in `in_diff_files` but not in its `primary_files`, that callee is tier-2. The 3F.3.1 graph does not pre-assign tiers: barrel re-exports, aliased imports, and dynamic imports make static tier assignment unreliable, and the agent reading the file has strictly better information.
+
+**Effect on tier-2.** A good axis leaves most call chains inside a group, where tier-1 inlining (uncapped) covers them. High tier-2 pressure — many groups reporting `tier2_budget_exceeded: true` — is the signal that the axis was wrong. Record it and surface it in the methodology note; a review with `grouping_strategy: S1` and widespread budget overflow should have used S2.
+
+##### 3F.3.4 Group-count cap and scope guardrail
+
+The cap is a safety valve, not the primary control — a correct axis usually brings the count down on its own (26 directory groups often collapse to 5–6 call chains under S2).
+
+**Group size and group count are independent constraints.** Group count is set by the number of directories (S1) or connected components (S2) — it is *not* `files / cap`. A 30-file diff spread across 26 directories yields 26 groups of one file each, and no size cap will ever fire on it. Size is controlled by splitting; count is controlled by merging. Run both checks.
+
+**Check A — group size (splitting).** Soft cap 4 files per group; 6 once the scope reaches 33 files (this band has no upper end — it still applies to an oversized scope the user chose to proceed with). Over the cap, split per 3F.3.3 rule 3.
+
+**Check B — group count (merging).** Independent of Check A and of the file count. While `group_count > 8`:
+
+```
+candidates = all pairs of groups that are mergeable:
+               - both inside the SAME package boundary (3F.3.3 rule 4), AND
+               - sharing a parent directory below that boundary
+if candidates is empty:  break        -> guardrail
+merge the candidate pair with the smallest combined file count
+set groups_merged = true
+```
+
+Merge greedily from the smallest, so the tightly-scoped groups coalesce and the substantial ones stay intact. **When the two checks collide, count wins:** a merged group may exceed the size cap. Group count bounds agent fan-out and is hard; group size only bounds per-agent context and degrades gracefully. Record the largest resulting group size in the methodology note.
+
+**Guardrail.** Trigger when either holds after Check B:
+
+- `group_count > 8` and no mergeable pair remains (all remaining groups sit in different packages), or
+- scope exceeds 48 files
+
+Stop before dispatching and report the actual shape to the user:
+
+```
+Review scope: 71 files across 19 modules (strategy: S2, cut_ratio 0.41)
+This would dispatch 21 sub-agents. Options:
+  1. Narrow the scope (review one feature or one package at a time)
+  2. Run in sequential waves of 8 groups (slower, same coverage)
+  3. Proceed anyway
+```
+
+**If the user picks option 2 (waves):** dispatch the per-module agents in sequential batches of at most 8, each batch in one parallel message, waiting for a batch to finish before starting the next. Coverage and per-agent context are identical to a single dispatch — only wall-clock differs. The cross-module agent (3F.5 / 3P.4) runs **once, after every wave completes**, since it consumes the merged `METHOD_CHAINS` and `TIER2_DEFERRED` from all groups. Do not run a cross-module pass per wave.
+
+Never silently absorb an oversized scope by diluting each agent's context — that trades a visible cost for an invisible quality loss.
+
+##### 3F.3.5 Path decision
+
+- **Fast path (3F.4a):** fewer than 3 affected files, OR grouping yields only 1 group, OR `grouping_strategy == S3` with ≤ 12 files.
+- **Layered path (3F.4b → 3F.5):** ≥ 2 groups AND ≥ 3 affected files.
+
+Rationale: the layered path only pays off when there is real cross-module territory. A 5-file change all inside `src/binding/` has no cross-module axis and stays on the fast path — and so does an 8-file tightly-coupled change, which S3 keeps whole rather than cutting into 2–3 blind agents.
 
 ---
 
-#### 3F.4a Fast Path: Single Sub-agent Review (< 3 files, OR only 1 module group)
+#### 3F.4a Fast Path: Single Sub-agent Review (< 3 files, OR 1 group, OR S3 with ≤ 12 files)
 
 **Offload to sub-agent** to handle the full diff analysis.
 
@@ -557,6 +660,8 @@ Identify and collect project source files for deep code review. The collection s
    - Test files
    - Configuration and infrastructure files
 
+   **This ranks, it does not truncate.** The scope stays whole; the ranking is what the 3F.3.4 guardrail offers the user when they choose to narrow. Do not silently drop the tail here — a scope quietly cut from 90 files to 50 reads in the report as a review that covered everything.
+
 **Both modes also collect:**
 - Package manifests (`package.json`, `Cargo.toml`, `pyproject.toml`, etc.) for dependency review
 - Build/CI configuration if present
@@ -567,16 +672,16 @@ Same as Step 3F.2 — detect `project_type` to guide dimension selection.
 
 #### 3P.3 Module Grouping (Project Mode)
 
-Apply the same module grouping logic as Step 3F.3 (trial grouping + 2-axis trigger):
+Apply the full 3F.3 protocol — 3F.3.0 (run the partitioner) through 3F.3.5 (path decision) — unchanged. Project-mode deltas only:
 
-- **Fast path (3P.3a):** fewer than 3 source files in scope, OR grouping yields only 1 module group
-- **Layered path (3P.3b → 3P.4):** grouping yields ≥ 2 module groups AND total source files ≥ 3
-
-**Module grouping rules:** same as 3F.3 — by directory/package, max 4 files/group, identify cross-cutting files, and record `in_diff_files` (passed to every per-module agent as the tier-2 eligibility set).
+- **The graph edges are already available.** Step 3P.1's impact-zone expansion computed dependents and dependencies for every changed file. Carry those edges directly into 3F.3.1; do not re-grep.
+- **Fast path (3P.3a):** fewer than 3 source files in scope, OR grouping yields only 1 group, OR `grouping_strategy == S3` with ≤ 12 files.
+- **Layered path (3P.3b → 3P.4):** ≥ 2 groups AND ≥ 3 source files.
+- **The guardrail matters more here.** `scope = "full"` (`--project`) on a monorepo routinely exceeds 48 files. Trigger 3F.3.4's guardrail and let the user narrow the scope rather than dispatching twenty-plus agents.
 
 ---
 
-#### 3P.3a Fast Path: Single Sub-agent Review (< 3 files, OR only 1 module group)
+#### 3P.3a Fast Path: Single Sub-agent Review (< 3 files, OR 1 group, OR S3 with ≤ 12 files)
 
 **Same protocol as 3F.4a** — one `Agent(subagent_type="general-purpose")` covering the whole scope, the same six reference files, the same MANDATORY pre-/mid-/post-analysis instructions, the same severity definitions and Review Comment Formula, the same `references/format-single.md` return format, and the same "apply dimensions against the call graph, route every finding through §Finding Suppression Gate" rule. Project-mode deltas only:
 

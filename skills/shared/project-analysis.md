@@ -60,6 +60,28 @@ Also determine:
 
 Understand how the project is structured — layers, modules, boundaries.
 
+**PA.2.0 Caching (optional)**
+
+PA.2's module tree and architecture pattern change on a monthly cadence, while the code they describe changes every commit. Cache the slow, stable half — never the fast half.
+
+Cache file: `<project_root>/.code-forge/arch-cache.json`. `.code-forge/` is already gitignored (see the configuration step). **Never write this into `output_dir` / `planning/`** — a derived artifact under version control produces merge conflicts and false "the docs disagree with the code" review signals.
+
+Fingerprint (cheap, whole-cache invalidation — no incremental staleness tracking):
+
+```bash
+{ git ls-files 'package.json' '*/package.json' '*/project.json' \
+      'pyproject.toml' '*/pyproject.toml' 'Cargo.toml' '*/Cargo.toml' 'go.mod' '*/go.mod';
+  git ls-files | sed 's|/[^/]*$||' | sort -u; } | shasum -a 256 | cut -c1-16
+```
+
+Manifest set plus directory tree. If the fingerprint matches, reuse the cache; otherwise recompute PA.2 in full and rewrite it. Do not attempt incremental invalidation — the added complexity reintroduces exactly the staleness risk the cache is supposed to be safe from.
+
+| Cached | Not cached |
+|---|---|
+| `architecture_pattern` (PA.2.2), module tree (PA.2.1), package/workspace boundaries | import edges (PA.2.3), call graph and data flow (PA.4), test status (PA.5) |
+
+The right-hand column is excluded on purpose. Those change every commit, and **a stale dependency graph is worse than no graph**: absent a graph, grouping falls back to directory splitting — a known, predictable degradation; with a stale one, it produces a confidently wrong partition whose cost (chains cut across agents, evidence split, both false positives and false negatives) is invisible in the output.
+
 **PA.2.1 Module Structure**
 
 Scan the source directory to map the module tree:
@@ -95,6 +117,19 @@ For each source file:
   Map: which module imports which
   Check: does any lower-layer module import from upper layer? (violation)
 ```
+
+**Establish the baseline contract before checking.** Inferring the expected direction from directory names and then checking the code against that inference is near-circular — the rule is derived from the same layout it is meant to police, so a codebase that is *consistently* wrong reads as correct. Look for a declared contract first (**read-only** — these express human intent; never generate or overwrite them):
+
+- `ARCHITECTURE.md`, `docs/architecture.md`, `docs/adr/`, `docs/design/`
+- Machine-enforced boundaries: `import/no-restricted-paths` in ESLint config; `@nx/enforce-module-boundaries` with `tags` in `nx.json` / `project.json`; `import-linter` contracts in `setup.cfg` / `pyproject.toml`; Go `internal/` placement; Rust workspace member visibility
+
+Record `architecture_contract = {source: <path> | "inferred", rules: [...]}`.
+
+The divergence between a **declared** contract and the actual edges is a first-class D5 finding, and it is worth strictly more than anything the inferred baseline can yield:
+
+> `docs/architecture.md` declares repositories must not import services — 12 such edges exist (cite each as `file:line`)
+
+**Severity anchoring:** a violated *declared* rule is a broken promise and may reach `critical`. A violated *inferred* rule is capped at `warning` — nobody promised it. State which baseline was used in the finding; a reader cannot judge the finding without it.
 
 #### PA.3 Language-Specific Deep Scan
 
@@ -193,6 +228,7 @@ Produce a structured summary that downstream steps can reference:
 **Database**: PostgreSQL via Prisma
 **Auth**: JWT with passport middleware
 **Architecture**: Layered API (routes → services → repositories)
+**Arch contract**: declared — docs/architecture.md (or: inferred — findings capped at `warning`)
 
 ### Module Map
   src/routes/     — 8 route files, 24 endpoints
@@ -218,4 +254,4 @@ Produce a structured summary that downstream steps can reference:
   - services/payment — external API integration, complex error handling
 ```
 
-This summary is passed to the skill's subsequent steps — it informs task planning, review focus, debug investigation, and test design.
+This summary is passed to the skill's subsequent steps — it informs task planning, review focus, debug investigation, and test design. `architecture_pattern` and `architecture_contract` are load-bearing for review's module grouping (SKILL.md §3F.3.2): the pattern picks the split axis, and the contract sets the severity ceiling for dependency-direction findings. Pass both forward rather than letting a downstream step re-derive them from directory names.

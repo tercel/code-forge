@@ -29,7 +29,7 @@ Rationale: a cross-module callee that is itself being modified in this diff is p
 
 The tier-2 eligibility set is `in_diff_files \ primary_files`, which on a large diff can be dozens of files. Expanding all of them would put the whole diff into every per-module agent's context — re-introducing the context dilution the layered architecture exists to prevent, and making review cost grow quadratically with diff size.
 
-**Budget: at most 8 distinct tier-2 files per agent.** (Module groups hold at most 4 primary files, so this allows a 2:1 cross-module-to-own-module expansion ratio.)
+**Budget: at most 8 distinct tier-2 files per agent.** (Module groups typically hold 4 primary files, 6 in a large scope, so this allows a 2:1 to 1.3:1 cross-module-to-own-module expansion ratio. The budget stays at 8 regardless of group size: a bigger group already holds more of the call graph as tier-1, so it needs *less* tier-2 reach, not more.)
 
 **Spend it in this order** — when the number of distinct eligible callee files exceeds the budget, rank by **number of distinct call sites in your primary files** (descending; break ties by "reached from a public entry point that takes external input" first, then by file path for determinism). Expand the top 8; defer the rest.
 
@@ -43,7 +43,7 @@ The tier-2 eligibility set is `in_diff_files \ primary_files`, which on a large 
 
 The orchestrator forwards every agent's `TIER2_DEFERRED` to the cross-module agent, which owns exactly this territory — an unexpanded cross-module boundary is a cross-module concern by definition. Nothing is lost; the analysis moves to the agent with the global view.
 
-**Budget exhaustion is itself a signal.** A module group of ≤4 files that calls into more than 8 other in-diff files has a coupling profile worth noting — surface it in `MODULE_REVIEW_SCOPE.tier2_budget_exceeded: true`. The cross-module agent treats module groups that ran over budget as D5 (Architecture) input, not merely as a bookkeeping fact.
+**Budget exhaustion is itself a signal.** A module group that calls into more than 8 other in-diff files has a coupling profile worth noting — surface it in `MODULE_REVIEW_SCOPE.tier2_budget_exceeded: true`. The cross-module agent treats module groups that ran over budget as D5 (Architecture) input, not merely as a bookkeeping fact. **Widespread budget exhaustion across many groups is a grouping-axis signal, not a code signal** — it means the review was split against the grain of the call graph (see SKILL.md §3F.3.3 *Effect on tier-2*); the orchestrator surfaces it in the report's methodology note.
 
 **The budget never applies to tier 1.** Same-module private helpers are always fully inlined, no matter how many. Tier-1 inlining is what catches defensive-gap bugs inside your own module; it is not negotiable and has no cap.
 

@@ -110,8 +110,24 @@ workflow).
 cf-scan.py [--root PATH] [--max-tree N]
 ```
 
+### `cf-group.py` — review scope partitioner (read-only)
+Splits a review scope into module groups for `review` (SKILL.md 3F.3 / 3P.3):
+collapses barrel re-exports, measures how badly a directory split would cut the
+call graph, picks the axis (S1 by directory / S2 by call chain / S3 undivided),
+applies the size cap, merges down to the group-count cap without crossing a
+package boundary, and reports whether the scope guardrail fires. A PARTITIONER,
+not an analyst — it never reads source or resolves imports; the caller supplies
+the edges and the PA.2.2 architecture pattern.
+
+Enforces two invariants: coverage (`union(group files) == input files`, exit 1
+on violation) and count-over-size (group count is hard, group size yields).
+
+```bash
+cf-group.py < scope.json          # or: cf-group.py --input scope.json
+```
+
 Add `--json` to the state/status/verify commands for machine-readable output;
-`cf-config.py` and `cf-scan.py` always emit JSON.
+`cf-config.py`, `cf-scan.py`, and `cf-group.py` always emit JSON.
 
 ## Tests
 

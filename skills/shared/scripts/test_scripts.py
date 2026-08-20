@@ -21,6 +21,7 @@ STATE = os.path.join(HERE, "cf-state.py")
 STATUS = os.path.join(HERE, "cf-status.py")
 VERIFY = os.path.join(HERE, "cf-verify-plan.py")
 SCAN = os.path.join(HERE, "cf-scan.py")
+GROUP = os.path.join(HERE, "cf-group.py")
 
 
 def run(cmd, stdin=None):
@@ -271,7 +272,8 @@ class ScanTests(unittest.TestCase):
 
 
 class HygieneTests(unittest.TestCase):
-    CLIS = ["cf-config.py", "cf-state.py", "cf-status.py", "cf-verify-plan.py", "cf-scan.py"]
+    CLIS = ["cf-config.py", "cf-state.py", "cf-status.py", "cf-verify-plan.py", "cf-scan.py",
+            "cf-group.py"]
 
     def test_clis_disable_bytecode_writes(self):
         # Guards read-only installs and keeps the shared install dir clean.
@@ -289,6 +291,233 @@ class HygieneTests(unittest.TestCase):
             subprocess.run([PY, os.path.join(dst, "cf-config.py"), "--root", tmp],
                            capture_output=True, text=True)
             self.assertFalse(os.path.isdir(os.path.join(dst, "__pycache__")))
+
+
+def group(scope):
+    """Run cf-group.py over a scope dict and return the parsed partition."""
+    r = run([PY, GROUP], stdin=json.dumps(scope))
+    assert r.returncode in (0, 1), f"cf-group failed: {r.stderr}"
+    return json.loads(r.stdout)
+
+
+class GroupPartitionTests(unittest.TestCase):
+    """Module grouping — review SKILL.md 3F.3.
+
+    Several of these are regressions for failure modes that shipped in the
+    prose rules: group count treated as files/cap, merging referenced but never
+    defined, and thresholds left unstated.
+    """
+
+    def test_fragmented_directories_merge_below_cap(self):
+        # 26 directories holding one file each. Group count is set by directory
+        # count, NOT by files/cap — this is the case the prose rules missed.
+        files = [f"src/m{i:02d}/f.ts" for i in range(26)]
+        res = group({"files": files, "manifests": ["package.json"]})
+        self.assertLessEqual(res["group_count"], 8)
+        self.assertTrue(res["groups_merged"])
+        self.assertFalse(res["guardrail"]["triggered"])
+
+    def test_fragmented_scope_keeps_full_coverage(self):
+        files = [f"src/m{i:02d}/f.ts" for i in range(26)]
+        res = group({"files": files, "manifests": ["package.json"]})
+        self.assertTrue(res["coverage_ok"])
+        flat = sorted(f for g in res["groups"] for f in g["files"])
+        self.assertEqual(flat, sorted(files))
+
+    def test_count_cap_wins_over_size_cap(self):
+        # Merging to satisfy the group cap may exceed the size cap. Count is
+        # hard (agent fan-out); size only degrades per-agent context.
+        # Note this can only arise once the scope is already past the guardrail
+        # (files > cap * 8) — below that, merging never has to break the size
+        # cap, which is what makes the two thresholds mutually consistent.
+        files = [f"src/m{i:02d}/f.ts" for i in range(60)]
+        res = group({"files": files, "manifests": ["package.json"]})
+        self.assertLessEqual(res["group_count"], 8)
+        self.assertGreater(res["largest_group"], res["size_cap"])
+        self.assertTrue(res["guardrail"]["triggered"])
+
+    def test_package_boundary_blocks_merge(self):
+        # Nine independent packages cannot be merged into eight groups without
+        # crossing a boundary, so the guardrail fires instead of merging.
+        files = [f"packages/p{i}/src/f.ts" for i in range(9)]
+        manifests = [f"packages/p{i}/package.json" for i in range(9)]
+        res = group({"files": files, "manifests": manifests})
+        self.assertEqual(res["group_count"], 9)
+        self.assertTrue(res["guardrail"]["triggered"])
+        self.assertIn("no mergeable pair remains", " ".join(res["guardrail"]["reasons"]))
+
+    def test_merge_never_crosses_package_boundary(self):
+        files = ([f"libs/backend/a{i}/f.ts" for i in range(6)]
+                 + [f"libs/frontend/b{i}/f.ts" for i in range(6)])
+        res = group({"files": files,
+                     "manifests": ["libs/backend/package.json", "libs/frontend/package.json"]})
+        for g in res["groups"]:
+            roots = {f.split("/")[1] for f in g["files"]}
+            self.assertEqual(len(roots), 1, f"group straddles packages: {g}")
+
+    def test_barrel_is_transparent_and_not_a_node(self):
+        scope = {
+            "files": ["src/a/caller.ts", "src/index.ts", "src/b/target.ts"],
+            "edges": [["src/a/caller.ts", "src/index.ts"],
+                      ["src/index.ts", "src/b/target.ts"]],
+            "barrels": ["src/index.ts"],
+            "architecture_pattern": "Layered API",
+        }
+        res = group(scope)
+        self.assertNotIn("src/index.ts", res["in_diff_files"])
+        self.assertEqual(res["edge_count"], 1)  # collapsed to caller -> target
+
+    def test_layered_scope_groups_by_chain(self):
+        # Two end-to-end chains across three directories each. The axis must
+        # follow the chains, so each agent sees a whole chain.
+        scope = {
+            "files": ["r/one.ts", "s/one.ts", "d/one.ts",
+                      "r/two.ts", "s/two.ts", "d/two.ts"],
+            "edges": [["r/one.ts", "s/one.ts"], ["s/one.ts", "d/one.ts"],
+                      ["r/two.ts", "s/two.ts"], ["s/two.ts", "d/two.ts"]],
+            "architecture_pattern": "Layered API",
+        }
+        res = group(scope)
+        self.assertEqual(res["grouping_strategy"], "S2")
+        for g in res["groups"]:
+            suffixes = {f.split("/")[1] for f in g["files"]}
+            self.assertEqual(len(suffixes), 1, f"chain was split: {g}")
+
+    def test_low_cut_ratio_overrides_layered_pattern(self):
+        # A layered project whose diff sits inside one layer has nothing to gain
+        # from the chain axis — the measurement beats the pattern label.
+        scope = {
+            "files": ["s/a.ts", "s/b.ts", "s/c.ts"],
+            "edges": [["s/a.ts", "s/b.ts"], ["s/b.ts", "s/c.ts"]],
+            "architecture_pattern": "Layered API",
+        }
+        self.assertEqual(group(scope)["grouping_strategy"], "S1")
+
+    def test_plugin_pattern_uses_directory_axis(self):
+        scope = {
+            "files": ["plugins/a/i.ts", "plugins/a/j.ts",
+                      "plugins/b/i.ts", "plugins/b/j.ts"],
+            "edges": [["plugins/a/i.ts", "plugins/a/j.ts"],
+                      ["plugins/b/i.ts", "plugins/b/j.ts"]],
+            "architecture_pattern": "Plugin/Extension",
+        }
+        res = group(scope)
+        self.assertEqual(res["grouping_strategy"], "S1")
+        self.assertEqual(res["cut_ratio"], 0.0)
+
+    def test_isolated_file_does_not_become_its_own_group(self):
+        # A zero-edge file has no "most edges to" target; it must still attach.
+        scope = {
+            "files": ["r/a.ts", "s/a.ts", "d/a.ts", "r/b.ts", "s/b.ts", "d/b.ts",
+                      "r/orphan.ts"],
+            "edges": [["r/a.ts", "s/a.ts"], ["s/a.ts", "d/a.ts"],
+                      ["r/b.ts", "s/b.ts"], ["s/b.ts", "d/b.ts"]],
+            "architecture_pattern": "Layered API",
+        }
+        res = group(scope)
+        self.assertEqual(res["grouping_strategy"], "S2")
+        for g in res["groups"]:
+            if g["files"] == ["r/orphan.ts"]:
+                self.fail("orphan file became its own group")
+        self.assertTrue(res["coverage_ok"])
+
+    def test_orphan_does_not_cross_package_boundary(self):
+        # Caught end-to-end, not by the earlier unit tests: a zero-edge file was
+        # attached by path prefix alone and landed in another package's agent.
+        scope = {
+            "files": ["apps/api/r/a.ts", "apps/api/s/a.ts", "apps/api/d/a.ts",
+                      "apps/api/r/b.ts", "apps/api/s/b.ts", "apps/api/d/b.ts",
+                      "apps/web/components/x.tsx"],
+            "edges": [["apps/api/r/a.ts", "apps/api/s/a.ts"],
+                      ["apps/api/s/a.ts", "apps/api/d/a.ts"],
+                      ["apps/api/r/b.ts", "apps/api/s/b.ts"],
+                      ["apps/api/s/b.ts", "apps/api/d/b.ts"]],
+            "manifests": ["apps/api/package.json", "apps/web/package.json"],
+            "architecture_pattern": "Layered API",
+        }
+        res = group(scope)
+        for g in res["groups"]:
+            pkgs = {f.split("/")[1] for f in g["files"]}
+            self.assertEqual(len(pkgs), 1, f"group straddles packages: {g}")
+        self.assertTrue(res["coverage_ok"])
+
+    def test_edge_bearing_file_may_cross_package_boundary(self):
+        # The asymmetry: a real import edge is evidence, so a genuine
+        # cross-package chain stays whole. Only path-guessing is constrained.
+        scope = {
+            "files": ["apps/api/r/a.ts", "libs/core/s/a.ts", "libs/core/d/a.ts"],
+            "edges": [["apps/api/r/a.ts", "libs/core/s/a.ts"],
+                      ["libs/core/s/a.ts", "libs/core/d/a.ts"]],
+            "manifests": ["apps/api/package.json", "libs/core/package.json"],
+            "architecture_pattern": "Layered API",
+        }
+        res = group(scope)
+        self.assertEqual(res["group_count"], 1)
+        self.assertEqual(len(res["groups"][0]["files"]), 3)
+
+    def test_dense_blob_is_not_split(self):
+        scope = {
+            "files": [f"src/f{i}.ts" for i in range(8)],
+            "edges": [[f"src/f{i}.ts", f"src/f{i + 1}.ts"] for i in range(7)],
+            "architecture_pattern": "Layered API",
+        }
+        res = group(scope)
+        self.assertEqual(res["grouping_strategy"], "S3")
+        self.assertEqual(res["group_count"], 1)
+        self.assertEqual(res["path"], "fast")
+
+    def test_dense_blob_above_single_agent_limit_is_blocked(self):
+        # S3 has no safe execution above 12 files: do not split it anyway.
+        scope = {
+            "files": [f"src/f{i:02d}.ts" for i in range(20)],
+            "edges": [[f"src/f{i:02d}.ts", f"src/f{i + 1:02d}.ts"] for i in range(19)],
+            "architecture_pattern": "Layered API",
+        }
+        res = group(scope)
+        self.assertEqual(res["grouping_strategy"], "S3")
+        self.assertEqual(res["path"], "blocked")
+        self.assertTrue(res["guardrail"]["triggered"])
+
+    def test_scope_guardrail_fires_above_48_files(self):
+        files = [f"src/m{i % 6}/f{i:02d}.ts" for i in range(60)]
+        res = group({"files": files, "manifests": ["package.json"]})
+        self.assertTrue(res["guardrail"]["triggered"])
+        self.assertIn("exceeds 48", " ".join(res["guardrail"]["reasons"]))
+
+    def test_size_cap_relaxes_on_large_scope(self):
+        small = group({"files": [f"src/m{i % 4}/f{i}.ts" for i in range(12)],
+                       "manifests": ["package.json"]})
+        large = group({"files": [f"src/m{i % 4}/f{i:02d}.ts" for i in range(40)],
+                       "manifests": ["package.json"]})
+        self.assertEqual(small["size_cap"], 4)
+        self.assertEqual(large["size_cap"], 6)
+
+    def test_no_edges_falls_back_to_directory_axis(self):
+        res = group({"files": ["a/x.ts", "b/y.ts", "c/z.ts"]})
+        self.assertEqual(res["grouping_strategy"], "S1")
+        self.assertEqual(res["cut_ratio"], 0.0)
+        self.assertEqual(res["edge_count"], 0)
+
+    def test_single_group_takes_fast_path(self):
+        res = group({"files": ["src/a.ts", "src/b.ts", "src/c.ts"]})
+        self.assertEqual(res["group_count"], 1)
+        self.assertEqual(res["path"], "fast")
+
+    def test_two_files_take_fast_path(self):
+        self.assertEqual(group({"files": ["a/x.ts", "b/y.ts"]})["path"], "fast")
+
+    def test_empty_scope_is_not_an_error(self):
+        res = group({"files": []})
+        self.assertEqual(res["group_count"], 0)
+        self.assertTrue(res["coverage_ok"])
+
+    def test_rejects_malformed_input(self):
+        r = run([PY, GROUP], stdin=json.dumps({"nope": 1}))
+        self.assertEqual(r.returncode, 2)
+
+    def test_windows_separators_normalize(self):
+        res = group({"files": ["src\\a\\x.ts", "src\\a\\y.ts"]})
+        self.assertTrue(all("\\" not in f for f in res["in_diff_files"]))
 
 
 if __name__ == "__main__":

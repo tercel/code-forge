@@ -221,6 +221,9 @@ Only include this section when the layered review path was used (≥ 3 affected 
 ## Cross-Module Analysis
 
 **Modules Reviewed:** {N} module groups in parallel
+**Grouping:** {S1 by directory | S2 by call chain | S3 not split} · cut_ratio {0.NN} · largest group {N} files{ · merged to stay within the 8-group cap — when groups_merged}{ · dispatched in {W} sequential waves — when waves were used}
+
+{The grouping line is mandatory whenever the layered path ran. A reader cannot judge the absence of cross-module findings without knowing which axis the scope was cut along.}
 
 ### Tier-2 Coverage
 
@@ -233,6 +236,9 @@ All {N} deferred cross-module callees were expanded in the cross-module pass. No
 
 {When `n_tier2_unreconciled ≥ 1` — this line is mandatory and goes ABOVE the consistency table:}
 > ⚠ **Coverage gap.** {N} cross-module callee(s) exceeded the per-module tier-2 expansion budget and were not expanded by any agent: {callee list with file paths}. Defensive gaps on those call boundaries are outside this review's coverage. Re-run with a narrower scope to cover them.
+
+{When `grouping_strategy == S1` AND at least half the module groups reported `tier2_budget_exceeded: true` — the axis, not the code, is the likely problem:}
+> :information_source: **Grouping-axis note.** {N}/{M} module groups exhausted their tier-2 budget under directory-based grouping (cut_ratio {0.NN}). The call graph runs across directories rather than within them, so chains were split across agents. Re-running the review picks the axis again from PA.2.2; if this project is layered rather than plugin-shaped, S2 (by call chain) will keep those chains inside a single agent.
 
 {This is an orchestrator advisory, NOT a finding — it carries no severity and must not appear in the issue counts. Downstream consumers (e.g. `/code-forge:fix --review`) extract issues by severity marker; using `:warning:` here would make them parse a coverage note as a `critical` issue with no file or line.}
 
